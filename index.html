@@ -237,7 +237,20 @@
                         <div class="setting-description">
                             Keytracked low-pass filter that closes as notes decay, mimicking harmonic damping in real piano strings. This makes static waveforms sound piano-like.
                         </div>
-                        <div class="setting-cpu-warning">CPU: Low impact</div>
+                        <div class="setting-cpu-warning">CPU: Low impact (optimized: updates ~20fps)</div>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-frequency-compensation" checked>
+                    <div>
+                        <strong>Frequency Compensation (Equal-Loudness Contours)</strong>
+                        <div class="setting-description">
+                            Applies ISO 226 equal-loudness contour compensation to make notes sound equally loud across the piano range (A0-C8). Compensates for human hearing sensitivity which varies with frequency.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Medium impact (runs on every note)</div>
                     </div>
                 </label>
             </div>
@@ -258,6 +271,7 @@
     <script src="velocity-attack.js"></script>
     <script src="time-varying-brightness.js"></script>
     <script src="dynamic-filter.js"></script>
+    <script src="frequency-compensation.js"></script>
     <script src="advanced-timbre.js"></script>
     <script src="two-stage-decay.js"></script>
     <script src="pedal-coupling.js"></script>

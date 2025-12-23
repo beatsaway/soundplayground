@@ -387,32 +387,61 @@ ground.position.y = -0.1;
 ground.receiveShadow = true;
 scene.add(ground);
 
+// ========== Audio Setup (must be before animate() to avoid initialization errors) ==========
+// Track note attack times for dynamic filter control
+const noteAttackTimes = new Map(); // midiNote -> { attackTimestamp: number, velocity: number, frequency: number }
+
+// Initialize dynamic low-pass filter for harmonic damping
+// This filter closes as notes decay, mimicking real piano string behavior
+// Note: Tone.js is loaded via script tag before this module, so Tone should be available
+// But we'll initialize it lazily to be safe
+let dynamicFilter = null;
+function initializeDynamicFilter() {
+    if (!dynamicFilter && typeof Tone !== 'undefined') {
+        dynamicFilter = new Tone.Filter({
+            type: 'lowpass',
+            frequency: 20000, // Start fully open
+            Q: 1.0
+        });
+    }
+    return dynamicFilter;
+}
+
 // Animation loop
+// Optimize: Track frame count to update filter less frequently (every 3 frames = ~20fps instead of 60fps)
+let filterUpdateFrameCounter = 0;
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
     
     // Update dynamic filter based on active notes (if enabled)
-    if (window.physicsSettings && window.physicsSettings.dynamicFilter && window.getDynamicFilterSettings && noteAttackTimes.size > 0) {
-        const now = Tone.now();
-        let maxCutoff = 200; // Minimum cutoff
+    // Optimize: Only update filter every 3 frames to reduce CPU usage (~20fps instead of 60fps)
+    filterUpdateFrameCounter++;
+    if (filterUpdateFrameCounter >= 3) {
+        filterUpdateFrameCounter = 0;
         
-        // Find the highest cutoff needed based on all active notes
-        noteAttackTimes.forEach((noteInfo, midiNote) => {
-            const timeSinceAttack = now - noteInfo.attackTimestamp;
-            const initialCutoff = window.getInitialFilterCutoff ? 
-                window.getInitialFilterCutoff(noteInfo.velocity, noteInfo.frequency) : 20000;
-            const currentCutoff = window.getFilterCutoffAtTime ? 
-                window.getFilterCutoffAtTime(initialCutoff, timeSinceAttack, noteInfo.frequency) : initialCutoff;
-            maxCutoff = Math.max(maxCutoff, currentCutoff);
-        });
-        
-        // Smoothly update filter to highest needed cutoff
-        dynamicFilter.frequency.rampTo(maxCutoff, 0.05);
-    } else if (window.physicsSettings && window.physicsSettings.dynamicFilter) {
-        // No active notes - open filter fully
-        dynamicFilter.frequency.rampTo(20000, 0.1);
+        const filter = initializeDynamicFilter();
+        if (window.physicsSettings && window.physicsSettings.dynamicFilter && window.getDynamicFilterSettings && filter && noteAttackTimes.size > 0) {
+            const now = Tone.now();
+            let maxCutoff = 200; // Minimum cutoff
+            
+            // Find the highest cutoff needed based on all active notes
+            noteAttackTimes.forEach((noteInfo, midiNote) => {
+                const timeSinceAttack = now - noteInfo.attackTimestamp;
+                const initialCutoff = window.getInitialFilterCutoff ? 
+                    window.getInitialFilterCutoff(noteInfo.velocity, noteInfo.frequency) : 20000;
+                const currentCutoff = window.getFilterCutoffAtTime ? 
+                    window.getFilterCutoffAtTime(initialCutoff, timeSinceAttack, noteInfo.frequency) : initialCutoff;
+                maxCutoff = Math.max(maxCutoff, currentCutoff);
+            });
+            
+            // Smoothly update filter to highest needed cutoff
+            filter.frequency.rampTo(maxCutoff, 0.05);
+        } else if (window.physicsSettings && window.physicsSettings.dynamicFilter && filter) {
+            // No active notes - open filter fully
+            filter.frequency.rampTo(20000, 0.1);
+        }
     }
 }
 
@@ -471,13 +500,7 @@ function calculateDecayTime() {
 // Physics modules are loaded via script tags and available as window.* functions
 // Modules: physics-settings.js, velocity-timbre.js, two-stage-decay.js, pedal-coupling.js
 
-// Initialize dynamic low-pass filter for harmonic damping
-// This filter closes as notes decay, mimicking real piano string behavior
-const dynamicFilter = new Tone.Filter({
-    type: 'lowpass',
-    frequency: 20000, // Start fully open
-    Q: 1.0
-});
+// Note: noteAttackTimes and dynamicFilter are declared earlier (before animate() function)
 
 // Initialize Tone.js PolySynth for piano-like sound
 // Use triangle oscillator (has harmonics) - filter will control brightness
@@ -493,10 +516,16 @@ const synth = new Tone.PolySynth(Tone.Synth, {
         sustain: 0.3,
         release: 0.5 // Default, will be overridden per note
     }
-}).connect(dynamicFilter); // Connect synth through filter
+});
 
-// Connect filter to destination
-dynamicFilter.toDestination();
+// Connect synth through filter if filter is available
+const filter = initializeDynamicFilter();
+if (filter) {
+    synth.connect(filter);
+    filter.toDestination();
+} else {
+    synth.toDestination();
+}
 
 // Initialize VelocityTimbreManager for advanced timbre features (if available)
 let timbreManager = null;
@@ -534,8 +563,7 @@ const physicallyHeldNotes = new Set();
 const sustainedNotes = new Set(); // midiNote -> noteName
 // Track all currently active notes (playing) - for reference/debugging
 const activeNotes = new Map(); // midiNote -> noteName
-// Track note attack times for dynamic filter control
-const noteAttackTimes = new Map(); // midiNote -> { attackTime: number, velocity: number, frequency: number }
+// Note: noteAttackTimes is declared earlier (before animate() function)
 // Track sustain decay automation for each sustained note
 const sustainDecayAutomations = new Map(); // midiNote -> { volumeNode, cancel }
 // Map of note names to their volume nodes for sustain decay
@@ -597,70 +625,27 @@ function velocityToAmplitude(velocity, k = 2.0) {
 }
 
 /**
- * Stage 2: Frequency Compensation (Equal-Loudness Contours)
- * Applies ISO 226:2003-based compensation for target listening level
- * 
- * @param {number} frequency - Frequency in Hz
- * @param {number} targetSPL - Target listening level in dB SPL (default 85)
- * @returns {number} - Gain adjustment in dB
- */
-function getFrequencyCompensation(frequency, targetSPL = 85) {
-    const f_ref = 1000; // Reference frequency (1 kHz)
-    const freq_ratio = frequency / f_ref;
-    
-    // Simplified ISO 226 equal-loudness contour approximation
-    // More accurate would use lookup tables or full ISO 226 equations
-    
-    if (targetSPL < 60) {
-        // Quiet listening: massive bass/treble boost needed
-        if (frequency < f_ref) {
-            // Bass boost: more boost for lower frequencies
-            return 20 * (1 - Math.pow(freq_ratio, 0.3));
-        } else {
-            // Treble boost
-            return 10 * (Math.pow(freq_ratio, 0.2) - 1);
-        }
-    } else if (targetSPL < 80) {
-        // Medium listening level: moderate compensation
-        if (frequency < f_ref) {
-            return 10 * (1 - Math.pow(freq_ratio, 0.2));
-        } else {
-            return 5 * (Math.pow(freq_ratio, 0.1) - 1);
-        }
-    } else {
-        // Loud listening (85+ dB): relatively flat, minimal compensation
-        if (frequency < f_ref) {
-            return 3 * (1 - Math.pow(freq_ratio, 0.1));
-        } else {
-            return 2 * (Math.pow(freq_ratio, 0.05) - 1);
-        }
-    }
-}
-
-/**
  * Complete Two-Stage Mapping: Velocity → Final Amplitude
+ * Uses frequency-compensation.js module for Stage 2 if enabled
  * 
  * @param {number} velocity - MIDI velocity (0-127)
  * @param {number} midiNote - MIDI note number (for frequency calculation)
  * @param {number} k - Velocity exponent (default 2.0)
  * @param {number} targetSPL - Target listening level (default 85)
- * @returns {number} - Final amplitude (0-1) with frequency compensation applied
+ * @returns {number} - Final amplitude (0-1) with optional frequency compensation applied
  */
 function velocityToAmplitudeWithCompensation(velocity, midiNote, k = 2.0, targetSPL = 85) {
     // Stage 1: Velocity → Base Amplitude
     const baseAmplitude = velocityToAmplitude(velocity, k);
     
-    // Get frequency for this MIDI note
-    const frequency = midiNoteToFrequency(midiNote);
+    // Stage 2: Apply frequency compensation (if enabled and module available)
+    if (window.applyFrequencyCompensation) {
+        const frequency = midiNoteToFrequency(midiNote);
+        return window.applyFrequencyCompensation(baseAmplitude, frequency, targetSPL);
+    }
     
-    // Stage 2: Apply frequency compensation
-    const compensationDB = getFrequencyCompensation(frequency, targetSPL);
-    const compensationLinear = Math.pow(10, compensationDB / 20); // Convert dB to linear gain
-    
-    // Apply compensation and clamp to [0, 1]
-    const finalAmplitude = Math.max(0, Math.min(1, baseAmplitude * compensationLinear));
-    
-    return finalAmplitude;
+    // Fallback: no compensation
+    return baseAmplitude;
 }
 
 // Function to handle MIDI note on

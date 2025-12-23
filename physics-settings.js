@@ -13,7 +13,8 @@ const physicsSettings = {
     advancedTimbre: false, // Custom waveform generation (more CPU intensive)
     velocityAttack: true, // Velocity-dependent attack time
     timeVaryingBrightness: false, // Time-varying harmonic content
-    dynamicFilter: true // Dynamic low-pass filter that closes as notes decay
+    dynamicFilter: true, // Dynamic low-pass filter that closes as notes decay
+    frequencyCompensation: true // Equal-loudness contour compensation (CPU: Medium impact)
 };
 
 /**
@@ -32,6 +33,7 @@ function initPhysicsSettings() {
     const enableVelocityAttack = document.getElementById('enable-velocity-attack');
     const enableTimeVaryingBrightness = document.getElementById('enable-time-varying-brightness');
     const enableDynamicFilter = document.getElementById('enable-dynamic-filter');
+    const enableFrequencyCompensation = document.getElementById('enable-frequency-compensation');
 
     if (settingsIcon) {
         settingsIcon.addEventListener('click', () => {
@@ -45,6 +47,7 @@ function initPhysicsSettings() {
             enableVelocityAttack.checked = physicsSettings.velocityAttack;
             enableTimeVaryingBrightness.checked = physicsSettings.timeVaryingBrightness;
             if (enableDynamicFilter) enableDynamicFilter.checked = physicsSettings.dynamicFilter;
+            if (enableFrequencyCompensation) enableFrequencyCompensation.checked = physicsSettings.frequencyCompensation;
         });
     }
 
@@ -107,6 +110,12 @@ function initPhysicsSettings() {
     if (enableDynamicFilter) {
         enableDynamicFilter.addEventListener('change', (e) => {
             physicsSettings.dynamicFilter = e.target.checked;
+        });
+    }
+
+    if (enableFrequencyCompensation) {
+        enableFrequencyCompensation.addEventListener('change', (e) => {
+            physicsSettings.frequencyCompensation = e.target.checked;
         });
     }
 }
