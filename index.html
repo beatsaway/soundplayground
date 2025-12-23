@@ -66,48 +66,183 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
             padding: 24px;
-            max-width: 500px;
+            max-width: 800px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        @media (max-width: 768px) {
+            #settings-panel {
+                max-width: 95%;
+                padding: 20px;
+            }
+        }
+        .settings-category {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .settings-category.active {
+            display: flex;
+        }
+        .category-header {
+            display: none; /* Hide category headers since we have tabs now */
         }
         #settings-panel h2 {
-            margin: 0 0 20px 0;
+            margin: 0 0 16px 0;
             font-family: 'Inter', sans-serif;
             font-weight: 600;
-            font-size: 24px;
+            font-size: 18px;
             color: #fff;
         }
-        .setting-item {
+        .settings-header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 16px;
+            gap: 16px;
+        }
+        .settings-preset-dropdown {
+            position: relative;
+        }
+        .settings-preset-button {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .settings-preset-button:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .settings-preset-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: rgba(40, 40, 55, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 6px 0;
+            min-width: 160px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            display: none;
+            z-index: 10;
+        }
+        .settings-preset-menu.show {
+            display: block;
+        }
+        .settings-preset-item {
+            padding: 8px 14px;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .settings-preset-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .settings-preset-item.separator {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 4px 0;
+            padding: 0;
+            cursor: default;
+        }
+        .settings-preset-item.separator:hover {
+            background: transparent;
+        }
+        .settings-navbar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 2px;
+        }
+        .settings-navbar::-webkit-scrollbar {
+            height: 3px;
+        }
+        .settings-navbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+        .nav-tab {
+            padding: 8px 14px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-bottom: -2px;
+        }
+        .nav-tab:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .nav-tab.active {
+            color: #fff;
+            border-bottom-color: #4a9eff;
+        }
+        .settings-category {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .settings-category.active {
+            display: flex;
+        }
+        .setting-item {
+            margin-bottom: 0;
             padding: 12px;
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .setting-item:hover {
+            background: rgba(255, 255, 255, 0.08);
         }
         .setting-item label {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             cursor: pointer;
             font-family: 'Inter', sans-serif;
             color: #fff;
-            font-size: 14px;
+            font-size: 13px;
+            line-height: 1.4;
         }
         .setting-item input[type="checkbox"] {
-            margin-right: 12px;
-            width: 18px;
-            height: 18px;
+            margin-right: 10px;
+            margin-top: 2px;
+            width: 16px;
+            height: 16px;
             cursor: pointer;
+            flex-shrink: 0;
         }
         .setting-description {
-            margin-top: 6px;
-            font-size: 12px;
+            margin-top: 4px;
+            font-size: 11px;
             color: rgba(255, 255, 255, 0.6);
             font-family: 'Inter', sans-serif;
+            line-height: 1.4;
         }
         .setting-cpu-warning {
-            margin-top: 6px;
-            font-size: 11px;
+            margin-top: 4px;
+            font-size: 10px;
             color: #ffaa44;
             font-family: 'Inter', sans-serif;
         }
@@ -136,123 +271,185 @@
     <div id="settings-modal">
         <div id="settings-panel">
             <button id="settings-close">×</button>
-            <h2>Physics Settings</h2>
-            
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-velocity-timbre" checked>
-                    <div>
-                        <strong>Velocity-Dependent Timbre</strong>
-                        <div class="setting-description">
-                            Higher velocities produce brighter sounds with more harmonics. Based on piano hammer-string physics.
-                        </div>
-                        <div class="setting-cpu-warning">CPU: Low impact</div>
+            <div class="settings-header-controls">
+                <h2>Physics Settings</h2>
+                <div class="settings-preset-dropdown">
+                    <button class="settings-preset-button" id="preset-button">⚙️ Presets ▼</button>
+                    <div class="settings-preset-menu" id="preset-menu">
+                        <div class="settings-preset-item" data-preset="defaults">↺ Reset to Defaults</div>
+                        <div class="settings-preset-item separator"></div>
+                        <div class="settings-preset-item" data-preset="all">✓ Check All</div>
+                        <div class="settings-preset-item" data-preset="none">☐ Uncheck All</div>
+                        <div class="settings-preset-item separator"></div>
+                        <div class="settings-preset-item" data-preset="essential">⭐ Essential Only</div>
+                        <div class="settings-preset-item" data-preset="performance">⚡ Performance Mode</div>
+                        <div class="settings-preset-item" data-preset="realistic">🎹 Realistic Mode</div>
                     </div>
-                </label>
+                </div>
             </div>
             
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-two-stage-decay" checked>
-                    <div>
-                        <strong>Two-Stage Decay</strong>
-                        <div class="setting-description">
-                            Realistic piano decay: fast initial decay followed by slower long decay. Velocity affects decay rates.
-                        </div>
-                        <div class="setting-cpu-warning">CPU: Low impact</div>
-                    </div>
-                </label>
+            <!-- Navigation Tabs -->
+            <div class="settings-navbar">
+                <button class="nav-tab active" data-category="envelope">🎹 Amplitude Envelope</button>
+                <button class="nav-tab" data-category="timbre">🎵 Timbre & Harmonics</button>
+                <button class="nav-tab" data-category="frequency">🎚️ Frequency & Pitch</button>
+                <button class="nav-tab" data-category="pedal">🦶 Pedal Effects</button>
             </div>
             
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-pedal-coupling">
-                    <div>
-                        <strong>Pedal String Coupling</strong>
-                        <div class="setting-description">
-                            Simulates sympathetic vibrations between strings when sustain pedal is active. Creates realistic resonance.
+            <!-- Amplitude Envelope Category -->
+            <div class="settings-category active" id="category-envelope">
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-velocity-attack" checked>
+                        <div>
+                            <strong>Velocity-Dependent Attack Time</strong>
+                            <div class="setting-description">
+                                Higher velocities produce faster attack times. Louder notes respond more quickly, matching real piano behavior.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 1-5ms (attack phase)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
                         </div>
-                        <div class="setting-cpu-warning">CPU: Medium impact (limited to 8 nearby notes)</div>
-                    </div>
-                </label>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-two-stage-decay" checked>
+                        <div>
+                            <strong>Two-Stage Decay</strong>
+                            <div class="setting-description">
+                                Realistic piano decay: fast initial decay followed by slower long decay. Velocity affects decay rates.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 50ms (fast) → seconds (slow decay)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
+                        </div>
+                    </label>
+                </div>
             </div>
             
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-sustain-decay" checked>
-                    <div>
-                        <strong>Sustain Pedal Gradual Decay</strong>
-                        <div class="setting-description">
-                            Sustained notes gradually fade over time (pitch-dependent). Lower notes decay slower, higher notes decay faster. Realistic piano behavior.
+            <!-- Timbre & Harmonics Category -->
+            <div class="settings-category" id="category-timbre">
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-velocity-timbre" checked>
+                        <div>
+                            <strong>Velocity-Dependent Timbre</strong>
+                            <div class="setting-description">
+                                Higher velocities produce brighter sounds with more harmonics. Based on piano hammer-string physics.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
                         </div>
-                        <div class="setting-cpu-warning">CPU: Low impact</div>
-                    </div>
-                </label>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-dynamic-filter" checked>
+                        <div>
+                            <strong>Dynamic Low-Pass Filter</strong>
+                            <div class="setting-description">
+                                Keytracked low-pass filter that closes as notes decay, mimicking harmonic damping in real piano strings.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Continuous (0.5-2s decay, note-dependent)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact (optimized: updates ~20fps)</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-time-varying-brightness">
+                        <div>
+                            <strong>Time-Varying Brightness</strong>
+                            <div class="setting-description">
+                                Harmonic content evolves during the note - brightness peaks during attack, then gradually decays.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Attack phase → 0.5-2.5s decay</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-advanced-timbre">
+                        <div>
+                            <strong>Advanced Timbre (Custom Waveforms)</strong>
+                            <div class="setting-description">
+                                Uses custom waveform generation for smoother timbre transitions. More natural sound but requires more CPU.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Medium impact (waveform caching)</div>
+                        </div>
+                    </label>
+                </div>
             </div>
             
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-velocity-attack" checked>
-                    <div>
-                        <strong>Velocity-Dependent Attack Time</strong>
-                        <div class="setting-description">
-                            Higher velocities produce faster attack times. Louder notes respond more quickly, matching real piano behavior.
+            <!-- Frequency & Pitch Category -->
+            <div class="settings-category" id="category-frequency">
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-frequency-compensation" checked>
+                        <div>
+                            <strong>Frequency Compensation</strong>
+                            <div class="setting-description">
+                                Applies ISO 226 equal-loudness contour compensation to make notes sound equally loud across the piano range (A0-C8).
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Medium impact (runs on every note)</div>
                         </div>
-                        <div class="setting-cpu-warning">CPU: Low impact</div>
-                    </div>
-                </label>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-frequency-envelope">
+                        <div>
+                            <strong>Frequency Envelope (Pitch Modulation)</strong>
+                            <div class="setting-description">
+                                Adds subtle pitch modulation: initial transient drift, vibrato during sustain, and release pitch drop. Makes sounds more "organic".
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 50ms (drift) → continuous vibrato → 100ms (release)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Medium impact (real-time frequency modulation per note)</div>
+                        </div>
+                    </label>
+                </div>
             </div>
             
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-advanced-timbre">
-                    <div>
-                        <strong>Advanced Timbre (Custom Waveforms)</strong>
-                        <div class="setting-description">
-                            Uses custom waveform generation for smoother timbre transitions. More natural sound but requires more CPU.
+            <!-- Pedal Effects Category -->
+            <div class="settings-category" id="category-pedal">
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-sustain-decay" checked>
+                        <div>
+                            <strong>Sustain Pedal Gradual Decay</strong>
+                            <div class="setting-description">
+                                Sustained notes gradually fade over time (pitch-dependent). Lower notes decay slower, higher notes decay faster.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Seconds to minutes (while pedal held, note-dependent)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
                         </div>
-                        <div class="setting-cpu-warning">CPU: Medium impact (waveform caching)</div>
-                    </div>
-                </label>
-            </div>
-            
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-time-varying-brightness">
-                    <div>
-                        <strong>Time-Varying Brightness</strong>
-                        <div class="setting-description">
-                            Harmonic content evolves during the note - brightness peaks during attack, then gradually decays. More realistic piano timbre evolution.
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-pedal-coupling">
+                        <div>
+                            <strong>Pedal String Coupling</strong>
+                            <div class="setting-description">
+                                Simulates sympathetic vibrations between strings when sustain pedal is active. Creates realistic resonance.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Continuous (while pedal held)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Medium impact (limited to 8 nearby notes)</div>
                         </div>
-                        <div class="setting-cpu-warning">CPU: Low impact</div>
-                    </div>
-                </label>
-            </div>
-            
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-dynamic-filter" checked>
-                    <div>
-                        <strong>Dynamic Low-Pass Filter</strong>
-                        <div class="setting-description">
-                            Keytracked low-pass filter that closes as notes decay, mimicking harmonic damping in real piano strings. This makes static waveforms sound piano-like.
-                        </div>
-                        <div class="setting-cpu-warning">CPU: Low impact (optimized: updates ~20fps)</div>
-                    </div>
-                </label>
-            </div>
-            
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="enable-frequency-compensation" checked>
-                    <div>
-                        <strong>Frequency Compensation (Equal-Loudness Contours)</strong>
-                        <div class="setting-description">
-                            Applies ISO 226 equal-loudness contour compensation to make notes sound equally loud across the piano range (A0-C8). Compensates for human hearing sensitivity which varies with frequency.
-                        </div>
-                        <div class="setting-cpu-warning">CPU: Medium impact (runs on every note)</div>
-                    </div>
-                </label>
+                    </label>
+                </div>
             </div>
             
         </div>
@@ -272,6 +469,7 @@
     <script src="time-varying-brightness.js"></script>
     <script src="dynamic-filter.js"></script>
     <script src="frequency-compensation.js"></script>
+    <script src="frequency-envelope.js"></script>
     <script src="advanced-timbre.js"></script>
     <script src="two-stage-decay.js"></script>
     <script src="pedal-coupling.js"></script>

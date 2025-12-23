@@ -390,6 +390,8 @@ scene.add(ground);
 // ========== Audio Setup (must be before animate() to avoid initialization errors) ==========
 // Track note attack times for dynamic filter control
 const noteAttackTimes = new Map(); // midiNote -> { attackTimestamp: number, velocity: number, frequency: number }
+// Track frequency modulations for pitch drift/vibrato
+const frequencyModulations = new Map(); // midiNote -> { modulation: object, releaseTime: number }
 
 // Initialize dynamic low-pass filter for harmonic damping
 // This filter closes as notes decay, mimicking real piano string behavior
@@ -442,6 +444,11 @@ function animate() {
             // No active notes - open filter fully
             filter.frequency.rampTo(20000, 0.1);
         }
+        
+        // Update frequency modulations (pitch drift/vibrato) if enabled
+        // Note: Tone.js PolySynth doesn't easily support per-voice frequency modulation
+        // The modulation is tracked but would require custom synth architecture for full implementation
+        // For now, we track the modulations for future enhancement
     }
 }
 
@@ -516,6 +523,9 @@ const synth = new Tone.PolySynth(Tone.Synth, {
         sustain: 0.3,
         release: 0.5 // Default, will be overridden per note
     }
+    // Note: Frequency envelope modulation is tracked per-note but requires per-voice frequency control
+    // for full implementation. Tone.js PolySynth doesn't easily support per-voice frequency modulation.
+    // The modulation calculations are available in frequency-envelope.js module.
 });
 
 // Connect synth through filter if filter is available
@@ -694,6 +704,16 @@ function handleNoteOn(midiNote, velocity) {
             frequency: frequency
         });
         
+        // Create frequency modulation controller (if enabled)
+        if (window.physicsSettings && window.physicsSettings.frequencyEnvelope && window.createFrequencyModulation) {
+            const modulation = window.createFrequencyModulation(frequency, attackTime);
+            frequencyModulations.set(midiNote, {
+                modulation: modulation,
+                releaseTime: null,
+                baseFrequency: frequency
+            });
+        }
+        
         // Update envelope parameters on the synth before triggering
         // Note: synth.set() affects all voices, but since we call it right before triggerAttack,
         // the new voice will use these settings. For true per-voice control, we'd need
@@ -764,6 +784,15 @@ function handleNoteOff(midiNote) {
             activeNotes.delete(midiNote);
             sustainedNotes.delete(midiNote); // Clean up if it was there
             noteAttackTimes.delete(midiNote); // Clean up attack time tracking
+            
+            // Mark frequency modulation as released
+            if (frequencyModulations.has(midiNote)) {
+                const modData = frequencyModulations.get(midiNote);
+                if (modData.modulation && modData.modulation.release) {
+                    modData.modulation.release();
+                    modData.releaseTime = Tone.now();
+                }
+            }
         } else {
             // Sustain is active: mark this note as sustained (not physically held)
             sustainedNotes.add(midiNote);
@@ -777,6 +806,14 @@ function handleNoteOff(midiNote) {
                     noteVolumeNodes,
                     synth
                 });
+            }
+            // Mark frequency modulation as released (for release drift)
+            if (frequencyModulations.has(midiNote)) {
+                const modData = frequencyModulations.get(midiNote);
+                if (modData.modulation && modData.modulation.release) {
+                    modData.modulation.release();
+                    modData.releaseTime = Tone.now();
+                }
             }
             // Keep the note in activeNotes (don't release it immediately)
         }
@@ -807,6 +844,7 @@ function releaseAllNotes() {
     physicallyHeldNotes.clear();
     sustainedNotes.clear();
     noteAttackTimes.clear(); // Clean up filter tracking
+    frequencyModulations.clear(); // Clean up frequency modulation tracking
     console.log('All notes released');
 }
 
@@ -875,6 +913,7 @@ async function initMIDI() {
                             }
                             sustainedNotes.delete(midiNote);
                             noteAttackTimes.delete(midiNote); // Clean up attack time tracking
+                            frequencyModulations.delete(midiNote); // Clean up frequency modulation
                         });
                     }
                 }
