@@ -1190,10 +1190,23 @@ async function initMIDI() {
                     sustainPedalActive = value >= 64; // >= 64 means pedal down
                     console.log('Sustain pedal:', sustainPedalActive ? 'ON' : 'OFF');
                     
-                    // If sustain pedal is released, release only the sustained notes
+                    // If sustain pedal is released, release all active notes that are not physically held
+                    // This is more robust than relying on sustainedNotes tracking, which can be incomplete
+                    // due to voice stealing or other edge cases
                     if (wasActive && !sustainPedalActive) {
-                        // Create a copy to avoid modification during iteration
-                        const notesToRelease = Array.from(sustainedNotes);
+                        // Release ALL active notes that are not physically held (more systematic approach)
+                        // This catches notes that might not be in sustainedNotes due to voice stealing
+                        const notesToRelease = Array.from(activeNotes.keys()).filter(midiNote => 
+                            !physicallyHeldNotes.has(midiNote)
+                        );
+                        
+                        // Also include any notes in sustainedNotes that might not be in activeNotes
+                        sustainedNotes.forEach(midiNote => {
+                            if (!notesToRelease.includes(midiNote)) {
+                                notesToRelease.push(midiNote);
+                            }
+                        });
+                        
                         notesToRelease.forEach((midiNote) => {
                             // Stop attack noise if it exists
                             if (attackNoiseNodes.has(midiNote)) {
@@ -1264,47 +1277,75 @@ async function initMIDI() {
                             frequencyModulations.delete(midiNote); // Clean up frequency modulation
                         });
                         
-                        // Safety fix: Release one additional earlier note to account for voice stealing indexing issue
-                        // When Tone.js PolySynth steals voices (maxPolyphony reached), there can be an off-by-one
-                        // indexing issue where the earliest note is left behind. Release the oldest remaining note.
-                        if (activeNotes.size > 0 && noteAttackTimes.size > 0) {
-                            // Find the oldest note by attack timestamp
-                            let oldestMidiNote = null;
-                            let oldestTimestamp = Infinity;
-                            noteAttackTimes.forEach((noteInfo, midiNote) => {
-                                if (noteInfo.attackTimestamp < oldestTimestamp && activeNotes.has(midiNote)) {
-                                    oldestTimestamp = noteInfo.attackTimestamp;
-                                    oldestMidiNote = midiNote;
-                                }
-                            });
-                            
-                            if (oldestMidiNote !== null) {
-                                const oldestNoteName = activeNotes.get(oldestMidiNote);
-                                if (oldestNoteName) {
-                                    try {
-                                        synth.triggerRelease(oldestNoteName);
-                                        // Also try releasing unison voices if any
-                                        const oldestVoices = unisonVoices.get(oldestMidiNote);
-                                        if (oldestVoices && oldestVoices.length > 0) {
-                                            oldestVoices.forEach(voiceNoteName => {
-                                                try {
-                                                    synth.triggerRelease(voiceNoteName);
-                                                } catch (e) {
-                                                    // Ignore errors
-                                                }
-                                            });
-                                            unisonVoices.delete(oldestMidiNote);
-                                        }
-                                        activeNotes.delete(oldestMidiNote);
-                                        sustainedNotes.delete(oldestMidiNote);
-                                        noteAttackTimes.delete(oldestMidiNote);
-                                        frequencyModulations.delete(oldestMidiNote);
-                                    } catch (e) {
-                                        // Ignore errors
+                        // Safety fix: Release ALL remaining active notes that aren't physically held
+                        // This catches any notes that might have been missed due to voice stealing, tracking issues,
+                        // or other edge cases. This is a more systematic approach than releasing just one note.
+                        const remainingNotesToRelease = Array.from(activeNotes.keys()).filter(midiNote => 
+                            !physicallyHeldNotes.has(midiNote)
+                        );
+                        
+                        remainingNotesToRelease.forEach((midiNote) => {
+                            const noteName = activeNotes.get(midiNote);
+                            if (noteName) {
+                                try {
+                                    synth.triggerRelease(noteName);
+                                    // Also try releasing unison voices if any
+                                    const voices = unisonVoices.get(midiNote);
+                                    if (voices && voices.length > 0) {
+                                        voices.forEach(voiceNoteName => {
+                                            try {
+                                                synth.triggerRelease(voiceNoteName);
+                                            } catch (e) {
+                                                // Ignore errors
+                                            }
+                                        });
+                                        unisonVoices.delete(midiNote);
                                     }
+                                    // If unison is enabled, try releasing a few more times to catch any untracked voices
+                                    if (window.physicsSettings && window.physicsSettings.multiStringUnison) {
+                                        const stringCount = window.getStringCountForNote ? window.getStringCountForNote(midiNote) : 1;
+                                        for (let i = 1; i < stringCount; i++) {
+                                            try {
+                                                synth.triggerRelease(noteName);
+                                            } catch (e) {
+                                                // Ignore - voice might not exist
+                                            }
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Ignore errors
+                                }
+                                
+                                // Clean up all tracking
+                                activeNotes.delete(midiNote);
+                                sustainedNotes.delete(midiNote);
+                                noteAttackTimes.delete(midiNote);
+                                frequencyModulations.delete(midiNote);
+                                
+                                // Clean up any remaining resources
+                                if (attackNoiseNodes.has(midiNote)) {
+                                    const noiseNode = attackNoiseNodes.get(midiNote);
+                                    if (noiseNode && noiseNode.stop) {
+                                        noiseNode.stop();
+                                    }
+                                    attackNoiseNodes.delete(midiNote);
+                                }
+                                if (releaseTransientNodes.has(midiNote)) {
+                                    const transientNode = releaseTransientNodes.get(midiNote);
+                                    if (transientNode && transientNode.stop) {
+                                        transientNode.stop();
+                                    }
+                                    releaseTransientNodes.delete(midiNote);
+                                }
+                                if (sustainDecayAutomations.has(midiNote)) {
+                                    const automation = sustainDecayAutomations.get(midiNote);
+                                    if (automation && automation.cancel) {
+                                        automation.cancel();
+                                    }
+                                    sustainDecayAutomations.delete(midiNote);
                                 }
                             }
-                        }
+                        });
                     }
                 }
             }
