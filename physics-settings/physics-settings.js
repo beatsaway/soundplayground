@@ -21,7 +21,6 @@ const physicsSettings = {
     spectralBalance: true, // Pink-noise-like EQ filter for final output - CPU: Low impact
     // Priority 1: Critical Realism
     inharmonicity: true, // Pitch-dependent partial sharpening - CRITICAL for realism
-    multiStringUnison: true, // Multiple detuned oscillators per note - HIGH impact (ON by default)
     // Priority 2: High Impact
     attackNoise: false, // Hammer strike noise component (OFF by default)
     oddEvenHarmonicBalance: true, // Explicit 2:1 ratio for odd:even harmonics
@@ -47,7 +46,6 @@ const defaultSettings = {
     fakeBinaural: true,
     spectralBalance: true, // ON by default
     inharmonicity: true,
-    multiStringUnison: true, // ON by default
     attackNoise: false, // OFF by default
     oddEvenHarmonicBalance: true,
     pitchHarmonicRolloff: true,
@@ -73,7 +71,6 @@ const settingsPresets = {
         fakeBinaural: true,
         spectralBalance: true,
         inharmonicity: true,
-        multiStringUnison: true,
         attackNoise: true,
         oddEvenHarmonicBalance: true,
         pitchHarmonicRolloff: true,
@@ -95,7 +92,6 @@ const settingsPresets = {
         fakeBinaural: false,
         spectralBalance: false,
         inharmonicity: false,
-        multiStringUnison: false,
         attackNoise: false,
         oddEvenHarmonicBalance: false,
         pitchHarmonicRolloff: false,
@@ -118,7 +114,6 @@ const settingsPresets = {
         fakeBinaural: true,
         spectralBalance: true,
         inharmonicity: true,
-        multiStringUnison: true,
         attackNoise: true,
         oddEvenHarmonicBalance: true,
         pitchHarmonicRolloff: true,
@@ -140,7 +135,6 @@ const settingsPresets = {
         fakeBinaural: true,
         spectralBalance: true,
         inharmonicity: true,
-        multiStringUnison: true,
         attackNoise: true,
         oddEvenHarmonicBalance: true,
         pitchHarmonicRolloff: true,
@@ -163,7 +157,6 @@ const settingsPresets = {
         fakeBinaural: false,
         spectralBalance: false,
         inharmonicity: true,
-        multiStringUnison: false,
         attackNoise: false,
         oddEvenHarmonicBalance: false,
         pitchHarmonicRolloff: false,
@@ -185,7 +178,6 @@ const settingsPresets = {
         fakeBinaural: false,
         spectralBalance: false,
         inharmonicity: false,
-        multiStringUnison: false,
         attackNoise: false,
         oddEvenHarmonicBalance: false,
         pitchHarmonicRolloff: false,
@@ -254,7 +246,6 @@ function initPhysicsSettings() {
     const enableSpectralBalance = document.getElementById('enable-spectral-balance');
     // Priority 1: Critical Realism
     const enableInharmonicity = document.getElementById('enable-inharmonicity');
-    const enableMultiStringUnison = document.getElementById('enable-multi-string-unison');
     // Priority 2: High Impact
     const enableAttackNoise = document.getElementById('enable-attack-noise');
     const enableOddEvenHarmonicBalance = document.getElementById('enable-odd-even-harmonic-balance');
@@ -281,7 +272,6 @@ function initPhysicsSettings() {
         if (enableFakeBinaural) enableFakeBinaural.checked = physicsSettings.fakeBinaural;
         if (enableSpectralBalance) enableSpectralBalance.checked = physicsSettings.spectralBalance;
         if (enableInharmonicity) enableInharmonicity.checked = physicsSettings.inharmonicity;
-        if (enableMultiStringUnison) enableMultiStringUnison.checked = physicsSettings.multiStringUnison;
         if (enableAttackNoise) enableAttackNoise.checked = physicsSettings.attackNoise;
         if (enableOddEvenHarmonicBalance) enableOddEvenHarmonicBalance.checked = physicsSettings.oddEvenHarmonicBalance;
         if (enablePitchHarmonicRolloff) enablePitchHarmonicRolloff.checked = physicsSettings.pitchHarmonicRolloff;
@@ -498,12 +488,6 @@ function initPhysicsSettings() {
     if (enableInharmonicity) {
         enableInharmonicity.addEventListener('change', (e) => {
             physicsSettings.inharmonicity = e.target.checked;
-        });
-    }
-
-    if (enableMultiStringUnison) {
-        enableMultiStringUnison.addEventListener('change', (e) => {
-            physicsSettings.multiStringUnison = e.target.checked;
         });
     }
 

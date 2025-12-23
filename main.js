@@ -396,8 +396,8 @@ const frequencyModulations = new Map(); // midiNote -> { modulation: object, rel
 const attackNoiseNodes = new Map(); // midiNote -> attackNoiseNode
 // Track release transient nodes per note
 const releaseTransientNodes = new Map(); // midiNote -> releaseTransientNode
-// Track unison voices per note (for multi-string unison)
-const unisonVoices = new Map(); // midiNote -> [noteName1, noteName2, ...]
+// Track note names per MIDI note (for proper release)
+const unisonVoices = new Map(); // midiNote -> [noteName]
 
 // Initialize dynamic low-pass filter for harmonic damping
 // This filter closes as notes decay, mimicking real piano string behavior
@@ -814,17 +814,6 @@ function handleNoteOn(midiNote, velocity) {
             } else {
                 try {
                     synth.triggerRelease(noteName);
-                    // If unison is enabled, try releasing a few more times to catch any untracked voices
-                    if (window.physicsSettings && window.physicsSettings.multiStringUnison) {
-                        const stringCount = window.getStringCountForNote ? window.getStringCountForNote(midiNote) : 1;
-                        for (let i = 1; i < stringCount; i++) {
-                            try {
-                                synth.triggerRelease(noteName);
-                            } catch (e) {
-                                // Ignore - voice might not exist
-                            }
-                        }
-                    }
                 } catch (e) {
                     // Ignore errors if note doesn't exist
                 }
@@ -922,40 +911,10 @@ function handleNoteOn(midiNote, velocity) {
             amplitude = Math.min(1.0, amplitude + couplingGain);
         }
         
-        // Multi-string unison: Create multiple voices with detuning (if enabled)
-        const triggeredNoteNames = []; // Track all note names triggered for this MIDI note
-        if (window.physicsSettings && window.physicsSettings.multiStringUnison && window.createUnisonConfiguration) {
-            const unisonConfig = window.createUnisonConfiguration(midiNote, adjustedFrequency, velocity);
-            
-            if (unisonConfig.stringCount > 1) {
-                // Trigger multiple voices with slight detuning
-                for (let i = 0; i < unisonConfig.stringCount; i++) {
-                    const detunedFreq = unisonConfig.frequencies[i];
-                    const stringAmplitude = amplitude * unisonConfig.amplitudes[i];
-                    
-                    // Create detuned note name (approximate)
-                    const detunedMidiNote = midiNote + (detunedFreq - adjustedFrequency) / adjustedFrequency * 12;
-                    const detunedNoteName = midiNoteToNoteName(Math.round(detunedMidiNote));
-                    
-                    if (detunedNoteName) {
-                        synth.triggerAttack(detunedNoteName, undefined, stringAmplitude);
-                        triggeredNoteNames.push(detunedNoteName); // Keep all, even duplicates
-                    }
-                }
-                // Store all unison voices for this MIDI note (including duplicates for proper release count)
-                unisonVoices.set(midiNote, triggeredNoteNames);
-            } else {
-                // Single string: normal trigger
-                synth.triggerAttack(noteName, undefined, amplitude);
-                triggeredNoteNames.push(noteName);
-                unisonVoices.set(midiNote, triggeredNoteNames);
-            }
-        } else {
-            // No unison: normal trigger
-            synth.triggerAttack(noteName, undefined, amplitude);
-            triggeredNoteNames.push(noteName);
-            unisonVoices.set(midiNote, triggeredNoteNames);
-        }
+        // Trigger the note
+        synth.triggerAttack(noteName, undefined, amplitude);
+        // Track the note name for release
+        unisonVoices.set(midiNote, [noteName]);
         
         // Create and start attack noise (if enabled)
         if (window.physicsSettings && window.physicsSettings.attackNoise && window.createAttackNoiseNode) {
@@ -1050,17 +1009,6 @@ function handleNoteOff(midiNote) {
                 // Fallback: release main note name if no tracking found
                 try {
                     synth.triggerRelease(noteName);
-                    // If unison is enabled, try releasing a few more times to catch any untracked voices
-                    if (window.physicsSettings && window.physicsSettings.multiStringUnison) {
-                        const stringCount = window.getStringCountForNote ? window.getStringCountForNote(midiNote) : 1;
-                        for (let i = 1; i < stringCount; i++) {
-                            try {
-                                synth.triggerRelease(noteName);
-                            } catch (e) {
-                                // Ignore - voice might not exist
-                            }
-                        }
-                    }
                 } catch (e) {
                     console.warn('Note release failed (may have been voice-stolen):', noteName);
                 }
@@ -1190,23 +1138,10 @@ async function initMIDI() {
                     sustainPedalActive = value >= 64; // >= 64 means pedal down
                     console.log('Sustain pedal:', sustainPedalActive ? 'ON' : 'OFF');
                     
-                    // If sustain pedal is released, release all active notes that are not physically held
-                    // This is more robust than relying on sustainedNotes tracking, which can be incomplete
-                    // due to voice stealing or other edge cases
+                    // If sustain pedal is released, release only the sustained notes
                     if (wasActive && !sustainPedalActive) {
-                        // Release ALL active notes that are not physically held (more systematic approach)
-                        // This catches notes that might not be in sustainedNotes due to voice stealing
-                        const notesToRelease = Array.from(activeNotes.keys()).filter(midiNote => 
-                            !physicallyHeldNotes.has(midiNote)
-                        );
-                        
-                        // Also include any notes in sustainedNotes that might not be in activeNotes
-                        sustainedNotes.forEach(midiNote => {
-                            if (!notesToRelease.includes(midiNote)) {
-                                notesToRelease.push(midiNote);
-                            }
-                        });
-                        
+                        // Create a copy to avoid modification during iteration
+                        const notesToRelease = Array.from(sustainedNotes);
                         notesToRelease.forEach((midiNote) => {
                             // Stop attack noise if it exists
                             if (attackNoiseNodes.has(midiNote)) {
@@ -1255,17 +1190,6 @@ async function initMIDI() {
                                 if (noteName) {
                                     try {
                                         synth.triggerRelease(noteName);
-                                        // If unison is enabled, try releasing a few more times to catch any untracked voices
-                                        if (window.physicsSettings && window.physicsSettings.multiStringUnison) {
-                                            const stringCount = window.getStringCountForNote ? window.getStringCountForNote(midiNote) : 1;
-                                            for (let i = 1; i < stringCount; i++) {
-                                                try {
-                                                    synth.triggerRelease(noteName);
-                                                } catch (e) {
-                                                    // Ignore - voice might not exist
-                                                }
-                                            }
-                                        }
                                     } catch (e) {
                                         // Ignore errors
                                     }
@@ -1275,76 +1199,6 @@ async function initMIDI() {
                             sustainedNotes.delete(midiNote);
                             noteAttackTimes.delete(midiNote); // Clean up attack time tracking
                             frequencyModulations.delete(midiNote); // Clean up frequency modulation
-                        });
-                        
-                        // Safety fix: Release ALL remaining active notes that aren't physically held
-                        // This catches any notes that might have been missed due to voice stealing, tracking issues,
-                        // or other edge cases. This is a more systematic approach than releasing just one note.
-                        const remainingNotesToRelease = Array.from(activeNotes.keys()).filter(midiNote => 
-                            !physicallyHeldNotes.has(midiNote)
-                        );
-                        
-                        remainingNotesToRelease.forEach((midiNote) => {
-                            const noteName = activeNotes.get(midiNote);
-                            if (noteName) {
-                                try {
-                                    synth.triggerRelease(noteName);
-                                    // Also try releasing unison voices if any
-                                    const voices = unisonVoices.get(midiNote);
-                                    if (voices && voices.length > 0) {
-                                        voices.forEach(voiceNoteName => {
-                                            try {
-                                                synth.triggerRelease(voiceNoteName);
-                                            } catch (e) {
-                                                // Ignore errors
-                                            }
-                                        });
-                                        unisonVoices.delete(midiNote);
-                                    }
-                                    // If unison is enabled, try releasing a few more times to catch any untracked voices
-                                    if (window.physicsSettings && window.physicsSettings.multiStringUnison) {
-                                        const stringCount = window.getStringCountForNote ? window.getStringCountForNote(midiNote) : 1;
-                                        for (let i = 1; i < stringCount; i++) {
-                                            try {
-                                                synth.triggerRelease(noteName);
-                                            } catch (e) {
-                                                // Ignore - voice might not exist
-                                            }
-                                        }
-                                    }
-                                } catch (e) {
-                                    // Ignore errors
-                                }
-                                
-                                // Clean up all tracking
-                                activeNotes.delete(midiNote);
-                                sustainedNotes.delete(midiNote);
-                                noteAttackTimes.delete(midiNote);
-                                frequencyModulations.delete(midiNote);
-                                
-                                // Clean up any remaining resources
-                                if (attackNoiseNodes.has(midiNote)) {
-                                    const noiseNode = attackNoiseNodes.get(midiNote);
-                                    if (noiseNode && noiseNode.stop) {
-                                        noiseNode.stop();
-                                    }
-                                    attackNoiseNodes.delete(midiNote);
-                                }
-                                if (releaseTransientNodes.has(midiNote)) {
-                                    const transientNode = releaseTransientNodes.get(midiNote);
-                                    if (transientNode && transientNode.stop) {
-                                        transientNode.stop();
-                                    }
-                                    releaseTransientNodes.delete(midiNote);
-                                }
-                                if (sustainDecayAutomations.has(midiNote)) {
-                                    const automation = sustainDecayAutomations.get(midiNote);
-                                    if (automation && automation.cancel) {
-                                        automation.cancel();
-                                    }
-                                    sustainDecayAutomations.delete(midiNote);
-                                }
-                            }
                         });
                     }
                 }

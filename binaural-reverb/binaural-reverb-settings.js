@@ -53,8 +53,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Room Size</span>
-                        <input type="range" id="binaural-room-size" min="0" max="100" value="70" step="1">
-                        <span class="binaural-reverb-value" id="binaural-room-size-value">0.70</span>
+                        <input type="range" id="binaural-room-size" min="0" max="100" value="89" step="1">
+                        <span class="binaural-reverb-value" id="binaural-room-size-value">0.89</span>
                     </label>
                     <div class="binaural-reverb-description">Size of the virtual room (0.0 = small, 1.0 = large)</div>
                 </div>
@@ -62,8 +62,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Reverb Time (RT60)</span>
-                        <input type="range" id="binaural-reverb-time" min="5" max="50" value="20" step="1">
-                        <span class="binaural-reverb-value" id="binaural-reverb-time-value">2.0s</span>
+                        <input type="range" id="binaural-reverb-time" min="5" max="50" value="24" step="1">
+                        <span class="binaural-reverb-value" id="binaural-reverb-time-value">1.6s</span>
                     </label>
                     <div class="binaural-reverb-description">Time for reverb to decay by 60dB (0.5s to 5.0s)</div>
                 </div>
@@ -71,8 +71,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Early Reflections</span>
-                        <input type="range" id="binaural-early-reflections" min="0" max="100" value="60" step="1">
-                        <span class="binaural-reverb-value" id="binaural-early-reflections-value">0.60</span>
+                        <input type="range" id="binaural-early-reflections" min="0" max="100" value="31" step="1">
+                        <span class="binaural-reverb-value" id="binaural-early-reflections-value">0.31</span>
                     </label>
                     <div class="binaural-reverb-description">Level of early reflections (0.0 to 1.0)</div>
                 </div>
@@ -89,8 +89,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Dry Level</span>
-                        <input type="range" id="binaural-dry" min="0" max="100" value="6" step="1">
-                        <span class="binaural-reverb-value" id="binaural-dry-value">0.06</span>
+                        <input type="range" id="binaural-dry" min="0" max="100" value="51" step="1">
+                        <span class="binaural-reverb-value" id="binaural-dry-value">0.51</span>
                     </label>
                     <div class="binaural-reverb-description">Level of dry (unprocessed) signal (0.0 to 1.0)</div>
                 </div>
@@ -98,8 +98,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Wet Level</span>
-                        <input type="range" id="binaural-wet" min="0" max="100" value="50" step="1">
-                        <span class="binaural-reverb-value" id="binaural-wet-value">0.50</span>
+                        <input type="range" id="binaural-wet" min="0" max="100" value="85" step="1">
+                        <span class="binaural-reverb-value" id="binaural-wet-value">0.85</span>
                     </label>
                     <div class="binaural-reverb-description">Level of wet (reverb) signal (0.0 to 1.0)</div>
                 </div>
@@ -107,8 +107,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting binaural-only-setting">
                     <label>
                         <span>ITD Intensity</span>
-                        <input type="range" id="binaural-itd-intensity" min="0" max="100" value="80" step="1">
-                        <span class="binaural-reverb-value" id="binaural-itd-intensity-value">0.80</span>
+                        <input type="range" id="binaural-itd-intensity" min="0" max="100" value="10" step="1">
+                        <span class="binaural-reverb-value" id="binaural-itd-intensity-value">0.10</span>
                     </label>
                     <div class="binaural-reverb-description">Interaural Time Difference intensity (spatial width) - Binaural mode only</div>
                 </div>
@@ -655,17 +655,17 @@ function setupBinauralReverbControls() {
 function resetBinauralReverbToDefaults() {
     const defaults = {
         reverbMode: 'binaural',
-        roomSize: 0.7,
-        reverbTime: 2.0,
-        earlyReflections: 0.6,
-        lateReverb: 0.6,
-        dry: 0.06,
-        wet: 0.5,
-        itdIntensity: 0.8,
-        ildIntensity: 0.6,
+        roomSize: 0.89,
+        reverbTime: 1.6,
+        earlyReflections: 0.31,
+        lateReverb: 0.60,
+        dry: 0.51,
+        wet: 0.85,
+        itdIntensity: 0.10,
+        ildIntensity: 0.60,
         frequencyDependent: true,
-        pianoLidPosition: 0.5,
-        binauralQuality: 0.7
+        pianoLidPosition: 0.50,
+        binauralQuality: 0.70
     };
 
     if (window.setBinauralReverbSettings) {
@@ -691,13 +691,13 @@ function resetBinauralReverbToDefaults() {
     if (binauralModeRadio) binauralModeRadio.checked = true;
     if (regularModeRadio) regularModeRadio.checked = false;
     
-    if (roomSizeSlider) roomSizeSlider.value = 70;
-    if (reverbTimeSlider) reverbTimeSlider.value = 20;
-    if (earlyReflectionsSlider) earlyReflectionsSlider.value = 60;
+    if (roomSizeSlider) roomSizeSlider.value = 89;
+    if (reverbTimeSlider) reverbTimeSlider.value = 24;
+    if (earlyReflectionsSlider) earlyReflectionsSlider.value = 31;
     if (lateReverbSlider) lateReverbSlider.value = 60;
-    if (drySlider) drySlider.value = 6;
-    if (wetSlider) wetSlider.value = 50;
-    if (itdIntensitySlider) itdIntensitySlider.value = 80;
+    if (drySlider) drySlider.value = 51;
+    if (wetSlider) wetSlider.value = 85;
+    if (itdIntensitySlider) itdIntensitySlider.value = 10;
     if (ildIntensitySlider) ildIntensitySlider.value = 60;
     if (pianoLidSlider) pianoLidSlider.value = 50;
     if (qualitySlider) qualitySlider.value = 70;
