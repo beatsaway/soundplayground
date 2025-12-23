@@ -761,7 +761,11 @@ function velocityToAmplitudeWithCompensation(velocity, midiNote, k = 2.0, target
     // Stage 2: Apply frequency compensation (if enabled and module available)
     if (window.applyFrequencyCompensation) {
         const frequency = midiNoteToFrequency(midiNote);
-        return window.applyFrequencyCompensation(baseAmplitude, frequency, targetSPL);
+        // Use frequency compensation settings if available, otherwise use provided targetSPL
+        const compensationSPL = (window.frequencyCompensationSettings && window.frequencyCompensationSettings.targetSPL) 
+            ? window.frequencyCompensationSettings.targetSPL 
+            : targetSPL;
+        return window.applyFrequencyCompensation(baseAmplitude, frequency, compensationSPL);
     }
     
     // Fallback: no compensation

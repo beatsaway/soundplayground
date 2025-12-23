@@ -579,6 +579,22 @@ function initPhysicsSettings() {
         window.initInharmonicitySettings();
     }
 
+    // Setup frequency compensation settings button
+    const frequencyCompensationSettingsBtn = document.getElementById('frequency-compensation-settings-btn');
+    if (frequencyCompensationSettingsBtn) {
+        frequencyCompensationSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openFrequencyCompensationSettings) {
+                window.openFrequencyCompensationSettings();
+            }
+        });
+    }
+
+    // Initialize frequency compensation settings popup
+    if (window.initFrequencyCompensationSettings) {
+        window.initFrequencyCompensationSettings();
+    }
+
     // Setup pitch harmonic rolloff settings button
     const pitchHarmonicRolloffSettingsBtn = document.getElementById('pitch-harmonic-rolloff-settings-btn');
     if (pitchHarmonicRolloffSettingsBtn) {
