@@ -5,7 +5,7 @@
 
 // Spectral balance settings state
 let spectralBalanceSettings = {
-    enabled: false, // Default: OFF
+    enabled: true, // Default: ON
     frequency: 2000, // Cutoff frequency in Hz (default: 2kHz)
     gain: -6, // Gain reduction in dB (default: -6dB)
     Q: 0.7 // Filter Q (default: 0.7 for gentle slope)
@@ -376,7 +376,7 @@ function getSpectralBalanceSettings() {
  */
 function resetSpectralBalanceToDefaults() {
     const defaults = {
-        enabled: false,
+        enabled: true,
         frequency: 2000,
         gain: -6,
         Q: 0.7

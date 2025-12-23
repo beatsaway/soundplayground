@@ -75,14 +75,25 @@ function updateSpectralBalance(settings) {
  */
 function connectSpectralBalance(inputNode) {
     if (!window.spectralBalanceSettings || !window.spectralBalanceSettings.enabled) {
-        // If disabled, just pass through
-        return inputNode;
+        // If disabled, create a pass-through to avoid connection issues
+        // This ensures we always return a new node that can be safely connected
+        const passThrough = new Tone.Gain(1.0);
+        inputNode.connect(passThrough);
+        return passThrough;
     }
     
     if (!spectralBalanceFilter) {
         if (!initializeSpectralBalance()) {
-            return inputNode;
+            // Fallback: pass-through if initialization fails
+            const passThrough = new Tone.Gain(1.0);
+            inputNode.connect(passThrough);
+            return passThrough;
         }
+    }
+    
+    // Disconnect any existing connections to avoid double-connection issues
+    if (spectralBalanceFilter) {
+        spectralBalanceFilter.disconnect();
     }
     
     // Update filter with current settings

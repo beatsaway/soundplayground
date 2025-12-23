@@ -592,10 +592,9 @@ window.reconnectAudioChain = function() {
         reverbOutput = null;
     }
     
-    // Connect spectral balance filter if enabled (after reverb, before destination)
-    if (window.physicsSettings && window.physicsSettings.spectralBalance && 
-        window.spectralBalanceSettings && window.spectralBalanceSettings.enabled &&
-        window.connectSpectralBalance) {
+    // Connect spectral balance filter (after reverb, before destination)
+    // Always call connectSpectralBalance - it handles enabled/disabled state internally
+    if (window.connectSpectralBalance) {
         spectralBalanceOutput = window.connectSpectralBalance(currentOutput);
         currentOutput = spectralBalanceOutput;
     } else {
@@ -635,10 +634,9 @@ if (window.physicsSettings && window.physicsSettings.binauralReverb &&
     currentOutput = reverbOutput;
 }
 
-// Connect spectral balance filter if enabled (after reverb, before destination)
-if (window.physicsSettings && window.physicsSettings.spectralBalance && 
-    window.spectralBalanceSettings && window.spectralBalanceSettings.enabled &&
-    window.connectSpectralBalance) {
+// Connect spectral balance filter (after reverb, before destination)
+// Always call connectSpectralBalance - it handles enabled/disabled state internally
+if (window.connectSpectralBalance) {
     spectralBalanceOutput = window.connectSpectralBalance(currentOutput);
     currentOutput = spectralBalanceOutput;
 }

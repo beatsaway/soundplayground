@@ -18,7 +18,7 @@ const physicsSettings = {
     frequencyEnvelope: true, // Pitch modulation (initial drift, vibrato, release drift) - CPU: Medium impact
     binauralReverb: true, // Binaural 3D spatial reverb - CPU: High impact
     fakeBinaural: true, // Fake binaural mono-to-stereo processing - CPU: Low-Medium impact
-    spectralBalance: false, // Pink-noise-like EQ filter for final output - CPU: Low impact
+    spectralBalance: true, // Pink-noise-like EQ filter for final output - CPU: Low impact
     // Priority 1: Critical Realism
     inharmonicity: true, // Pitch-dependent partial sharpening - CRITICAL for realism
     multiStringUnison: true, // Multiple detuned oscillators per note - HIGH impact (ON by default)
@@ -45,7 +45,7 @@ const defaultSettings = {
     frequencyEnvelope: true,
     binauralReverb: true, // Binaural (3D Spatial) mode enabled
     fakeBinaural: true,
-    spectralBalance: false, // OFF by default
+    spectralBalance: true, // ON by default
     inharmonicity: true,
     multiStringUnison: true, // ON by default
     attackNoise: false, // OFF by default
