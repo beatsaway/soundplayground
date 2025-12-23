@@ -229,6 +229,19 @@
                 </label>
             </div>
             
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-dynamic-filter" checked>
+                    <div>
+                        <strong>Dynamic Low-Pass Filter</strong>
+                        <div class="setting-description">
+                            Keytracked low-pass filter that closes as notes decay, mimicking harmonic damping in real piano strings. This makes static waveforms sound piano-like.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Low impact</div>
+                    </div>
+                </label>
+            </div>
+            
         </div>
     </div>
     <script type="importmap">
@@ -244,6 +257,7 @@
     <script src="velocity-timbre.js"></script>
     <script src="velocity-attack.js"></script>
     <script src="time-varying-brightness.js"></script>
+    <script src="dynamic-filter.js"></script>
     <script src="advanced-timbre.js"></script>
     <script src="two-stage-decay.js"></script>
     <script src="pedal-coupling.js"></script>

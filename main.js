@@ -392,6 +392,28 @@ function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
+    
+    // Update dynamic filter based on active notes (if enabled)
+    if (window.physicsSettings && window.physicsSettings.dynamicFilter && window.getDynamicFilterSettings && noteAttackTimes.size > 0) {
+        const now = Tone.now();
+        let maxCutoff = 200; // Minimum cutoff
+        
+        // Find the highest cutoff needed based on all active notes
+        noteAttackTimes.forEach((noteInfo, midiNote) => {
+            const timeSinceAttack = now - noteInfo.attackTimestamp;
+            const initialCutoff = window.getInitialFilterCutoff ? 
+                window.getInitialFilterCutoff(noteInfo.velocity, noteInfo.frequency) : 20000;
+            const currentCutoff = window.getFilterCutoffAtTime ? 
+                window.getFilterCutoffAtTime(initialCutoff, timeSinceAttack, noteInfo.frequency) : initialCutoff;
+            maxCutoff = Math.max(maxCutoff, currentCutoff);
+        });
+        
+        // Smoothly update filter to highest needed cutoff
+        dynamicFilter.frequency.rampTo(maxCutoff, 0.05);
+    } else if (window.physicsSettings && window.physicsSettings.dynamicFilter) {
+        // No active notes - open filter fully
+        dynamicFilter.frequency.rampTo(20000, 0.1);
+    }
 }
 
 // Handle window resize
@@ -449,12 +471,21 @@ function calculateDecayTime() {
 // Physics modules are loaded via script tags and available as window.* functions
 // Modules: physics-settings.js, velocity-timbre.js, two-stage-decay.js, pedal-coupling.js
 
+// Initialize dynamic low-pass filter for harmonic damping
+// This filter closes as notes decay, mimicking real piano string behavior
+const dynamicFilter = new Tone.Filter({
+    type: 'lowpass',
+    frequency: 20000, // Start fully open
+    Q: 1.0
+});
+
 // Initialize Tone.js PolySynth for piano-like sound
+// Use triangle oscillator (has harmonics) - filter will control brightness
 // We'll set envelope parameters per note before triggering
 const synth = new Tone.PolySynth(Tone.Synth, {
     maxPolyphony: 64, // Increased from 16 to prevent voice stealing issues
     oscillator: {
-        type: 'sine'
+        type: 'triangle' // Triangle has harmonics, filter will control brightness
     },
     envelope: {
         attack: 0.005,
@@ -462,7 +493,10 @@ const synth = new Tone.PolySynth(Tone.Synth, {
         sustain: 0.3,
         release: 0.5 // Default, will be overridden per note
     }
-}).toDestination();
+}).connect(dynamicFilter); // Connect synth through filter
+
+// Connect filter to destination
+dynamicFilter.toDestination();
 
 // Initialize VelocityTimbreManager for advanced timbre features (if available)
 let timbreManager = null;
@@ -500,6 +534,8 @@ const physicallyHeldNotes = new Set();
 const sustainedNotes = new Set(); // midiNote -> noteName
 // Track all currently active notes (playing) - for reference/debugging
 const activeNotes = new Map(); // midiNote -> noteName
+// Track note attack times for dynamic filter control
+const noteAttackTimes = new Map(); // midiNote -> { attackTime: number, velocity: number, frequency: number }
 // Track sustain decay automation for each sustained note
 const sustainDecayAutomations = new Map(); // midiNote -> { volumeNode, cancel }
 // Map of note names to their volume nodes for sustain decay
@@ -656,18 +692,22 @@ function handleNoteOn(midiNote, velocity) {
         const twoStageDecay = window.calculateTwoStageDecay ? window.calculateTwoStageDecay(velocity) : { decay1: 0.1, decay2: 2.0, amplitudeRatio: 0.7 };
         const decayTime = (window.physicsSettings && window.physicsSettings.twoStageDecay) ? twoStageDecay.decay1 : calculateDecayTime();
         
-        // Get velocity-dependent oscillator type for timbre (research4) - from velocity-timbre.js module
-        // Use smooth transitions if advanced timbre is enabled, otherwise use standard
-        let oscillatorType;
-        if (window.physicsSettings && window.physicsSettings.advancedTimbre && window.getOscillatorTypeSmooth) {
-            oscillatorType = window.getOscillatorTypeSmooth(velocity);
-        } else {
-            oscillatorType = window.getOscillatorTypeForVelocity ? window.getOscillatorTypeForVelocity(velocity) : 'sine';
-        }
-        
         // Get velocity-dependent attack time (from velocity-attack.js module)
+        // Piano attack is very fast (1-5ms) - the "softness" comes from amplitude, not attack time
         const attackTime = (window.physicsSettings && window.physicsSettings.velocityAttack && window.getAttackTimeForVelocity) ?
-            window.getAttackTimeForVelocity(velocity) : 0.005;
+            window.getAttackTimeForVelocity(velocity) : 0.002; // Default 2ms (piano-like)
+        
+        // Get frequency for this note (for filter keytracking)
+        const frequency = midiNoteToFrequency(midiNote);
+        
+        // Store note attack info for dynamic filter control
+        // Store timestamp when note was attacked (for filter decay calculation)
+        const attackTimestamp = Tone.now();
+        noteAttackTimes.set(midiNote, {
+            attackTimestamp: attackTimestamp,
+            velocity: velocity,
+            frequency: frequency
+        });
         
         // Update envelope parameters on the synth before triggering
         // Note: synth.set() affects all voices, but since we call it right before triggerAttack,
@@ -675,7 +715,7 @@ function handleNoteOn(midiNote, velocity) {
         // individual synths per note (more CPU-intensive).
         synth.set({
             oscillator: {
-                type: oscillatorType
+                type: 'triangle' // Use triangle (has harmonics) - filter controls brightness
             },
             envelope: {
                 attack: attackTime,
@@ -684,6 +724,13 @@ function handleNoteOn(midiNote, velocity) {
                 release: releaseTime
             }
         });
+        
+        // Update dynamic filter based on this note (if enabled)
+        if (window.physicsSettings && window.physicsSettings.dynamicFilter && window.getDynamicFilterSettings) {
+            const filterSettings = window.getDynamicFilterSettings(velocity, frequency, 0);
+            // Smoothly update filter cutoff
+            dynamicFilter.frequency.rampTo(filterSettings.frequency, 0.01);
+        }
         
         // Play sound with two-stage velocity mapping (velocity curve + frequency compensation)
         // Uses k=2.0 for velocity curve and 85 dB SPL reference for frequency compensation
@@ -731,6 +778,7 @@ function handleNoteOff(midiNote) {
             }
             activeNotes.delete(midiNote);
             sustainedNotes.delete(midiNote); // Clean up if it was there
+            noteAttackTimes.delete(midiNote); // Clean up attack time tracking
         } else {
             // Sustain is active: mark this note as sustained (not physically held)
             sustainedNotes.add(midiNote);
@@ -773,6 +821,7 @@ function releaseAllNotes() {
     activeNotes.clear();
     physicallyHeldNotes.clear();
     sustainedNotes.clear();
+    noteAttackTimes.clear(); // Clean up filter tracking
     console.log('All notes released');
 }
 
@@ -840,6 +889,7 @@ async function initMIDI() {
                                 activeNotes.delete(midiNote);
                             }
                             sustainedNotes.delete(midiNote);
+                            noteAttackTimes.delete(midiNote); // Clean up attack time tracking
                         });
                     }
                 }
