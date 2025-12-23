@@ -399,12 +399,33 @@ function connectBinauralReverb(inputNode) {
         return reverbMerger;
     } else {
         // Regular mode: single reverb engine for both channels
-        // Tone.js Reverb handles stereo input/output automatically
+        // Split input to handle both mono and stereo inputs properly
+        const inputSplitter = new Tone.Split();
+        inputNode.connect(inputSplitter);
+        
+        // Create a merger to ensure stereo output for reverb
+        // Handle both mono (duplicate to stereo) and stereo inputs
+        const inputMerger = new Tone.Merge();
+        // Connect left channel to left output
+        inputSplitter.connect(inputMerger, 0, 0);
+        
+        // For right channel: always ensure we have a signal
+        // Connect actual right channel if stereo (will be silent if mono)
+        const rightChannelGain = new Tone.Gain(1.0);
+        inputSplitter.connect(rightChannelGain, 1);
+        rightChannelGain.connect(inputMerger, 0, 1);
+        
+        // Also duplicate left channel to right as fallback for mono inputs
+        // This ensures right channel always has signal (mixes with right if stereo, replaces silence if mono)
+        const leftDuplicateGain = new Tone.Gain(1.0);
+        inputSplitter.connect(leftDuplicateGain, 0);
+        leftDuplicateGain.connect(inputMerger, 0, 1);
+        
         // Split wet signal to handle stereo properly
         const wetSplitter = new Tone.Split();
         
-        // Connect input directly to reverb (handles stereo)
-        inputNode.connect(regularReverb);
+        // Connect stereo input to reverb
+        inputMerger.connect(regularReverb);
         
         // Connect reverb output to wet splitter
         regularReverb.connect(wetSplitter);
@@ -415,15 +436,15 @@ function connectBinauralReverb(inputNode) {
         wetSplitter.connect(wetGainLeft, 0);
         wetSplitter.connect(wetGainRight, 1);
         
-        // Split dry signal to handle stereo properly
-        const drySplitter = new Tone.Split();
-        inputNode.connect(drySplitter);
-        
+        // Split dry signal - ensure stereo output
         // Create and store dry gain nodes
         dryGainLeft = new Tone.Gain(dryLevel);
         dryGainRight = new Tone.Gain(dryLevel);
-        drySplitter.connect(dryGainLeft, 0);
-        drySplitter.connect(dryGainRight, 1);
+        // Connect left channel
+        inputSplitter.connect(dryGainLeft, 0);
+        // Connect right channel with fallback to left if mono
+        rightChannelGain.connect(dryGainRight);
+        leftDuplicateGain.connect(dryGainRight);
         
         // Merge dry and wet signals
         reverbMerger = new Tone.Merge();

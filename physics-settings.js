@@ -207,6 +207,10 @@ function initPhysicsSettings() {
         const preset = settingsPresets[presetName];
         if (!preset) return;
         
+        // Store old values to detect changes
+        const oldBinauralReverb = physicsSettings.binauralReverb;
+        const oldFakeBinaural = physicsSettings.fakeBinaural;
+        
         // Apply preset to settings
         Object.keys(preset).forEach(key => {
             physicsSettings[key] = preset[key];
@@ -214,6 +218,48 @@ function initPhysicsSettings() {
         
         // Update UI checkboxes
         syncCheckboxes();
+        
+        // Trigger activation for binaural reverb if it was enabled
+        if (physicsSettings.binauralReverb && !oldBinauralReverb) {
+            // Update binaural reverb enabled state
+            if (window.binauralReverbSettings) {
+                window.binauralReverbSettings.enabled = true;
+                // Initialize reverb if enabling
+                if (window.initializeBinauralReverb) {
+                    window.initializeBinauralReverb();
+                }
+                // Reconnect audio chain
+                if (window.reconnectAudioChain) {
+                    window.reconnectAudioChain();
+                }
+            }
+        } else if (!physicsSettings.binauralReverb && oldBinauralReverb) {
+            // Disconnect reverb if disabling
+            if (window.reconnectAudioChain) {
+                window.reconnectAudioChain();
+            }
+        }
+        
+        // Trigger activation for fake binaural if it was enabled
+        if (physicsSettings.fakeBinaural && !oldFakeBinaural) {
+            // Update fake binaural enabled state
+            if (window.fakeBinauralSettings) {
+                window.fakeBinauralSettings.enabled = true;
+                // Initialize fake binaural if enabling
+                if (window.initializeFakeBinaural) {
+                    window.initializeFakeBinaural();
+                }
+                // Reconnect audio chain
+                if (window.reconnectAudioChain) {
+                    window.reconnectAudioChain();
+                }
+            }
+        } else if (!physicsSettings.fakeBinaural && oldFakeBinaural) {
+            // Reconnect audio chain if disabling
+            if (window.reconnectAudioChain) {
+                window.reconnectAudioChain();
+            }
+        }
     }
 
     if (settingsIcon) {
