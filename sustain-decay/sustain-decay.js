@@ -21,8 +21,9 @@
  */
 function calculateSustainDecayTime(midiNote) {
     const A0_MIDI = 21; // A0 MIDI note number
-    const T0 = 12.0; // Base sustain decay time in seconds for A0
-    const k = 2.5; // Decay factor (less aggressive - halving roughly every 5 semitones)
+    // Use settings if available, otherwise use defaults
+    const T0 = (window.sustainDecaySettings && window.sustainDecaySettings.baseTime) ? window.sustainDecaySettings.baseTime : 12.0;
+    const k = (window.sustainDecaySettings && window.sustainDecaySettings.decayFactor) ? window.sustainDecaySettings.decayFactor : 2.5;
     
     const semitoneOffset = midiNote - A0_MIDI;
     const sustainDecayTime = T0 * Math.pow(2, -semitoneOffset / 12 * k);
@@ -60,8 +61,9 @@ function startSustainDecay(midiNote, noteName, dependencies) {
     // With pedal, sustain time is extended but still pitch-dependent
     const baseSustainDecayTime = calculateSustainDecayTime(midiNote);
     // With pedal, sustain is extended (research4: κ ≈ 2-4x extension)
-    // Using 2.5x multiplier as per research formula: τ_pedal = τ_natural * (1 + 2.5*pedal_position)
-    const sustainDecayTime = baseSustainDecayTime * 2.5; // Extended sustain with pedal, still pitch-dependent
+    // Use settings if available, otherwise use default 2.5x multiplier
+    const pedalMultiplier = (window.sustainDecaySettings && window.sustainDecaySettings.pedalMultiplier) ? window.sustainDecaySettings.pedalMultiplier : 2.5;
+    const sustainDecayTime = baseSustainDecayTime * pedalMultiplier; // Extended sustain with pedal, still pitch-dependent
     
     // Cancel any existing decay automation for this note
     if (sustainDecayAutomations.has(midiNote)) {

@@ -89,8 +89,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Dry Level</span>
-                        <input type="range" id="binaural-dry" min="0" max="100" value="50" step="1">
-                        <span class="binaural-reverb-value" id="binaural-dry-value">0.50</span>
+                        <input type="range" id="binaural-dry" min="0" max="100" value="6" step="1">
+                        <span class="binaural-reverb-value" id="binaural-dry-value">0.06</span>
                     </label>
                     <div class="binaural-reverb-description">Level of dry (unprocessed) signal (0.0 to 1.0)</div>
                 </div>
@@ -659,7 +659,7 @@ function resetBinauralReverbToDefaults() {
         reverbTime: 2.0,
         earlyReflections: 0.6,
         lateReverb: 0.6,
-        dry: 0.5,
+        dry: 0.06,
         wet: 0.5,
         itdIntensity: 0.8,
         ildIntensity: 0.6,
@@ -695,7 +695,7 @@ function resetBinauralReverbToDefaults() {
     if (reverbTimeSlider) reverbTimeSlider.value = 20;
     if (earlyReflectionsSlider) earlyReflectionsSlider.value = 60;
     if (lateReverbSlider) lateReverbSlider.value = 60;
-    if (drySlider) drySlider.value = 50;
+    if (drySlider) drySlider.value = 6;
     if (wetSlider) wetSlider.value = 50;
     if (itdIntensitySlider) itdIntensitySlider.value = 80;
     if (ildIntensitySlider) ildIntensitySlider.value = 60;
@@ -754,7 +754,7 @@ function openBinauralReverbSettings() {
         }
         
         // Sync dry and wet sliders with current settings
-        const currentDry = window.binauralReverbSettings?.dry !== undefined ? window.binauralReverbSettings.dry : 0.5;
+        const currentDry = window.binauralReverbSettings?.dry !== undefined ? window.binauralReverbSettings.dry : 0.06;
         const currentWet = window.binauralReverbSettings?.wet !== undefined ? window.binauralReverbSettings.wet : 0.5;
         const drySlider = document.getElementById('binaural-dry');
         const wetSlider = document.getElementById('binaural-wet');

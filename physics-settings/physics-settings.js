@@ -635,6 +635,22 @@ function initPhysicsSettings() {
         window.initSpectralBalanceSettings();
     }
 
+    // Setup sustain decay settings button
+    const sustainDecaySettingsBtn = document.getElementById('sustain-decay-settings-btn');
+    if (sustainDecaySettingsBtn) {
+        sustainDecaySettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openSustainDecaySettings) {
+                window.openSustainDecaySettings();
+            }
+        });
+    }
+
+    // Initialize sustain decay settings popup
+    if (window.initSustainDecaySettings) {
+        window.initSustainDecaySettings();
+    }
+
     // Setup pitch harmonic rolloff settings button
     const pitchHarmonicRolloffSettingsBtn = document.getElementById('pitch-harmonic-rolloff-settings-btn');
     if (pitchHarmonicRolloffSettingsBtn) {

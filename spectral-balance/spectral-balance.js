@@ -31,7 +31,7 @@ function initializeSpectralBalance() {
         spectralBalanceFilter = new Tone.Filter({
             type: 'highshelf',
             frequency: 2000, // Default cutoff: 2kHz
-            gain: -6, // Default: -6dB gain reduction above cutoff
+            gain: -20, // Default: -20dB gain reduction above cutoff
             Q: 0.7 // Default Q: gentle slope
         });
         
@@ -100,7 +100,7 @@ function connectSpectralBalance(inputNode) {
     if (window.spectralBalanceSettings) {
         updateSpectralBalance({
             frequency: window.spectralBalanceSettings.frequency || 2000,
-            gain: window.spectralBalanceSettings.gain || -6,
+            gain: window.spectralBalanceSettings.gain || -20,
             Q: window.spectralBalanceSettings.Q || 0.7
         });
     }

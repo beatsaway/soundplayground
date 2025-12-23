@@ -7,7 +7,7 @@
 let spectralBalanceSettings = {
     enabled: true, // Default: ON
     frequency: 2000, // Cutoff frequency in Hz (default: 2kHz)
-    gain: -6, // Gain reduction in dB (default: -6dB)
+    gain: -20, // Gain reduction in dB (default: -20dB)
     Q: 0.7 // Filter Q (default: 0.7 for gentle slope)
 };
 
@@ -53,10 +53,10 @@ function createSpectralBalancePopup() {
                 <div class="spectral-balance-setting">
                     <label>
                         <span>Gain Reduction</span>
-                        <input type="range" id="spectral-balance-gain" min="-20" max="0" value="-6" step="0.5">
-                        <span class="spectral-balance-value" id="spectral-balance-gain-value">-6.0 dB</span>
+                        <input type="range" id="spectral-balance-gain" min="-40" max="0" value="-20" step="0.5">
+                        <span class="spectral-balance-value" id="spectral-balance-gain-value">-20.0 dB</span>
                     </label>
-                    <div class="spectral-balance-description">Amount of high-frequency reduction in dB (-20 to 0 dB). More negative = more dimming. Default: -6 dB</div>
+                    <div class="spectral-balance-description">Amount of high-frequency reduction in dB (-40 to 0 dB). More negative = more dimming. Default: -20 dB</div>
                 </div>
                 
                 <div class="spectral-balance-setting">
@@ -378,7 +378,7 @@ function resetSpectralBalanceToDefaults() {
     const defaults = {
         enabled: true,
         frequency: 2000,
-        gain: -6,
+        gain: -20,
         Q: 0.7
     };
 
@@ -394,8 +394,8 @@ function resetSpectralBalanceToDefaults() {
 
     if (frequencySlider) frequencySlider.value = 2000;
     if (frequencyValue) frequencyValue.textContent = '2000 Hz';
-    if (gainSlider) gainSlider.value = -6;
-    if (gainValue) gainValue.textContent = '-6.0 dB';
+    if (gainSlider) gainSlider.value = -20;
+    if (gainValue) gainValue.textContent = '-20.0 dB';
     if (qSlider) qSlider.value = 0.7;
     if (qValue) qValue.textContent = '0.7';
 }

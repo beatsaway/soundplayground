@@ -29,7 +29,7 @@ const binauralReverbSettings = {
     reverbTime: 2.0,        // RT60 in seconds (0.5 to 5.0)
     earlyReflections: 0.6,  // Early reflection level (0.0 to 1.0) - increased for stronger effect
     lateReverb: 0.6,        // Late reverb level (0.0 to 1.0) - increased for stronger effect
-    dry: 0.3,               // Dry signal level (0.0 to 1.0) - default 30% like WaterSynth
+    dry: 0.06,              // Dry signal level (0.0 to 1.0) - default 6%
     wet: 1.0,               // Wet (reverb) signal level (0.0 to 1.0) - default 100% like WaterSynth
     itdIntensity: 0.8,      // Interaural Time Difference intensity (0.0 to 1.0) - binaural mode only
     ildIntensity: 0.6,      // Interaural Level Difference intensity (0.0 to 1.0) - binaural mode only
@@ -240,7 +240,7 @@ function applyBinauralReverb(inputNode, frequency = 440) {
  * Update dry/wet gain levels dynamically (without rebuilding chain)
  */
 function updateDryWetGains() {
-    const dryLevel = binauralReverbSettings.dry !== undefined ? binauralReverbSettings.dry : 0.3;
+    const dryLevel = binauralReverbSettings.dry !== undefined ? binauralReverbSettings.dry : 0.06;
     const wetLevel = binauralReverbSettings.wet !== undefined ? binauralReverbSettings.wet : 1.0;
     
     if (dryGainLeft && dryGainRight) {
@@ -357,7 +357,7 @@ function connectBinauralReverb(inputNode) {
     }
 
     // Get dry and wet levels (use defaults if not set)
-    const dryLevel = binauralReverbSettings.dry !== undefined ? binauralReverbSettings.dry : 0.3;
+    const dryLevel = binauralReverbSettings.dry !== undefined ? binauralReverbSettings.dry : 0.06;
     const wetLevel = binauralReverbSettings.wet !== undefined ? binauralReverbSettings.wet : 1.0;
     
     if (mode === 'binaural') {
