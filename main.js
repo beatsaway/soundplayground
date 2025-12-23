@@ -430,25 +430,7 @@ function calculateReleaseTime(midiNote) {
     return Math.max(0.01, Math.min(2.0, releaseTime));
 }
 
-/**
- * Calculate sustain decay time constant based on MIDI note number
- * Formula: T_sustain(n) = T0 * 2^(-n/12 * k)
- * This is the time to decay to ~37% of amplitude (1/e) while holding
- * 
- * @param {number} midiNote - MIDI note number (21 = A0, 108 = C8)
- * @returns {number} - Sustain decay time constant in seconds
- */
-function calculateSustainDecayTime(midiNote) {
-    const A0_MIDI = 21; // A0 MIDI note number
-    const T0 = 12.0; // Base sustain decay time in seconds for A0
-    const k = 3.0; // Decay factor (halving roughly every 4 semitones)
-    
-    const semitoneOffset = midiNote - A0_MIDI;
-    const sustainDecayTime = T0 * Math.pow(2, -semitoneOffset / 12 * k);
-    
-    // Clamp to reasonable range: 0.06s (60ms) to 15.0s
-    return Math.max(0.06, Math.min(15.0, sustainDecayTime));
-}
+// calculateSustainDecayTime is now provided by sustain-decay.js module
 
 /**
  * Calculate decay parameter for Tone.js envelope
@@ -509,6 +491,10 @@ const physicallyHeldNotes = new Set();
 const sustainedNotes = new Set(); // midiNote -> noteName
 // Track all currently active notes (playing) - for reference/debugging
 const activeNotes = new Map(); // midiNote -> noteName
+// Track sustain decay automation for each sustained note
+const sustainDecayAutomations = new Map(); // midiNote -> { volumeNode, cancel }
+// Map of note names to their volume nodes for sustain decay
+const noteVolumeNodes = new Map(); // noteName -> Tone.Volume
 
 // Function to press a key visually
 function pressKey(midiNote) {
@@ -698,6 +684,8 @@ function handleNoteOn(midiNote, velocity) {
     }
 }
 
+// startSustainDecay is now provided by sustain-decay.js module
+
 // Function to handle MIDI note off
 function handleNoteOff(midiNote) {
     const noteName = midiNoteToNoteName(midiNote);
@@ -707,6 +695,15 @@ function handleNoteOff(midiNote) {
         
         // Release sound only if sustain pedal is not active
         if (!sustainPedalActive) {
+            // Cancel any sustain decay if it exists
+            if (sustainDecayAutomations.has(midiNote)) {
+                const automation = sustainDecayAutomations.get(midiNote);
+                if (automation && automation.cancel) {
+                    automation.cancel();
+                }
+                sustainDecayAutomations.delete(midiNote);
+            }
+            
             try {
                 synth.triggerRelease(noteName);
             } catch (e) {
@@ -718,7 +715,18 @@ function handleNoteOff(midiNote) {
         } else {
             // Sustain is active: mark this note as sustained (not physically held)
             sustainedNotes.add(midiNote);
-            // Keep the note in activeNotes (don't release it)
+            // Start gradual decay for this sustained note (if feature is enabled)
+            if (window.startSustainDecay) {
+                window.startSustainDecay(midiNote, noteName, {
+                    sustainedNotes,
+                    physicallyHeldNotes,
+                    activeNotes,
+                    sustainDecayAutomations,
+                    noteVolumeNodes,
+                    synth
+                });
+            }
+            // Keep the note in activeNotes (don't release it immediately)
         }
         
         // Visual feedback - always release key visually
@@ -728,6 +736,14 @@ function handleNoteOff(midiNote) {
 
 // Safety function to release all stuck notes (can be called manually if needed)
 function releaseAllNotes() {
+    // Cancel all sustain decay automations
+    sustainDecayAutomations.forEach((automation, midiNote) => {
+        if (automation && automation.cancel) {
+            automation.cancel();
+        }
+    });
+    sustainDecayAutomations.clear();
+    
     activeNotes.forEach((noteName, midiNote) => {
         try {
             synth.triggerRelease(noteName);
@@ -786,6 +802,15 @@ async function initMIDI() {
                         // Create a copy to avoid modification during iteration
                         const notesToRelease = Array.from(sustainedNotes);
                         notesToRelease.forEach((midiNote) => {
+                            // Cancel any sustain decay automation
+                            if (sustainDecayAutomations.has(midiNote)) {
+                                const automation = sustainDecayAutomations.get(midiNote);
+                                if (automation && automation.cancel) {
+                                    automation.cancel();
+                                }
+                                sustainDecayAutomations.delete(midiNote);
+                            }
+                            
                             const noteName = activeNotes.get(midiNote);
                             if (noteName) {
                                 try {

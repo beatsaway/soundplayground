@@ -46,7 +46,7 @@ function calculateHarmonicRolloff(harmonicNumber, velocity) {
  * This is a practical approximation for real-time synthesis:
  * - Sine = pure tone (soft velocities)
  * - Triangle = some harmonics (medium velocities)
- * - Sawtooth = rich harmonics (loud velocities)
+ * - Square = moderate harmonics (loud velocities) - less harsh than sawtooth
  * 
  * @param {number} velocity - MIDI velocity (0-127)
  * @returns {string} - Tone.js oscillator type
@@ -59,13 +59,14 @@ function getOscillatorTypeForVelocity(velocity) {
     const vNorm = Math.max(0, Math.min(127, velocity)) / 127.0;
     
     // Use different oscillator types to simulate harmonic content
-    // Sine = pure, Triangle = some harmonics, Sawtooth = rich harmonics
-    if (vNorm < 0.3) {
+    // Sine = pure, Triangle = some harmonics, Square = moderate harmonics (less harsh than sawtooth)
+    // More gradual transitions for smoother timbre changes
+    if (vNorm < 0.4) {
         return 'sine'; // Soft = pure tone
-    } else if (vNorm < 0.6) {
+    } else if (vNorm < 0.75) {
         return 'triangle'; // Medium = some harmonics
     } else {
-        return 'sawtooth'; // Loud = rich harmonics
+        return 'square'; // Loud = moderate harmonics (square is less harsh than sawtooth)
     }
 }
 

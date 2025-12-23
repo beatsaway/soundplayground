@@ -177,6 +177,19 @@
                 </label>
             </div>
             
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-sustain-decay" checked>
+                    <div>
+                        <strong>Sustain Pedal Gradual Decay</strong>
+                        <div class="setting-description">
+                            Sustained notes gradually fade over time (pitch-dependent). Lower notes decay slower, higher notes decay faster. Realistic piano behavior.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Low impact</div>
+                    </div>
+                </label>
+            </div>
+            
         </div>
     </div>
     <script type="importmap">
@@ -192,6 +205,7 @@
     <script src="velocity-timbre.js"></script>
     <script src="two-stage-decay.js"></script>
     <script src="pedal-coupling.js"></script>
+    <script src="sustain-decay.js"></script>
     <!-- Velocity mapping module -->
     <script src="velocity-mapping-two-stage.js"></script>
     <script type="module" src="main.js"></script>

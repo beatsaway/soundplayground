@@ -8,7 +8,8 @@
 const physicsSettings = {
     velocityTimbre: true,
     twoStageDecay: true,
-    pedalCoupling: false
+    pedalCoupling: false,
+    sustainDecay: true
 };
 
 /**
@@ -22,6 +23,7 @@ function initPhysicsSettings() {
     const enableVelocityTimbre = document.getElementById('enable-velocity-timbre');
     const enableTwoStageDecay = document.getElementById('enable-two-stage-decay');
     const enablePedalCoupling = document.getElementById('enable-pedal-coupling');
+    const enableSustainDecay = document.getElementById('enable-sustain-decay');
 
     if (settingsIcon) {
         settingsIcon.addEventListener('click', () => {
@@ -30,6 +32,7 @@ function initPhysicsSettings() {
             enableVelocityTimbre.checked = physicsSettings.velocityTimbre;
             enableTwoStageDecay.checked = physicsSettings.twoStageDecay;
             enablePedalCoupling.checked = physicsSettings.pedalCoupling;
+            enableSustainDecay.checked = physicsSettings.sustainDecay;
         });
     }
 
@@ -62,6 +65,12 @@ function initPhysicsSettings() {
     if (enablePedalCoupling) {
         enablePedalCoupling.addEventListener('change', (e) => {
             physicsSettings.pedalCoupling = e.target.checked;
+        });
+    }
+
+    if (enableSustainDecay) {
+        enableSustainDecay.addEventListener('change', (e) => {
+            physicsSettings.sustainDecay = e.target.checked;
         });
     }
 }

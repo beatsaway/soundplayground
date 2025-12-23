@@ -33,7 +33,7 @@ function calculatePedalCoupling(freq, otherFreq, pedalPosition) {
     const ratio = Math.max(freq, otherFreq) / Math.min(freq, otherFreq);
     const harmonicBoost = (ratio <= 1.1 || (ratio >= 1.9 && ratio <= 2.1) || (ratio >= 2.9 && ratio <= 3.1)) ? 1.5 : 1.0;
     
-    return coupling * harmonicBoost * pedalPosition * 0.1; // Scale down for subtlety
+    return coupling * harmonicBoost * pedalPosition * 0.5; // Increased from 0.1 to 0.5 for more noticeable effect
 }
 
 /**
@@ -85,7 +85,7 @@ function applyPedalCoupling(freq, velocity, pedalPosition, activeNotes, midiNote
     
     // Scale based on number of active notes (more notes = more coupling)
     const scaleFactor = Math.min(1.0, activeNotes.size / 10);
-    return couplingGain * scaleFactor * 0.3; // Final scaling for subtlety
+    return couplingGain * scaleFactor * 1.0; // Increased from 0.3 to 1.0 for more noticeable effect
 }
 
 // Export for use in other modules
