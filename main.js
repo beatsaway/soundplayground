@@ -396,6 +396,8 @@ const frequencyModulations = new Map(); // midiNote -> { modulation: object, rel
 const attackNoiseNodes = new Map(); // midiNote -> attackNoiseNode
 // Track release transient nodes per note
 const releaseTransientNodes = new Map(); // midiNote -> releaseTransientNode
+// Track unison voices per note (for multi-string unison)
+const unisonVoices = new Map(); // midiNote -> [noteName1, noteName2, ...]
 
 // Initialize dynamic low-pass filter for harmonic damping
 // This filter closes as notes decay, mimicking real piano string behavior
@@ -754,10 +756,23 @@ function handleNoteOn(midiNote, velocity) {
         // If this note is already active, release it first to prevent multiple voices
         // This is especially important when pressing the same note multiple times while sustain is active
         if (activeNotes.has(midiNote)) {
-            try {
-                synth.triggerRelease(noteName);
-            } catch (e) {
-                // Ignore errors if note doesn't exist
+            // Release all voices for this note (including unison voices if any)
+            const voicesToRelease = unisonVoices.get(midiNote);
+            if (voicesToRelease && voicesToRelease.length > 0) {
+                voicesToRelease.forEach(voiceNoteName => {
+                    try {
+                        synth.triggerRelease(voiceNoteName);
+                    } catch (e) {
+                        // Ignore errors
+                    }
+                });
+                unisonVoices.delete(midiNote);
+            } else {
+                try {
+                    synth.triggerRelease(noteName);
+                } catch (e) {
+                    // Ignore errors if note doesn't exist
+                }
             }
         }
         
@@ -851,6 +866,7 @@ function handleNoteOn(midiNote, velocity) {
         }
         
         // Multi-string unison: Create multiple voices with detuning (if enabled)
+        const triggeredNoteNames = []; // Track all note names triggered for this MIDI note
         if (window.physicsSettings && window.physicsSettings.multiStringUnison && window.createUnisonConfiguration) {
             const unisonConfig = window.createUnisonConfiguration(midiNote, adjustedFrequency, velocity);
             
@@ -866,15 +882,22 @@ function handleNoteOn(midiNote, velocity) {
                     
                     if (detunedNoteName) {
                         synth.triggerAttack(detunedNoteName, undefined, stringAmplitude);
+                        triggeredNoteNames.push(detunedNoteName);
                     }
                 }
+                // Store all unison voices for this MIDI note
+                unisonVoices.set(midiNote, triggeredNoteNames);
             } else {
                 // Single string: normal trigger
                 synth.triggerAttack(noteName, undefined, amplitude);
+                triggeredNoteNames.push(noteName);
+                unisonVoices.set(midiNote, triggeredNoteNames);
             }
         } else {
             // No unison: normal trigger
             synth.triggerAttack(noteName, undefined, amplitude);
+            triggeredNoteNames.push(noteName);
+            unisonVoices.set(midiNote, triggeredNoteNames);
         }
         
         // Create and start attack noise (if enabled)
@@ -951,40 +974,25 @@ function handleNoteOff(midiNote) {
                 sustainDecayAutomations.delete(midiNote);
             }
             
-            // Release multi-string unison voices (if enabled)
-            if (window.physicsSettings && window.physicsSettings.multiStringUnison && window.createUnisonConfiguration) {
-                const frequency = midiNoteToFrequency(midiNote);
-                const unisonConfig = window.createUnisonConfiguration(midiNote, frequency, 64); // Use default velocity
-                
-                if (unisonConfig.stringCount > 1) {
-                    // Release all detuned voices
-                    for (let i = 0; i < unisonConfig.stringCount; i++) {
-                        const detunedFreq = unisonConfig.frequencies[i];
-                        const detunedMidiNote = midiNote + (detunedFreq - frequency) / frequency * 12;
-                        const detunedNoteName = midiNoteToNoteName(Math.round(detunedMidiNote));
-                        
-                        if (detunedNoteName) {
-                            try {
-                                synth.triggerRelease(detunedNoteName);
-                            } catch (e) {
-                                // Ignore errors
-                            }
-                        }
-                    }
-                } else {
-                    // Single string: normal release
+            // Release all voices for this note (including unison voices if any)
+            const voicesToRelease = unisonVoices.get(midiNote);
+            if (voicesToRelease && voicesToRelease.length > 0) {
+                // Release all tracked voices
+                voicesToRelease.forEach(voiceNoteName => {
                     try {
-                        synth.triggerRelease(noteName);
+                        synth.triggerRelease(voiceNoteName);
                     } catch (e) {
-                        console.warn('Note release failed (may have been voice-stolen):', noteName);
+                        // If note doesn't exist (voice was stolen), that's okay
+                        console.warn('Note release failed (may have been voice-stolen):', voiceNoteName);
                     }
-                }
+                });
+                // Clean up tracking
+                unisonVoices.delete(midiNote);
             } else {
-                // No unison: normal release
+                // Fallback: release main note name if no tracking found
                 try {
                     synth.triggerRelease(noteName);
                 } catch (e) {
-                    // If note doesn't exist (voice was stolen), that's okay
                     console.warn('Note release failed (may have been voice-stolen):', noteName);
                 }
             }
@@ -1069,6 +1077,7 @@ function releaseAllNotes() {
     sustainedNotes.clear();
     noteAttackTimes.clear(); // Clean up filter tracking
     frequencyModulations.clear(); // Clean up frequency modulation tracking
+    unisonVoices.clear(); // Clean up unison voice tracking
     console.log('All notes released');
 }
 
@@ -1126,15 +1135,31 @@ async function initMIDI() {
                                 sustainDecayAutomations.delete(midiNote);
                             }
                             
-                            const noteName = activeNotes.get(midiNote);
-                            if (noteName) {
-                                try {
-                                    synth.triggerRelease(noteName);
-                                } catch (e) {
-                                    // Ignore errors
+                            // Release all voices for this note (including unison voices if any)
+                            const voicesToRelease = unisonVoices.get(midiNote);
+                            if (voicesToRelease && voicesToRelease.length > 0) {
+                                // Release all tracked voices
+                                voicesToRelease.forEach(voiceNoteName => {
+                                    try {
+                                        synth.triggerRelease(voiceNoteName);
+                                    } catch (e) {
+                                        // Ignore errors
+                                    }
+                                });
+                                // Clean up tracking
+                                unisonVoices.delete(midiNote);
+                            } else {
+                                // Fallback: release main note name
+                                const noteName = activeNotes.get(midiNote);
+                                if (noteName) {
+                                    try {
+                                        synth.triggerRelease(noteName);
+                                    } catch (e) {
+                                        // Ignore errors
+                                    }
                                 }
-                                activeNotes.delete(midiNote);
                             }
+                            activeNotes.delete(midiNote);
                             sustainedNotes.delete(midiNote);
                             noteAttackTimes.delete(midiNote); // Clean up attack time tracking
                             frequencyModulations.delete(midiNote); // Clean up frequency modulation
