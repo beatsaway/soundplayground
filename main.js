@@ -392,6 +392,10 @@ scene.add(ground);
 const noteAttackTimes = new Map(); // midiNote -> { attackTimestamp: number, velocity: number, frequency: number }
 // Track frequency modulations for pitch drift/vibrato
 const frequencyModulations = new Map(); // midiNote -> { modulation: object, releaseTime: number }
+// Track attack noise nodes per note
+const attackNoiseNodes = new Map(); // midiNote -> attackNoiseNode
+// Track release transient nodes per note
+const releaseTransientNodes = new Map(); // midiNote -> releaseTransientNode
 
 // Initialize dynamic low-pass filter for harmonic damping
 // This filter closes as notes decay, mimicking real piano string behavior
@@ -564,6 +568,12 @@ window.reconnectAudioChain = function() {
         currentOutput = fakeBinauralOutput;
     } else {
         fakeBinauralOutput = null;
+        // If fake binaural is disabled, ensure stereo output by creating a pass-through merger
+        // This converts mono to stereo before passing to reverb or destination
+        const stereoPassThrough = new Tone.Merge();
+        currentOutput.connect(stereoPassThrough, 0, 0); // Left channel
+        currentOutput.connect(stereoPassThrough, 0, 1); // Right channel (duplicate for mono)
+        currentOutput = stereoPassThrough;
     }
     
     // Connect binaural reverb if enabled (after fake binaural)
@@ -793,6 +803,19 @@ function handleNoteOn(midiNote, velocity) {
             });
         }
         
+        // Apply inharmonicity to fundamental frequency (if enabled)
+        let adjustedFrequency = frequency;
+        if (window.physicsSettings && window.physicsSettings.inharmonicity && window.getInharmonicFundamentalFrequency) {
+            adjustedFrequency = window.getInharmonicFundamentalFrequency(frequency, midiNote);
+        }
+        
+        // Apply per-partial decay rates to envelope (if enabled)
+        let adjustedDecayTime = decayTime;
+        if (window.physicsSettings && window.physicsSettings.perPartialDecay && window.getPerPartialDecayEnvelope) {
+            const perPartialEnvelope = window.getPerPartialDecayEnvelope(decayTime, 10);
+            adjustedDecayTime = perPartialEnvelope.decay;
+        }
+        
         // Update envelope parameters on the synth before triggering
         // Note: synth.set() affects all voices, but since we call it right before triggerAttack,
         // the new voice will use these settings. For true per-voice control, we'd need
@@ -803,7 +826,7 @@ function handleNoteOn(midiNote, velocity) {
             },
             envelope: {
                 attack: attackTime,
-                decay: decayTime,
+                decay: adjustedDecayTime,
                 sustain: (window.physicsSettings && window.physicsSettings.twoStageDecay) ? (0.3 * twoStageDecay.amplitudeRatio) : 0.3,
                 release: releaseTime
             }
@@ -827,7 +850,43 @@ function handleNoteOn(midiNote, velocity) {
             amplitude = Math.min(1.0, amplitude + couplingGain);
         }
         
-        synth.triggerAttack(noteName, undefined, amplitude);
+        // Multi-string unison: Create multiple voices with detuning (if enabled)
+        if (window.physicsSettings && window.physicsSettings.multiStringUnison && window.createUnisonConfiguration) {
+            const unisonConfig = window.createUnisonConfiguration(midiNote, adjustedFrequency, velocity);
+            
+            if (unisonConfig.stringCount > 1) {
+                // Trigger multiple voices with slight detuning
+                for (let i = 0; i < unisonConfig.stringCount; i++) {
+                    const detunedFreq = unisonConfig.frequencies[i];
+                    const stringAmplitude = amplitude * unisonConfig.amplitudes[i];
+                    
+                    // Create detuned note name (approximate)
+                    const detunedMidiNote = midiNote + (detunedFreq - adjustedFrequency) / adjustedFrequency * 12;
+                    const detunedNoteName = midiNoteToNoteName(Math.round(detunedMidiNote));
+                    
+                    if (detunedNoteName) {
+                        synth.triggerAttack(detunedNoteName, undefined, stringAmplitude);
+                    }
+                }
+            } else {
+                // Single string: normal trigger
+                synth.triggerAttack(noteName, undefined, amplitude);
+            }
+        } else {
+            // No unison: normal trigger
+            synth.triggerAttack(noteName, undefined, amplitude);
+        }
+        
+        // Create and start attack noise (if enabled)
+        if (window.physicsSettings && window.physicsSettings.attackNoise && window.createAttackNoiseNode) {
+            const attackNoiseNode = window.createAttackNoiseNode(velocity, frequency);
+            if (attackNoiseNode) {
+                attackNoiseNodes.set(midiNote, attackNoiseNode);
+                // Connect noise to audio chain
+                attackNoiseNode.gain.connect(dynamicFilter || synth);
+                attackNoiseNode.start();
+            }
+        }
         
         // Visual feedback
         pressKey(midiNote);
@@ -843,6 +902,44 @@ function handleNoteOff(midiNote) {
         // Remove from physically held notes
         physicallyHeldNotes.delete(midiNote);
         
+        // Stop attack noise if it exists
+        if (attackNoiseNodes.has(midiNote)) {
+            const noiseNode = attackNoiseNodes.get(midiNote);
+            if (noiseNode && noiseNode.stop) {
+                noiseNode.stop();
+            }
+            attackNoiseNodes.delete(midiNote);
+        }
+        
+        // Create and trigger release transient (if enabled)
+        if (window.physicsSettings && window.physicsSettings.releaseTransient && window.createReleaseTransientNode) {
+            const frequency = midiNoteToFrequency(midiNote);
+            const currentAmplitude = activeNotes.has(midiNote) ? 0.5 : 0.3; // Estimate current amplitude
+            const transientAmplitude = window.calculateReleaseTransientAmplitude ? 
+                window.calculateReleaseTransientAmplitude(currentAmplitude, null) : currentAmplitude * 0.1;
+            
+            const releaseTransientNode = window.createReleaseTransientNode(frequency, transientAmplitude);
+            if (releaseTransientNode) {
+                releaseTransientNodes.set(midiNote, releaseTransientNode);
+                // Connect transient to audio chain
+                releaseTransientNode.gain.connect(dynamicFilter || synth);
+                releaseTransientNode.start();
+                
+                // Auto-cleanup after transient duration
+                const duration = window.calculateReleaseTransientDuration ? 
+                    window.calculateReleaseTransientDuration(frequency) : 0.03;
+                setTimeout(() => {
+                    if (releaseTransientNodes.has(midiNote)) {
+                        const node = releaseTransientNodes.get(midiNote);
+                        if (node && node.stop) {
+                            node.stop();
+                        }
+                        releaseTransientNodes.delete(midiNote);
+                    }
+                }, duration * 1000 + 100);
+            }
+        }
+        
         // Release sound only if sustain pedal is not active
         if (!sustainPedalActive) {
             // Cancel any sustain decay if it exists
@@ -854,12 +951,44 @@ function handleNoteOff(midiNote) {
                 sustainDecayAutomations.delete(midiNote);
             }
             
-            try {
-                synth.triggerRelease(noteName);
-            } catch (e) {
-                // If note doesn't exist (voice was stolen), that's okay
-                console.warn('Note release failed (may have been voice-stolen):', noteName);
+            // Release multi-string unison voices (if enabled)
+            if (window.physicsSettings && window.physicsSettings.multiStringUnison && window.createUnisonConfiguration) {
+                const frequency = midiNoteToFrequency(midiNote);
+                const unisonConfig = window.createUnisonConfiguration(midiNote, frequency, 64); // Use default velocity
+                
+                if (unisonConfig.stringCount > 1) {
+                    // Release all detuned voices
+                    for (let i = 0; i < unisonConfig.stringCount; i++) {
+                        const detunedFreq = unisonConfig.frequencies[i];
+                        const detunedMidiNote = midiNote + (detunedFreq - frequency) / frequency * 12;
+                        const detunedNoteName = midiNoteToNoteName(Math.round(detunedMidiNote));
+                        
+                        if (detunedNoteName) {
+                            try {
+                                synth.triggerRelease(detunedNoteName);
+                            } catch (e) {
+                                // Ignore errors
+                            }
+                        }
+                    }
+                } else {
+                    // Single string: normal release
+                    try {
+                        synth.triggerRelease(noteName);
+                    } catch (e) {
+                        console.warn('Note release failed (may have been voice-stolen):', noteName);
+                    }
+                }
+            } else {
+                // No unison: normal release
+                try {
+                    synth.triggerRelease(noteName);
+                } catch (e) {
+                    // If note doesn't exist (voice was stolen), that's okay
+                    console.warn('Note release failed (may have been voice-stolen):', noteName);
+                }
             }
+            
             activeNotes.delete(midiNote);
             sustainedNotes.delete(midiNote); // Clean up if it was there
             noteAttackTimes.delete(midiNote); // Clean up attack time tracking
@@ -911,6 +1040,22 @@ function releaseAllNotes() {
         }
     });
     sustainDecayAutomations.clear();
+    
+    // Stop all attack noise nodes
+    attackNoiseNodes.forEach((noiseNode, midiNote) => {
+        if (noiseNode && noiseNode.stop) {
+            noiseNode.stop();
+        }
+    });
+    attackNoiseNodes.clear();
+    
+    // Stop all release transient nodes
+    releaseTransientNodes.forEach((transientNode, midiNote) => {
+        if (transientNode && transientNode.stop) {
+            transientNode.stop();
+        }
+    });
+    releaseTransientNodes.clear();
     
     activeNotes.forEach((noteName, midiNote) => {
         try {

@@ -105,6 +105,15 @@
             margin-bottom: 16px;
             gap: 16px;
         }
+        .settings-header-sticky {
+            position: sticky;
+            top: 0;
+            background: rgba(30, 30, 45, 0.95);
+            z-index: 11;
+            padding-top: 4px;
+            margin-top: -4px;
+            padding-bottom: 4px;
+        }
         .settings-preset-dropdown {
             position: relative;
         }
@@ -286,30 +295,35 @@
     <div id="settings-modal">
         <div id="settings-panel">
             <button id="settings-close">×</button>
-            <div class="settings-header-controls">
-                <h2>Physics Settings</h2>
-                <div class="settings-preset-dropdown">
-                    <button class="settings-preset-button" id="preset-button">⚙️ Presets ▼</button>
-                    <div class="settings-preset-menu" id="preset-menu">
-                        <div class="settings-preset-item" data-preset="defaults">↺ Reset to Defaults</div>
-                        <div class="settings-preset-item separator"></div>
-                        <div class="settings-preset-item" data-preset="all">✓ Check All</div>
-                        <div class="settings-preset-item" data-preset="none">☐ Uncheck All</div>
-                        <div class="settings-preset-item separator"></div>
-                        <div class="settings-preset-item" data-preset="essential">⭐ Essential Only</div>
-                        <div class="settings-preset-item" data-preset="performance">⚡ Performance Mode</div>
-                        <div class="settings-preset-item" data-preset="realistic">🎹 Realistic Mode</div>
+            <div class="settings-header-sticky">
+                <div class="settings-header-controls">
+                    <h2>Physics Settings</h2>
+                    <div class="settings-preset-dropdown">
+                        <button class="settings-preset-button" id="preset-button">⚙️ Presets ▼</button>
+                        <div class="settings-preset-menu" id="preset-menu">
+                            <div class="settings-preset-item" data-preset="defaults">↺ Reset to Defaults</div>
+                            <div class="settings-preset-item separator"></div>
+                            <div class="settings-preset-item" data-preset="maximum">🔥 Maximum (All Features)</div>
+                            <div class="settings-preset-item" data-preset="high">⚡ High Performance</div>
+                            <div class="settings-preset-item" data-preset="default">⚙️ Default</div>
+                            <div class="settings-preset-item" data-preset="low">💚 Low Performance</div>
+                            <div class="settings-preset-item" data-preset="minimal">🔹 Minimal</div>
+                            <div class="settings-preset-item separator"></div>
+                            <div class="settings-preset-item" data-preset="classic">🎼 Classic Piano</div>
+                            <div class="settings-preset-item" data-preset="modern">✨ Modern Piano</div>
+                            <div class="settings-preset-item" data-preset="experimental">🔬 Experimental</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Navigation Tabs -->
-            <div class="settings-navbar">
-                <button class="nav-tab active" data-category="envelope">🎹 Amplitude Envelope</button>
-                <button class="nav-tab" data-category="timbre">🎵 Timbre & Harmonics</button>
-                <button class="nav-tab" data-category="frequency">🎚️ Frequency & Pitch</button>
-                <button class="nav-tab" data-category="pedal">🦶 Pedal Effects</button>
-                <button class="nav-tab" data-category="spatial">🌐 Spatial Audio</button>
+                
+                <!-- Navigation Tabs -->
+                <div class="settings-navbar">
+                    <button class="nav-tab active" data-category="envelope">🎹 Amplitude Envelope</button>
+                    <button class="nav-tab" data-category="timbre">🎵 Timbre & Harmonics</button>
+                    <button class="nav-tab" data-category="frequency">🎚️ Frequency & Pitch</button>
+                    <button class="nav-tab" data-category="pedal">🦶 Pedal Effects</button>
+                    <button class="nav-tab" data-category="spatial">🌐 Spatial Audio</button>
+                </div>
             </div>
             
             <!-- Amplitude Envelope Category -->
@@ -402,6 +416,62 @@
                         </div>
                     </label>
                 </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-inharmonicity">
+                        <div>
+                            <strong>⭐ Inharmonicity (Critical)</strong>
+                            <div class="setting-description">
+                                Pitch-dependent partial sharpening. Real piano strings are stiff, causing partials to be sharp (not perfect harmonics). This + velocity brightness = 80% of realism improvement!
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack, pitch-dependent)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Medium impact (custom waveform generation)</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-multi-string-unison">
+                        <div>
+                            <strong>⭐ Multi-String Unison</strong>
+                            <div class="setting-description">
+                                Multiple detuned oscillators per note (bass=1, mid=2-3, treble=3 strings). Creates natural beating/chorus effect from slight detuning (±0.1-0.3%).
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Continuous (beating frequencies)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Medium-High impact (multiple oscillators per note)</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-odd-even-harmonic-balance">
+                        <div>
+                            <strong>Odd/Even Harmonic Balance</strong>
+                            <div class="setting-description">
+                                Explicit 2:1 ratio for odd:even harmonics (characteristic "woody" piano tone). Pianos emphasize odd harmonics.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-pitch-harmonic-rolloff">
+                        <div>
+                            <strong>Pitch-Dependent Harmonic Rolloff</strong>
+                            <div class="setting-description">
+                                Frequency-dependent harmonic content. Bass notes have more audible harmonics (10-15) than treble notes (2-3). More realistic spectral distribution.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack, pitch-dependent)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
+                        </div>
+                    </label>
+                </div>
             </div>
             
             <!-- Frequency & Pitch Category -->
@@ -434,6 +504,34 @@
                         </div>
                     </label>
                 </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-attack-noise">
+                        <div>
+                            <strong>Attack Noise (Hammer Strike)</strong>
+                            <div class="setting-description">
+                                Adds filtered noise burst during attack phase (5-20ms) proportional to velocity^1.5. Simulates hammer strike noise for realistic attack transients.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 5-20ms (attack phase)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low-Medium impact (noise generator per note)</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-release-transient">
+                        <div>
+                            <strong>Release Transient (Key-Off Sound)</strong>
+                            <div class="setting-description">
+                                Adds subtle key-off sound when keys are released. Simulates damper lift-off transient for realistic release behavior.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 10-50ms (release phase)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact (short transient per note)</div>
+                        </div>
+                    </label>
+                </div>
             </div>
             
             <!-- Pedal Effects Category -->
@@ -463,6 +561,20 @@
                                 <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Continuous (while pedal held)</span>
                             </div>
                             <div class="setting-cpu-warning">CPU: Medium impact (limited to 8 nearby notes)</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-per-partial-decay">
+                        <div>
+                            <strong>Per-Partial Decay Rates</strong>
+                            <div class="setting-description">
+                                Higher partials decay faster than lower partials. Creates more realistic spectral evolution over time (τₖ = τ₁ × exp(-δ × (k-1))).
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Continuous (note decay, partial-dependent)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
                         </div>
                     </label>
                 </div>
@@ -513,19 +625,29 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
     <!-- Physics modules (load before main.js) -->
-    <script src="physics-settings.js"></script>
-    <script src="velocity-timbre.js"></script>
-    <script src="velocity-attack.js"></script>
-    <script src="time-varying-brightness.js"></script>
-    <script src="dynamic-filter.js"></script>
-    <script src="frequency-compensation.js"></script>
-    <script src="frequency-envelope.js"></script>
-    <script src="advanced-timbre.js"></script>
-    <script src="two-stage-decay.js"></script>
-    <script src="pedal-coupling.js"></script>
-    <script src="sustain-decay.js"></script>
+    <script src="physics-settings/physics-settings.js"></script>
+    <script src="velocity-timbre/velocity-timbre.js"></script>
+    <script src="velocity-attack/velocity-attack.js"></script>
+    <script src="time-varying-brightness/time-varying-brightness.js"></script>
+    <script src="dynamic-filter/dynamic-filter.js"></script>
+    <script src="frequency-compensation/frequency-compensation.js"></script>
+    <script src="frequency-envelope/frequency-envelope.js"></script>
+    <script src="advanced-timbre/advanced-timbre.js"></script>
+    <script src="two-stage-decay/two-stage-decay.js"></script>
+    <script src="pedal-coupling/pedal-coupling.js"></script>
+    <script src="sustain-decay/sustain-decay.js"></script>
     <!-- Velocity mapping module -->
-    <script src="velocity-mapping-two-stage.js"></script>
+    <script src="velocity-mapping-two-stage/velocity-mapping-two-stage.js"></script>
+    <!-- Priority 1: Critical Realism -->
+    <script src="inharmonicity/inharmonicity.js"></script>
+    <script src="multi-string-unison/multi-string-unison.js"></script>
+    <!-- Priority 2: High Impact -->
+    <script src="attack-noise/attack-noise.js"></script>
+    <script src="odd-even-harmonic-balance/odd-even-harmonic-balance.js"></script>
+    <script src="pitch-harmonic-rolloff/pitch-harmonic-rolloff.js"></script>
+    <!-- Priority 3: Polish & Detail -->
+    <script src="per-partial-decay/per-partial-decay.js"></script>
+    <script src="release-transient/release-transient.js"></script>
     <!-- Fake binaural module -->
     <script src="fake-binaural/fake-binaural.js"></script>
     <script src="fake-binaural/fake-binaural-settings.js"></script>

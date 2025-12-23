@@ -17,7 +17,17 @@ const physicsSettings = {
     frequencyCompensation: true, // Equal-loudness contour compensation (CPU: Medium impact)
     frequencyEnvelope: false, // Pitch modulation (initial drift, vibrato, release drift) - CPU: Medium impact
     binauralReverb: false, // Binaural 3D spatial reverb - CPU: High impact
-    fakeBinaural: false // Fake binaural mono-to-stereo processing - CPU: Low-Medium impact
+    fakeBinaural: false, // Fake binaural mono-to-stereo processing - CPU: Low-Medium impact
+    // Priority 1: Critical Realism
+    inharmonicity: false, // Pitch-dependent partial sharpening - CRITICAL for realism
+    multiStringUnison: false, // Multiple detuned oscillators per note - HIGH impact
+    // Priority 2: High Impact
+    attackNoise: false, // Hammer strike noise component
+    oddEvenHarmonicBalance: false, // Explicit 2:1 ratio for odd:even harmonics
+    pitchHarmonicRolloff: false, // Pitch-dependent harmonic content (bass has more harmonics)
+    // Priority 3: Polish & Detail
+    perPartialDecay: false, // Higher partials decay faster
+    releaseTransient: false // Key-off sound (damper lift-off)
 };
 
 // Default settings (for reset)
@@ -33,7 +43,14 @@ const defaultSettings = {
     frequencyCompensation: true,
     frequencyEnvelope: false,
     binauralReverb: false,
-    fakeBinaural: false
+    fakeBinaural: false,
+    inharmonicity: false,
+    multiStringUnison: false,
+    attackNoise: false,
+    oddEvenHarmonicBalance: false,
+    pitchHarmonicRolloff: false,
+    perPartialDecay: false,
+    releaseTransient: false
 };
 
 // Preset configurations
@@ -51,7 +68,14 @@ const settingsPresets = {
         frequencyCompensation: true,
         frequencyEnvelope: true,
         binauralReverb: true,
-        fakeBinaural: true
+        fakeBinaural: true,
+        inharmonicity: true,
+        multiStringUnison: true,
+        attackNoise: true,
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: true
     },
     none: {
         velocityTimbre: false,
@@ -65,36 +89,38 @@ const settingsPresets = {
         frequencyCompensation: false,
         frequencyEnvelope: false,
         binauralReverb: false,
-        fakeBinaural: false
+        fakeBinaural: false,
+        inharmonicity: false,
+        multiStringUnison: false,
+        attackNoise: false,
+        oddEvenHarmonicBalance: false,
+        pitchHarmonicRolloff: false,
+        perPartialDecay: false,
+        releaseTransient: false
     },
-    essential: {
+    // CPU-based presets (5 options)
+    maximum: {
         velocityTimbre: true,
         twoStageDecay: true,
-        pedalCoupling: false,
+        pedalCoupling: true,
         sustainDecay: true,
-        advancedTimbre: false,
+        advancedTimbre: true,
         velocityAttack: true,
-        timeVaryingBrightness: false,
+        timeVaryingBrightness: true,
         dynamicFilter: true,
         frequencyCompensation: true,
-        frequencyEnvelope: false,
-        binauralReverb: false,
-        fakeBinaural: true
+        frequencyEnvelope: true,
+        binauralReverb: true,
+        fakeBinaural: true,
+        inharmonicity: true,
+        multiStringUnison: true,
+        attackNoise: true,
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: true
     },
-    performance: {
-        velocityTimbre: true,
-        twoStageDecay: true,
-        pedalCoupling: false,
-        sustainDecay: true,
-        advancedTimbre: false,
-        velocityAttack: true,
-        timeVaryingBrightness: false,
-        dynamicFilter: true,
-        frequencyCompensation: false, // Disabled for performance
-        frequencyEnvelope: false, // Disabled for performance
-        binauralReverb: false // Disabled for performance (high CPU)
-    },
-    realistic: {
+    high: {
         velocityTimbre: true,
         twoStageDecay: true,
         pedalCoupling: true,
@@ -105,8 +131,122 @@ const settingsPresets = {
         dynamicFilter: true,
         frequencyCompensation: true,
         frequencyEnvelope: true,
+        binauralReverb: false,
+        fakeBinaural: true,
+        inharmonicity: true,
+        multiStringUnison: true,
+        attackNoise: true,
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: true
+    },
+    default: defaultSettings, // Uses the default settings defined above
+    low: {
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: false,
+        sustainDecay: true,
+        advancedTimbre: false,
+        velocityAttack: true,
+        timeVaryingBrightness: false,
+        dynamicFilter: true,
+        frequencyCompensation: false,
+        frequencyEnvelope: false,
+        binauralReverb: false,
+        fakeBinaural: false,
+        inharmonicity: true,
+        multiStringUnison: false,
+        attackNoise: false,
+        oddEvenHarmonicBalance: false,
+        pitchHarmonicRolloff: false,
+        perPartialDecay: false,
+        releaseTransient: false
+    },
+    minimal: {
+        velocityTimbre: true,
+        twoStageDecay: false,
+        pedalCoupling: false,
+        sustainDecay: false,
+        advancedTimbre: false,
+        velocityAttack: false,
+        timeVaryingBrightness: false,
+        dynamicFilter: false,
+        frequencyCompensation: false,
+        frequencyEnvelope: false,
+        binauralReverb: false,
+        fakeBinaural: false,
+        inharmonicity: false,
+        multiStringUnison: false,
+        attackNoise: false,
+        oddEvenHarmonicBalance: false,
+        pitchHarmonicRolloff: false,
+        perPartialDecay: false,
+        releaseTransient: false
+    },
+    // Sound-based presets (3 options)
+    classic: {
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: true,
+        sustainDecay: true,
+        advancedTimbre: false,
+        velocityAttack: true,
+        timeVaryingBrightness: false,
+        dynamicFilter: true,
+        frequencyCompensation: true,
+        frequencyEnvelope: false,
+        binauralReverb: false,
+        fakeBinaural: false,
+        inharmonicity: true,
+        multiStringUnison: true,
+        attackNoise: true,
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: true
+    },
+    modern: {
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: false,
+        sustainDecay: true,
+        advancedTimbre: true,
+        velocityAttack: true,
+        timeVaryingBrightness: true,
+        dynamicFilter: true,
+        frequencyCompensation: true,
+        frequencyEnvelope: true,
         binauralReverb: true,
-        fakeBinaural: true
+        fakeBinaural: true,
+        inharmonicity: true,
+        multiStringUnison: false,
+        attackNoise: false,
+        oddEvenHarmonicBalance: false,
+        pitchHarmonicRolloff: false,
+        perPartialDecay: false,
+        releaseTransient: false
+    },
+    experimental: {
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: true,
+        sustainDecay: true,
+        advancedTimbre: true,
+        velocityAttack: true,
+        timeVaryingBrightness: true,
+        dynamicFilter: true,
+        frequencyCompensation: true,
+        frequencyEnvelope: true,
+        binauralReverb: true,
+        fakeBinaural: true,
+        inharmonicity: true,
+        multiStringUnison: true,
+        attackNoise: true,
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: true
     }
 };
 
@@ -181,6 +321,16 @@ function initPhysicsSettings() {
     const enableFrequencyEnvelope = document.getElementById('enable-frequency-envelope');
     const enableBinauralReverb = document.getElementById('enable-binaural-reverb');
     const enableFakeBinaural = document.getElementById('enable-fake-binaural');
+    // Priority 1: Critical Realism
+    const enableInharmonicity = document.getElementById('enable-inharmonicity');
+    const enableMultiStringUnison = document.getElementById('enable-multi-string-unison');
+    // Priority 2: High Impact
+    const enableAttackNoise = document.getElementById('enable-attack-noise');
+    const enableOddEvenHarmonicBalance = document.getElementById('enable-odd-even-harmonic-balance');
+    const enablePitchHarmonicRolloff = document.getElementById('enable-pitch-harmonic-rolloff');
+    // Priority 3: Polish & Detail
+    const enablePerPartialDecay = document.getElementById('enable-per-partial-decay');
+    const enableReleaseTransient = document.getElementById('enable-release-transient');
     
     /**
      * Sync checkboxes with current settings state
@@ -198,6 +348,13 @@ function initPhysicsSettings() {
         if (enableFrequencyEnvelope) enableFrequencyEnvelope.checked = physicsSettings.frequencyEnvelope;
         if (enableBinauralReverb) enableBinauralReverb.checked = physicsSettings.binauralReverb;
         if (enableFakeBinaural) enableFakeBinaural.checked = physicsSettings.fakeBinaural;
+        if (enableInharmonicity) enableInharmonicity.checked = physicsSettings.inharmonicity;
+        if (enableMultiStringUnison) enableMultiStringUnison.checked = physicsSettings.multiStringUnison;
+        if (enableAttackNoise) enableAttackNoise.checked = physicsSettings.attackNoise;
+        if (enableOddEvenHarmonicBalance) enableOddEvenHarmonicBalance.checked = physicsSettings.oddEvenHarmonicBalance;
+        if (enablePitchHarmonicRolloff) enablePitchHarmonicRolloff.checked = physicsSettings.pitchHarmonicRolloff;
+        if (enablePerPartialDecay) enablePerPartialDecay.checked = physicsSettings.perPartialDecay;
+        if (enableReleaseTransient) enableReleaseTransient.checked = physicsSettings.releaseTransient;
     }
     
     /**
@@ -388,6 +545,51 @@ function initPhysicsSettings() {
                     window.reconnectAudioChain();
                 }
             }
+        });
+    }
+
+    // Priority 1: Critical Realism
+    if (enableInharmonicity) {
+        enableInharmonicity.addEventListener('change', (e) => {
+            physicsSettings.inharmonicity = e.target.checked;
+        });
+    }
+
+    if (enableMultiStringUnison) {
+        enableMultiStringUnison.addEventListener('change', (e) => {
+            physicsSettings.multiStringUnison = e.target.checked;
+        });
+    }
+
+    // Priority 2: High Impact
+    if (enableAttackNoise) {
+        enableAttackNoise.addEventListener('change', (e) => {
+            physicsSettings.attackNoise = e.target.checked;
+        });
+    }
+
+    if (enableOddEvenHarmonicBalance) {
+        enableOddEvenHarmonicBalance.addEventListener('change', (e) => {
+            physicsSettings.oddEvenHarmonicBalance = e.target.checked;
+        });
+    }
+
+    if (enablePitchHarmonicRolloff) {
+        enablePitchHarmonicRolloff.addEventListener('change', (e) => {
+            physicsSettings.pitchHarmonicRolloff = e.target.checked;
+        });
+    }
+
+    // Priority 3: Polish & Detail
+    if (enablePerPartialDecay) {
+        enablePerPartialDecay.addEventListener('change', (e) => {
+            physicsSettings.perPartialDecay = e.target.checked;
+        });
+    }
+
+    if (enableReleaseTransient) {
+        enableReleaseTransient.addEventListener('change', (e) => {
+            physicsSettings.releaseTransient = e.target.checked;
         });
     }
 
