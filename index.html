@@ -246,6 +246,21 @@
             color: #ffaa44;
             font-family: 'Inter', sans-serif;
         }
+        .binaural-reverb-button {
+            background: none;
+            border: none;
+            color: #4a9eff;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            margin-left: 8px;
+        }
+        .binaural-reverb-button:hover {
+            background: rgba(74, 158, 255, 0.1);
+        }
         #settings-close {
             position: absolute;
             top: 12px;
@@ -294,6 +309,7 @@
                 <button class="nav-tab" data-category="timbre">🎵 Timbre & Harmonics</button>
                 <button class="nav-tab" data-category="frequency">🎚️ Frequency & Pitch</button>
                 <button class="nav-tab" data-category="pedal">🦶 Pedal Effects</button>
+                <button class="nav-tab" data-category="spatial">🌐 Spatial Audio</button>
             </div>
             
             <!-- Amplitude Envelope Category -->
@@ -452,6 +468,40 @@
                 </div>
             </div>
             
+            <!-- Spatial Audio Category -->
+            <div class="settings-category" id="category-spatial">
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-fake-binaural">
+                        <div>
+                            <strong>Fake Binaural Mono-to-Stereo</strong>
+                            <button class="binaural-reverb-button" id="fake-binaural-settings-btn">[...]</button>
+                            <div class="setting-description">
+                                Makes mono piano sources sound spacious using frequency-based panning, micro-delays, and EQ differences. Bass notes pan left, treble notes pan right (player perspective). Works great with or without binaural reverb.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Per-note (frequency-dependent panning)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low-Medium impact (lightweight filters, delays, panning)</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-binaural-reverb">
+                        <div>
+                            <strong>Binaural 3D Reverb</strong>
+                            <button class="binaural-reverb-button" id="binaural-reverb-settings-btn">[...]</button>
+                            <div class="setting-description">
+                                Simulates how reverb is perceived differently by each ear, creating a 3D spatial acoustic field. Includes ITD/ILD, frequency-dependent head shadow, and piano-specific room modeling.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Continuous (real-time spatial processing)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: High impact (dual reverb engines, binaural processing)</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
         </div>
     </div>
     <script type="importmap">
@@ -476,6 +526,12 @@
     <script src="sustain-decay.js"></script>
     <!-- Velocity mapping module -->
     <script src="velocity-mapping-two-stage.js"></script>
+    <!-- Fake binaural module -->
+    <script src="fake-binaural/fake-binaural.js"></script>
+    <script src="fake-binaural/fake-binaural-settings.js"></script>
+    <!-- Binaural reverb module -->
+    <script src="binaural-reverb/binaural-reverb.js"></script>
+    <script src="binaural-reverb/binaural-reverb-settings.js"></script>
     <script type="module" src="main.js"></script>
 </body>
 </html>

@@ -530,9 +530,88 @@ const synth = new Tone.PolySynth(Tone.Synth, {
 
 // Connect synth through filter if filter is available
 const filter = initializeDynamicFilter();
+let fakeBinauralOutput = null; // Will hold the fake binaural output node
+let reverbOutput = null; // Will hold the reverb output node
+
+// Function to reconnect audio chain (called when reverb or fake binaural is toggled)
+window.reconnectAudioChain = function() {
+    // Disconnect everything first
+    synth.disconnect();
+    if (filter) {
+        filter.disconnect();
+    }
+    if (fakeBinauralOutput) {
+        fakeBinauralOutput.disconnect();
+    }
+    if (reverbOutput) {
+        reverbOutput.disconnect();
+    }
+    
+    // Start with synth output
+    let currentOutput = synth;
+    
+    // Connect through filter if enabled
+    if (filter) {
+        synth.connect(filter);
+        currentOutput = filter;
+    }
+    
+    // Connect fake binaural if enabled (before reverb)
+    if (window.physicsSettings && window.physicsSettings.fakeBinaural && 
+        window.fakeBinauralSettings && window.fakeBinauralSettings.enabled &&
+        window.connectFakeBinaural) {
+        fakeBinauralOutput = window.connectFakeBinaural(currentOutput);
+        currentOutput = fakeBinauralOutput;
+    } else {
+        fakeBinauralOutput = null;
+    }
+    
+    // Connect binaural reverb if enabled (after fake binaural)
+    if (window.physicsSettings && window.physicsSettings.binauralReverb && 
+        window.binauralReverbSettings && window.binauralReverbSettings.enabled &&
+        window.connectBinauralReverb) {
+        reverbOutput = window.connectBinauralReverb(currentOutput);
+        currentOutput = reverbOutput;
+    } else {
+        reverbOutput = null;
+    }
+    
+    // Connect to destination
+    if (currentOutput) {
+        currentOutput.toDestination();
+    } else {
+        synth.toDestination();
+    }
+};
+
+// Initial connection
+let currentOutput = synth;
+
+// Connect through filter if enabled
 if (filter) {
     synth.connect(filter);
-    filter.toDestination();
+    currentOutput = filter;
+}
+
+// Connect fake binaural if enabled (before reverb)
+if (window.physicsSettings && window.physicsSettings.fakeBinaural && 
+    window.fakeBinauralSettings && window.fakeBinauralSettings.enabled &&
+    window.connectFakeBinaural) {
+    fakeBinauralOutput = window.connectFakeBinaural(currentOutput);
+    currentOutput = fakeBinauralOutput;
+}
+
+// Connect binaural reverb if enabled (after fake binaural)
+if (window.physicsSettings && window.physicsSettings.binauralReverb && 
+    window.binauralReverbSettings && window.binauralReverbSettings.enabled &&
+    window.connectBinauralReverb) {
+    reverbOutput = window.connectBinauralReverb(currentOutput);
+    currentOutput = reverbOutput;
+}
+
+// Connect to destination
+if (currentOutput) {
+    currentOutput.toDestination();
 } else {
     synth.toDestination();
 }

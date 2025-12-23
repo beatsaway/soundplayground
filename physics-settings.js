@@ -15,7 +15,9 @@ const physicsSettings = {
     timeVaryingBrightness: false, // Time-varying harmonic content
     dynamicFilter: true, // Dynamic low-pass filter that closes as notes decay
     frequencyCompensation: true, // Equal-loudness contour compensation (CPU: Medium impact)
-    frequencyEnvelope: false // Pitch modulation (initial drift, vibrato, release drift) - CPU: Medium impact
+    frequencyEnvelope: false, // Pitch modulation (initial drift, vibrato, release drift) - CPU: Medium impact
+    binauralReverb: false, // Binaural 3D spatial reverb - CPU: High impact
+    fakeBinaural: false // Fake binaural mono-to-stereo processing - CPU: Low-Medium impact
 };
 
 // Default settings (for reset)
@@ -29,7 +31,9 @@ const defaultSettings = {
     timeVaryingBrightness: false,
     dynamicFilter: true,
     frequencyCompensation: true,
-    frequencyEnvelope: false
+    frequencyEnvelope: false,
+    binauralReverb: false,
+    fakeBinaural: false
 };
 
 // Preset configurations
@@ -45,7 +49,9 @@ const settingsPresets = {
         timeVaryingBrightness: true,
         dynamicFilter: true,
         frequencyCompensation: true,
-        frequencyEnvelope: true
+        frequencyEnvelope: true,
+        binauralReverb: true,
+        fakeBinaural: true
     },
     none: {
         velocityTimbre: false,
@@ -57,7 +63,9 @@ const settingsPresets = {
         timeVaryingBrightness: false,
         dynamicFilter: false,
         frequencyCompensation: false,
-        frequencyEnvelope: false
+        frequencyEnvelope: false,
+        binauralReverb: false,
+        fakeBinaural: false
     },
     essential: {
         velocityTimbre: true,
@@ -69,7 +77,9 @@ const settingsPresets = {
         timeVaryingBrightness: false,
         dynamicFilter: true,
         frequencyCompensation: true,
-        frequencyEnvelope: false
+        frequencyEnvelope: false,
+        binauralReverb: false,
+        fakeBinaural: true
     },
     performance: {
         velocityTimbre: true,
@@ -81,7 +91,8 @@ const settingsPresets = {
         timeVaryingBrightness: false,
         dynamicFilter: true,
         frequencyCompensation: false, // Disabled for performance
-        frequencyEnvelope: false // Disabled for performance
+        frequencyEnvelope: false, // Disabled for performance
+        binauralReverb: false // Disabled for performance (high CPU)
     },
     realistic: {
         velocityTimbre: true,
@@ -93,7 +104,9 @@ const settingsPresets = {
         timeVaryingBrightness: true,
         dynamicFilter: true,
         frequencyCompensation: true,
-        frequencyEnvelope: true
+        frequencyEnvelope: true,
+        binauralReverb: true,
+        fakeBinaural: true
     }
 };
 
@@ -166,6 +179,8 @@ function initPhysicsSettings() {
     const enableDynamicFilter = document.getElementById('enable-dynamic-filter');
     const enableFrequencyCompensation = document.getElementById('enable-frequency-compensation');
     const enableFrequencyEnvelope = document.getElementById('enable-frequency-envelope');
+    const enableBinauralReverb = document.getElementById('enable-binaural-reverb');
+    const enableFakeBinaural = document.getElementById('enable-fake-binaural');
     
     /**
      * Sync checkboxes with current settings state
@@ -181,6 +196,8 @@ function initPhysicsSettings() {
         if (enableDynamicFilter) enableDynamicFilter.checked = physicsSettings.dynamicFilter;
         if (enableFrequencyCompensation) enableFrequencyCompensation.checked = physicsSettings.frequencyCompensation;
         if (enableFrequencyEnvelope) enableFrequencyEnvelope.checked = physicsSettings.frequencyEnvelope;
+        if (enableBinauralReverb) enableBinauralReverb.checked = physicsSettings.binauralReverb;
+        if (enableFakeBinaural) enableFakeBinaural.checked = physicsSettings.fakeBinaural;
     }
     
     /**
@@ -281,6 +298,83 @@ function initPhysicsSettings() {
             // Note: Full per-voice frequency modulation requires synth reinitialization
             // For now, modulation is tracked but requires custom architecture for full implementation
         });
+    }
+
+    if (enableBinauralReverb) {
+        enableBinauralReverb.addEventListener('change', (e) => {
+            physicsSettings.binauralReverb = e.target.checked;
+            // Update binaural reverb enabled state
+            if (window.binauralReverbSettings) {
+                window.binauralReverbSettings.enabled = e.target.checked;
+                if (e.target.checked) {
+                    // Initialize reverb if enabling
+                    if (window.initializeBinauralReverb) {
+                        window.initializeBinauralReverb();
+                    }
+                    // Reconnect audio chain
+                    if (window.reconnectAudioChain) {
+                        window.reconnectAudioChain();
+                    }
+                } else {
+                    // Disconnect reverb if disabling
+                    if (window.reconnectAudioChain) {
+                        window.reconnectAudioChain();
+                    }
+                }
+            }
+        });
+    }
+
+    if (enableFakeBinaural) {
+        enableFakeBinaural.addEventListener('change', (e) => {
+            physicsSettings.fakeBinaural = e.target.checked;
+            // Update fake binaural enabled state
+            if (window.fakeBinauralSettings) {
+                window.fakeBinauralSettings.enabled = e.target.checked;
+                if (e.target.checked) {
+                    // Initialize fake binaural if enabling
+                    if (window.initializeFakeBinaural) {
+                        window.initializeFakeBinaural();
+                    }
+                }
+                // Reconnect audio chain
+                if (window.reconnectAudioChain) {
+                    window.reconnectAudioChain();
+                }
+            }
+        });
+    }
+
+    // Setup binaural reverb settings button
+    const binauralReverbSettingsBtn = document.getElementById('binaural-reverb-settings-btn');
+    if (binauralReverbSettingsBtn) {
+        binauralReverbSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openBinauralReverbSettings) {
+                window.openBinauralReverbSettings();
+            }
+        });
+    }
+
+    // Initialize binaural reverb settings popup
+    if (window.initBinauralReverbSettings) {
+        window.initBinauralReverbSettings();
+    }
+
+    // Setup fake binaural settings button
+    const fakeBinauralSettingsBtn = document.getElementById('fake-binaural-settings-btn');
+    if (fakeBinauralSettingsBtn) {
+        fakeBinauralSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openFakeBinauralSettings) {
+                window.openFakeBinauralSettings();
+            }
+        });
+    }
+
+    // Initialize fake binaural settings popup
+    if (window.initFakeBinauralSettings) {
+        window.initFakeBinauralSettings();
     }
 }
 
