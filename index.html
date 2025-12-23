@@ -338,6 +338,21 @@
                         </div>
                     </label>
                 </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" checked disabled>
+                        <div>
+                            <strong>Primary Envelope Settings</strong>
+                            <button class="binaural-reverb-button" id="envelope-settings-btn">[...]</button>
+                            <div class="setting-description">
+                                Core amplitude envelope parameters: attack, decay, sustain, and release times. These control the fundamental shape of each note's amplitude over time.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 1-2000ms (envelope phases)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: No impact</div>
+                        </div>
+                    </label>
+                </div>
             </div>
             
             <!-- Timbre & Harmonics Category -->
@@ -643,6 +658,8 @@
     <!-- Velocity mapping module -->
     <script src="velocity-mapping-two-stage/velocity-mapping-two-stage.js"></script>
     <script src="velocity-mapping-two-stage/velocity-mapping-settings.js"></script>
+    <!-- Envelope settings module -->
+    <script src="envelope-settings/envelope-settings.js"></script>
     <!-- Priority 1: Critical Realism -->
     <script src="inharmonicity/inharmonicity.js"></script>
     <!-- Priority 2: High Impact -->

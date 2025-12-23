@@ -524,7 +524,7 @@ const synth = new Tone.PolySynth(Tone.Synth, {
         type: 'triangle' // Triangle has harmonics, filter will control brightness
     },
     envelope: {
-        attack: 0.005,
+        attack: 0.01,  // Default 10ms (will be overridden per note from envelope settings)
         decay: 0.1,
         sustain: 0.3,
         release: 0.5 // Default, will be overridden per note
@@ -827,18 +827,29 @@ function handleNoteOn(midiNote, velocity) {
         // Track as active note
         activeNotes.set(midiNote, noteName);
         
+        // Get base envelope settings from envelope-settings.js module
+        const baseEnvelope = (window.envelopeSettings) ? window.envelopeSettings : {
+            attack: 0.01,   // Default 10ms
+            decay: 0.1,     // Default 100ms
+            sustain: 0.3,   // Default 0.3
+            release: 0.5    // Default 500ms
+        };
+        
         // Set frequency-dependent envelope parameters for this note (based on research3)
         // Lower notes have longer release times, higher notes have shorter release times
-        const releaseTime = calculateReleaseTime(midiNote);
+        // Use envelope settings as base (from envelope-settings.js module)
+        const releaseTime = baseEnvelope.release;
         
         // Calculate two-stage decay parameters (research4) - from two-stage-decay.js module
+        // If two-stage decay is enabled, use it; otherwise use envelope settings
         const twoStageDecay = window.calculateTwoStageDecay ? window.calculateTwoStageDecay(velocity) : { decay1: 0.1, decay2: 2.0, amplitudeRatio: 0.7 };
-        const decayTime = (window.physicsSettings && window.physicsSettings.twoStageDecay) ? twoStageDecay.decay1 : calculateDecayTime();
+        const decayTime = (window.physicsSettings && window.physicsSettings.twoStageDecay) ? 
+            twoStageDecay.decay1 : baseEnvelope.decay;
         
         // Get velocity-dependent attack time (from velocity-attack.js module)
-        // Piano attack is very fast (1-5ms) - the "softness" comes from amplitude, not attack time
+        // If velocity-dependent attack is enabled, use it; otherwise use envelope settings
         const attackTime = (window.physicsSettings && window.physicsSettings.velocityAttack && window.getAttackTimeForVelocity) ?
-            window.getAttackTimeForVelocity(velocity) : 0.002; // Default 2ms (piano-like)
+            window.getAttackTimeForVelocity(velocity) : baseEnvelope.attack;
         
         // Get frequency for this note (for filter keytracking)
         const frequency = midiNoteToFrequency(midiNote);
@@ -886,7 +897,8 @@ function handleNoteOn(midiNote, velocity) {
             envelope: {
                 attack: attackTime,
                 decay: adjustedDecayTime,
-                sustain: (window.physicsSettings && window.physicsSettings.twoStageDecay) ? (0.3 * twoStageDecay.amplitudeRatio) : 0.3,
+                sustain: (window.physicsSettings && window.physicsSettings.twoStageDecay) ? 
+                    (baseEnvelope.sustain * twoStageDecay.amplitudeRatio) : baseEnvelope.sustain,
                 release: releaseTime
             }
         });

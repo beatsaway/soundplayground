@@ -650,6 +650,22 @@ function initPhysicsSettings() {
     if (window.initPitchHarmonicRolloffSettings) {
         window.initPitchHarmonicRolloffSettings();
     }
+
+    // Setup envelope settings button
+    const envelopeSettingsBtn = document.getElementById('envelope-settings-btn');
+    if (envelopeSettingsBtn) {
+        envelopeSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openEnvelopeSettings) {
+                window.openEnvelopeSettings();
+            }
+        });
+    }
+
+    // Initialize envelope settings popup
+    if (window.initEnvelopeSettings) {
+        window.initEnvelopeSettings();
+    }
 }
 
 // Export for use in other modules
