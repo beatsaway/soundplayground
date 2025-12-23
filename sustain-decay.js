@@ -22,13 +22,14 @@
 function calculateSustainDecayTime(midiNote) {
     const A0_MIDI = 21; // A0 MIDI note number
     const T0 = 12.0; // Base sustain decay time in seconds for A0
-    const k = 3.0; // Decay factor (halving roughly every 4 semitones)
+    const k = 2.5; // Decay factor (less aggressive - halving roughly every 5 semitones)
     
     const semitoneOffset = midiNote - A0_MIDI;
     const sustainDecayTime = T0 * Math.pow(2, -semitoneOffset / 12 * k);
     
-    // Clamp to reasonable range: 0.06s (60ms) to 15.0s
-    return Math.max(0.06, Math.min(15.0, sustainDecayTime));
+    // Clamp to reasonable range: 0.5s (500ms) to 15.0s
+    // Increased minimum from 0.06s to 0.5s so high notes still sustain for a noticeable time
+    return Math.max(0.5, Math.min(15.0, sustainDecayTime));
 }
 
 /**
@@ -75,6 +76,11 @@ function startSustainDecay(midiNote, noteName, dependencies) {
         }
     }
     
+    // Ensure Tone.Transport is started (required for scheduled events)
+    if (Tone.Transport.state !== 'started') {
+        Tone.Transport.start();
+    }
+    
     // Calculate exponential decay parameters
     const startTime = Tone.now();
     const timeConstant = sustainDecayTime / 3; // Time to decay to ~37% (1/e)
@@ -90,7 +96,7 @@ function startSustainDecay(midiNote, noteName, dependencies) {
     
     // Set a longer release time for this sustained note when it eventually releases
     // This ensures a smooth, gradual fade-out that matches the sustain decay time
-    const longReleaseTime = Math.min(8.0, sustainDecayTime * 0.5); // Release phase is 50% of total decay, max 8s
+    const longReleaseTime = Math.min(8.0, Math.max(1.0, sustainDecayTime * 0.5)); // Release phase is 50% of total decay, min 1s, max 8s
     
     // Update the synth's release time for sustained notes
     // Note: This affects all voices, but it's the best we can do with PolySynth

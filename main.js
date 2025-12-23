@@ -464,6 +464,15 @@ const synth = new Tone.PolySynth(Tone.Synth, {
     }
 }).toDestination();
 
+// Initialize VelocityTimbreManager for advanced timbre features (if available)
+let timbreManager = null;
+if (typeof window !== 'undefined' && window.VelocityTimbreManager && Tone.context) {
+    try {
+        timbreManager = new window.VelocityTimbreManager(Tone.context);
+    } catch (e) {
+        console.warn('Failed to initialize VelocityTimbreManager:', e);
+    }
+}
 
 // Set master volume
 Tone.getDestination().volume.value = -6; // Slightly reduce volume
@@ -648,7 +657,17 @@ function handleNoteOn(midiNote, velocity) {
         const decayTime = (window.physicsSettings && window.physicsSettings.twoStageDecay) ? twoStageDecay.decay1 : calculateDecayTime();
         
         // Get velocity-dependent oscillator type for timbre (research4) - from velocity-timbre.js module
-        const oscillatorType = window.getOscillatorTypeForVelocity ? window.getOscillatorTypeForVelocity(velocity) : 'sine';
+        // Use smooth transitions if advanced timbre is enabled, otherwise use standard
+        let oscillatorType;
+        if (window.physicsSettings && window.physicsSettings.advancedTimbre && window.getOscillatorTypeSmooth) {
+            oscillatorType = window.getOscillatorTypeSmooth(velocity);
+        } else {
+            oscillatorType = window.getOscillatorTypeForVelocity ? window.getOscillatorTypeForVelocity(velocity) : 'sine';
+        }
+        
+        // Get velocity-dependent attack time (from velocity-attack.js module)
+        const attackTime = (window.physicsSettings && window.physicsSettings.velocityAttack && window.getAttackTimeForVelocity) ?
+            window.getAttackTimeForVelocity(velocity) : 0.005;
         
         // Update envelope parameters on the synth before triggering
         // Note: synth.set() affects all voices, but since we call it right before triggerAttack,
@@ -659,7 +678,7 @@ function handleNoteOn(midiNote, velocity) {
                 type: oscillatorType
             },
             envelope: {
-                attack: 0.005,
+                attack: attackTime,
                 decay: decayTime,
                 sustain: (window.physicsSettings && window.physicsSettings.twoStageDecay) ? (0.3 * twoStageDecay.amplitudeRatio) : 0.3,
                 release: releaseTime

@@ -9,7 +9,10 @@ const physicsSettings = {
     velocityTimbre: true,
     twoStageDecay: true,
     pedalCoupling: false,
-    sustainDecay: true
+    sustainDecay: true,
+    advancedTimbre: false, // Custom waveform generation (more CPU intensive)
+    velocityAttack: true, // Velocity-dependent attack time
+    timeVaryingBrightness: false // Time-varying harmonic content
 };
 
 /**
@@ -24,6 +27,9 @@ function initPhysicsSettings() {
     const enableTwoStageDecay = document.getElementById('enable-two-stage-decay');
     const enablePedalCoupling = document.getElementById('enable-pedal-coupling');
     const enableSustainDecay = document.getElementById('enable-sustain-decay');
+    const enableAdvancedTimbre = document.getElementById('enable-advanced-timbre');
+    const enableVelocityAttack = document.getElementById('enable-velocity-attack');
+    const enableTimeVaryingBrightness = document.getElementById('enable-time-varying-brightness');
 
     if (settingsIcon) {
         settingsIcon.addEventListener('click', () => {
@@ -33,6 +39,9 @@ function initPhysicsSettings() {
             enableTwoStageDecay.checked = physicsSettings.twoStageDecay;
             enablePedalCoupling.checked = physicsSettings.pedalCoupling;
             enableSustainDecay.checked = physicsSettings.sustainDecay;
+            enableAdvancedTimbre.checked = physicsSettings.advancedTimbre;
+            enableVelocityAttack.checked = physicsSettings.velocityAttack;
+            enableTimeVaryingBrightness.checked = physicsSettings.timeVaryingBrightness;
         });
     }
 
@@ -71,6 +80,24 @@ function initPhysicsSettings() {
     if (enableSustainDecay) {
         enableSustainDecay.addEventListener('change', (e) => {
             physicsSettings.sustainDecay = e.target.checked;
+        });
+    }
+
+    if (enableAdvancedTimbre) {
+        enableAdvancedTimbre.addEventListener('change', (e) => {
+            physicsSettings.advancedTimbre = e.target.checked;
+        });
+    }
+
+    if (enableVelocityAttack) {
+        enableVelocityAttack.addEventListener('change', (e) => {
+            physicsSettings.velocityAttack = e.target.checked;
+        });
+    }
+
+    if (enableTimeVaryingBrightness) {
+        enableTimeVaryingBrightness.addEventListener('change', (e) => {
+            physicsSettings.timeVaryingBrightness = e.target.checked;
         });
     }
 }

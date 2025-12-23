@@ -190,6 +190,45 @@
                 </label>
             </div>
             
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-velocity-attack" checked>
+                    <div>
+                        <strong>Velocity-Dependent Attack Time</strong>
+                        <div class="setting-description">
+                            Higher velocities produce faster attack times. Louder notes respond more quickly, matching real piano behavior.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Low impact</div>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-advanced-timbre">
+                    <div>
+                        <strong>Advanced Timbre (Custom Waveforms)</strong>
+                        <div class="setting-description">
+                            Uses custom waveform generation for smoother timbre transitions. More natural sound but requires more CPU.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Medium impact (waveform caching)</div>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-time-varying-brightness">
+                    <div>
+                        <strong>Time-Varying Brightness</strong>
+                        <div class="setting-description">
+                            Harmonic content evolves during the note - brightness peaks during attack, then gradually decays. More realistic piano timbre evolution.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Low impact</div>
+                    </div>
+                </label>
+            </div>
+            
         </div>
     </div>
     <script type="importmap">
@@ -203,6 +242,9 @@
     <!-- Physics modules (load before main.js) -->
     <script src="physics-settings.js"></script>
     <script src="velocity-timbre.js"></script>
+    <script src="velocity-attack.js"></script>
+    <script src="time-varying-brightness.js"></script>
+    <script src="advanced-timbre.js"></script>
     <script src="two-stage-decay.js"></script>
     <script src="pedal-coupling.js"></script>
     <script src="sustain-decay.js"></script>
