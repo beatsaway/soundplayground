@@ -35,6 +35,23 @@ function createBinauralReverbPopup() {
             <div class="binaural-reverb-popup-body">
                 <div class="binaural-reverb-setting">
                     <label>
+                        <span>Reverb Mode</span>
+                        <div class="binaural-reverb-mode-toggle">
+                            <label class="binaural-reverb-radio">
+                                <input type="radio" name="reverb-mode" value="binaural" id="reverb-mode-binaural" checked>
+                                <span>Binaural (3D Spatial)</span>
+                            </label>
+                            <label class="binaural-reverb-radio">
+                                <input type="radio" name="reverb-mode" value="regular" id="reverb-mode-regular">
+                                <span>Regular (CPU Efficient)</span>
+                            </label>
+                        </div>
+                    </label>
+                    <div class="binaural-reverb-description">Binaural mode uses dual reverb engines for 3D spatial effects (~2x CPU). Regular mode uses a single reverb engine (~50% CPU savings).</div>
+                </div>
+                
+                <div class="binaural-reverb-setting">
+                    <label>
                         <span>Room Size</span>
                         <input type="range" id="binaural-room-size" min="0" max="100" value="70" step="1">
                         <span class="binaural-reverb-value" id="binaural-room-size-value">0.70</span>
@@ -71,55 +88,64 @@ function createBinauralReverbPopup() {
                 
                 <div class="binaural-reverb-setting">
                     <label>
-                        <span>Dry/Wet Mix</span>
-                        <input type="range" id="binaural-dry-wet" min="0" max="100" value="50" step="1">
-                        <span class="binaural-reverb-value" id="binaural-dry-wet-value">0.50</span>
+                        <span>Dry Level</span>
+                        <input type="range" id="binaural-dry" min="0" max="100" value="50" step="1">
+                        <span class="binaural-reverb-value" id="binaural-dry-value">0.50</span>
                     </label>
-                    <div class="binaural-reverb-description">Balance between dry signal and reverb (0.0 = all dry, 1.0 = all wet)</div>
+                    <div class="binaural-reverb-description">Level of dry (unprocessed) signal (0.0 to 1.0)</div>
                 </div>
                 
                 <div class="binaural-reverb-setting">
+                    <label>
+                        <span>Wet Level</span>
+                        <input type="range" id="binaural-wet" min="0" max="100" value="50" step="1">
+                        <span class="binaural-reverb-value" id="binaural-wet-value">0.50</span>
+                    </label>
+                    <div class="binaural-reverb-description">Level of wet (reverb) signal (0.0 to 1.0)</div>
+                </div>
+                
+                <div class="binaural-reverb-setting binaural-only-setting">
                     <label>
                         <span>ITD Intensity</span>
                         <input type="range" id="binaural-itd-intensity" min="0" max="100" value="80" step="1">
                         <span class="binaural-reverb-value" id="binaural-itd-intensity-value">0.80</span>
                     </label>
-                    <div class="binaural-reverb-description">Interaural Time Difference intensity (spatial width)</div>
+                    <div class="binaural-reverb-description">Interaural Time Difference intensity (spatial width) - Binaural mode only</div>
                 </div>
                 
-                <div class="binaural-reverb-setting">
+                <div class="binaural-reverb-setting binaural-only-setting">
                     <label>
                         <span>ILD Intensity</span>
                         <input type="range" id="binaural-ild-intensity" min="0" max="100" value="60" step="1">
                         <span class="binaural-reverb-value" id="binaural-ild-intensity-value">0.60</span>
                     </label>
-                    <div class="binaural-reverb-description">Interaural Level Difference intensity (head shadow effect)</div>
+                    <div class="binaural-reverb-description">Interaural Level Difference intensity (head shadow effect) - Binaural mode only</div>
                 </div>
                 
-                <div class="binaural-reverb-setting">
+                <div class="binaural-reverb-setting binaural-only-setting">
                     <label>
                         <span>Piano Lid Position</span>
                         <input type="range" id="binaural-piano-lid" min="0" max="100" value="50" step="1">
                         <span class="binaural-reverb-value" id="binaural-piano-lid-value">0.50</span>
                     </label>
-                    <div class="binaural-reverb-description">Piano lid position (0.0 = closed, 1.0 = fully open)</div>
+                    <div class="binaural-reverb-description">Piano lid position (0.0 = closed, 1.0 = fully open) - Binaural mode only</div>
                 </div>
                 
-                <div class="binaural-reverb-setting">
+                <div class="binaural-reverb-setting binaural-only-setting">
                     <label>
                         <span>Binaural Quality</span>
                         <input type="range" id="binaural-quality" min="0" max="100" value="70" step="1">
                         <span class="binaural-reverb-value" id="binaural-quality-value">0.70</span>
                     </label>
-                    <div class="binaural-reverb-description">Overall binaural processing quality (0.0 to 1.0)</div>
+                    <div class="binaural-reverb-description">Overall binaural processing quality (0.0 to 1.0) - Binaural mode only</div>
                 </div>
                 
-                <div class="binaural-reverb-setting">
+                <div class="binaural-reverb-setting binaural-only-setting">
                     <label class="binaural-reverb-checkbox">
                         <input type="checkbox" id="binaural-frequency-dependent" checked>
                         <span>Frequency-Dependent Effects</span>
                     </label>
-                    <div class="binaural-reverb-description">Enable frequency-dependent binaural processing (head shadow)</div>
+                    <div class="binaural-reverb-description">Enable frequency-dependent binaural processing (head shadow) - Binaural mode only</div>
                 </div>
                 
                 <div class="binaural-reverb-popup-footer">
@@ -299,6 +325,41 @@ function createBinauralReverbPopup() {
             .binaural-reverb-button:hover {
                 background: rgba(74, 158, 255, 0.1);
             }
+            .binaural-reverb-mode-toggle {
+                display: flex;
+                gap: 16px;
+                flex: 1;
+            }
+            .binaural-reverb-radio {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                padding: 4px 8px;
+                border-radius: 4px;
+                transition: background 0.2s;
+            }
+            .binaural-reverb-radio:hover {
+                background: rgba(255, 255, 255, 0.05);
+            }
+            .binaural-reverb-radio input[type="radio"] {
+                margin: 0;
+                cursor: pointer;
+            }
+            .binaural-reverb-radio span {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.8);
+            }
+            .binaural-reverb-radio input[type="radio"]:checked + span {
+                color: #4a9eff;
+                font-weight: 500;
+            }
+            .binaural-only-setting {
+                display: flex;
+            }
+            .binaural-only-setting.hidden {
+                display: none;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -334,6 +395,62 @@ function setupBinauralReverbControls() {
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             resetBinauralReverbToDefaults();
+        });
+    }
+
+    // Reverb Mode Toggle
+    const binauralModeRadio = document.getElementById('reverb-mode-binaural');
+    const regularModeRadio = document.getElementById('reverb-mode-regular');
+    const binauralOnlySettings = popup.querySelectorAll('.binaural-only-setting');
+    
+    function updateModeVisibility() {
+        const isBinaural = binauralModeRadio && binauralModeRadio.checked;
+        binauralOnlySettings.forEach(setting => {
+            if (isBinaural) {
+                setting.classList.remove('hidden');
+            } else {
+                setting.classList.add('hidden');
+            }
+        });
+    }
+    
+    if (binauralModeRadio && regularModeRadio) {
+        // Set initial state based on current settings
+        const currentMode = window.binauralReverbSettings?.reverbMode || 'binaural';
+        if (currentMode === 'regular') {
+            regularModeRadio.checked = true;
+            binauralModeRadio.checked = false;
+        } else {
+            binauralModeRadio.checked = true;
+            regularModeRadio.checked = false;
+        }
+        updateModeVisibility();
+        
+        // Handle mode changes
+        binauralModeRadio.addEventListener('change', () => {
+            if (binauralModeRadio.checked) {
+                if (window.setBinauralReverbSettings) {
+                    window.setBinauralReverbSettings({ reverbMode: 'binaural' });
+                }
+                updateModeVisibility();
+                // Reconnect audio chain to apply changes
+                if (window.reconnectAudioChain) {
+                    window.reconnectAudioChain();
+                }
+            }
+        });
+        
+        regularModeRadio.addEventListener('change', () => {
+            if (regularModeRadio.checked) {
+                if (window.setBinauralReverbSettings) {
+                    window.setBinauralReverbSettings({ reverbMode: 'regular' });
+                }
+                updateModeVisibility();
+                // Reconnect audio chain to apply changes
+                if (window.reconnectAudioChain) {
+                    window.reconnectAudioChain();
+                }
+            }
         });
     }
 
@@ -389,15 +506,32 @@ function setupBinauralReverbControls() {
         });
     }
 
-    // Dry/Wet Mix
-    const dryWetSlider = document.getElementById('binaural-dry-wet');
-    const dryWetValue = document.getElementById('binaural-dry-wet-value');
-    if (dryWetSlider && dryWetValue) {
-        dryWetSlider.addEventListener('input', (e) => {
+    // Dry Level
+    const drySlider = document.getElementById('binaural-dry');
+    const dryValue = document.getElementById('binaural-dry-value');
+    if (drySlider && dryValue) {
+        drySlider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value) / 100;
-            dryWetValue.textContent = value.toFixed(2);
+            dryValue.textContent = value.toFixed(2);
             if (window.setBinauralReverbSettings) {
-                window.setBinauralReverbSettings({ dryWet: value });
+                window.setBinauralReverbSettings({ dry: value });
+                // Reconnect audio chain to apply changes
+                if (window.reconnectAudioChain) {
+                    window.reconnectAudioChain();
+                }
+            }
+        });
+    }
+
+    // Wet Level
+    const wetSlider = document.getElementById('binaural-wet');
+    const wetValue = document.getElementById('binaural-wet-value');
+    if (wetSlider && wetValue) {
+        wetSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value) / 100;
+            wetValue.textContent = value.toFixed(2);
+            if (window.setBinauralReverbSettings) {
+                window.setBinauralReverbSettings({ wet: value });
                 // Reconnect audio chain to apply changes
                 if (window.reconnectAudioChain) {
                     window.reconnectAudioChain();
@@ -474,11 +608,13 @@ function setupBinauralReverbControls() {
  */
 function resetBinauralReverbToDefaults() {
     const defaults = {
+        reverbMode: 'binaural',
         roomSize: 0.7,
         reverbTime: 2.0,
         earlyReflections: 0.6,
         lateReverb: 0.6,
-        dryWet: 0.5,
+        dry: 0.5,
+        wet: 0.5,
         itdIntensity: 0.8,
         ildIntensity: 0.6,
         frequencyDependent: true,
@@ -495,30 +631,48 @@ function resetBinauralReverbToDefaults() {
     const reverbTimeSlider = document.getElementById('binaural-reverb-time');
     const earlyReflectionsSlider = document.getElementById('binaural-early-reflections');
     const lateReverbSlider = document.getElementById('binaural-late-reverb');
-    const dryWetSlider = document.getElementById('binaural-dry-wet');
+    const drySlider = document.getElementById('binaural-dry');
+    const wetSlider = document.getElementById('binaural-wet');
     const itdIntensitySlider = document.getElementById('binaural-itd-intensity');
     const ildIntensitySlider = document.getElementById('binaural-ild-intensity');
     const pianoLidSlider = document.getElementById('binaural-piano-lid');
     const qualitySlider = document.getElementById('binaural-quality');
     const freqDependentCheckbox = document.getElementById('binaural-frequency-dependent');
 
+    // Update mode radio buttons
+    const binauralModeRadio = document.getElementById('reverb-mode-binaural');
+    const regularModeRadio = document.getElementById('reverb-mode-regular');
+    if (binauralModeRadio) binauralModeRadio.checked = true;
+    if (regularModeRadio) regularModeRadio.checked = false;
+    
     if (roomSizeSlider) roomSizeSlider.value = 70;
     if (reverbTimeSlider) reverbTimeSlider.value = 20;
     if (earlyReflectionsSlider) earlyReflectionsSlider.value = 60;
     if (lateReverbSlider) lateReverbSlider.value = 60;
-    if (dryWetSlider) dryWetSlider.value = 50;
+    if (drySlider) drySlider.value = 50;
+    if (wetSlider) wetSlider.value = 50;
     if (itdIntensitySlider) itdIntensitySlider.value = 80;
     if (ildIntensitySlider) ildIntensitySlider.value = 60;
     if (pianoLidSlider) pianoLidSlider.value = 50;
     if (qualitySlider) qualitySlider.value = 70;
     if (freqDependentCheckbox) freqDependentCheckbox.checked = true;
+    
+    // Update mode visibility
+    const popup = document.getElementById('binaural-reverb-popup');
+    if (popup) {
+        const binauralOnlySettings = popup.querySelectorAll('.binaural-only-setting');
+        binauralOnlySettings.forEach(setting => {
+            setting.classList.remove('hidden');
+        });
+    }
 
     // Trigger input events to update value displays
     if (roomSizeSlider) roomSizeSlider.dispatchEvent(new Event('input'));
     if (reverbTimeSlider) reverbTimeSlider.dispatchEvent(new Event('input'));
     if (earlyReflectionsSlider) earlyReflectionsSlider.dispatchEvent(new Event('input'));
     if (lateReverbSlider) lateReverbSlider.dispatchEvent(new Event('input'));
-    if (dryWetSlider) dryWetSlider.dispatchEvent(new Event('input'));
+    if (drySlider) drySlider.dispatchEvent(new Event('input'));
+    if (wetSlider) wetSlider.dispatchEvent(new Event('input'));
     if (itdIntensitySlider) itdIntensitySlider.dispatchEvent(new Event('input'));
     if (ildIntensitySlider) ildIntensitySlider.dispatchEvent(new Event('input'));
     if (pianoLidSlider) pianoLidSlider.dispatchEvent(new Event('input'));
@@ -531,6 +685,45 @@ function resetBinauralReverbToDefaults() {
 function openBinauralReverbSettings() {
     const popup = document.getElementById('binaural-reverb-popup');
     if (popup) {
+        // Sync mode radio buttons with current settings
+        const currentMode = window.binauralReverbSettings?.reverbMode || 'binaural';
+        const binauralModeRadio = document.getElementById('reverb-mode-binaural');
+        const regularModeRadio = document.getElementById('reverb-mode-regular');
+        const binauralOnlySettings = popup.querySelectorAll('.binaural-only-setting');
+        
+        if (binauralModeRadio && regularModeRadio) {
+            if (currentMode === 'regular') {
+                regularModeRadio.checked = true;
+                binauralModeRadio.checked = false;
+                binauralOnlySettings.forEach(setting => {
+                    setting.classList.add('hidden');
+                });
+            } else {
+                binauralModeRadio.checked = true;
+                regularModeRadio.checked = false;
+                binauralOnlySettings.forEach(setting => {
+                    setting.classList.remove('hidden');
+                });
+            }
+        }
+        
+        // Sync dry and wet sliders with current settings
+        const currentDry = window.binauralReverbSettings?.dry !== undefined ? window.binauralReverbSettings.dry : 0.5;
+        const currentWet = window.binauralReverbSettings?.wet !== undefined ? window.binauralReverbSettings.wet : 0.5;
+        const drySlider = document.getElementById('binaural-dry');
+        const wetSlider = document.getElementById('binaural-wet');
+        const dryValue = document.getElementById('binaural-dry-value');
+        const wetValue = document.getElementById('binaural-wet-value');
+        
+        if (drySlider) {
+            drySlider.value = Math.round(currentDry * 100);
+            if (dryValue) dryValue.textContent = currentDry.toFixed(2);
+        }
+        if (wetSlider) {
+            wetSlider.value = Math.round(currentWet * 100);
+            if (wetValue) wetValue.textContent = currentWet.toFixed(2);
+        }
+        
         popup.classList.add('active');
     }
 }
