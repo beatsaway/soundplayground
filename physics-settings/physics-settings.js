@@ -18,9 +18,10 @@ const physicsSettings = {
     frequencyEnvelope: true, // Pitch modulation (initial drift, vibrato, release drift) - CPU: Medium impact
     binauralReverb: true, // Binaural 3D spatial reverb - CPU: High impact
     fakeBinaural: true, // Fake binaural mono-to-stereo processing - CPU: Low-Medium impact
+    spectralBalance: false, // Pink-noise-like EQ filter for final output - CPU: Low impact
     // Priority 1: Critical Realism
     inharmonicity: true, // Pitch-dependent partial sharpening - CRITICAL for realism
-    multiStringUnison: false, // Multiple detuned oscillators per note - HIGH impact (OFF by default)
+    multiStringUnison: true, // Multiple detuned oscillators per note - HIGH impact (ON by default)
     // Priority 2: High Impact
     attackNoise: false, // Hammer strike noise component (OFF by default)
     oddEvenHarmonicBalance: true, // Explicit 2:1 ratio for odd:even harmonics
@@ -44,8 +45,9 @@ const defaultSettings = {
     frequencyEnvelope: true,
     binauralReverb: true, // Binaural (3D Spatial) mode enabled
     fakeBinaural: true,
+    spectralBalance: false, // OFF by default
     inharmonicity: true,
-    multiStringUnison: false, // OFF by default
+    multiStringUnison: true, // ON by default
     attackNoise: false, // OFF by default
     oddEvenHarmonicBalance: true,
     pitchHarmonicRolloff: true,
@@ -69,6 +71,7 @@ const settingsPresets = {
         frequencyEnvelope: true,
         binauralReverb: true,
         fakeBinaural: true,
+        spectralBalance: true,
         inharmonicity: true,
         multiStringUnison: true,
         attackNoise: true,
@@ -90,6 +93,7 @@ const settingsPresets = {
         frequencyEnvelope: false,
         binauralReverb: false,
         fakeBinaural: false,
+        spectralBalance: false,
         inharmonicity: false,
         multiStringUnison: false,
         attackNoise: false,
@@ -112,6 +116,7 @@ const settingsPresets = {
         frequencyEnvelope: true,
         binauralReverb: true,
         fakeBinaural: true,
+        spectralBalance: true,
         inharmonicity: true,
         multiStringUnison: true,
         attackNoise: true,
@@ -133,6 +138,7 @@ const settingsPresets = {
         frequencyEnvelope: true,
         binauralReverb: false,
         fakeBinaural: true,
+        spectralBalance: true,
         inharmonicity: true,
         multiStringUnison: true,
         attackNoise: true,
@@ -155,6 +161,7 @@ const settingsPresets = {
         frequencyEnvelope: false,
         binauralReverb: false,
         fakeBinaural: false,
+        spectralBalance: false,
         inharmonicity: true,
         multiStringUnison: false,
         attackNoise: false,
@@ -176,6 +183,7 @@ const settingsPresets = {
         frequencyEnvelope: false,
         binauralReverb: false,
         fakeBinaural: false,
+        spectralBalance: false,
         inharmonicity: false,
         multiStringUnison: false,
         attackNoise: false,
@@ -270,6 +278,7 @@ function initPhysicsSettings() {
         if (enableFrequencyEnvelope) enableFrequencyEnvelope.checked = physicsSettings.frequencyEnvelope;
         if (enableBinauralReverb) enableBinauralReverb.checked = physicsSettings.binauralReverb;
         if (enableFakeBinaural) enableFakeBinaural.checked = physicsSettings.fakeBinaural;
+        if (enableSpectralBalance) enableSpectralBalance.checked = physicsSettings.spectralBalance;
         if (enableInharmonicity) enableInharmonicity.checked = physicsSettings.inharmonicity;
         if (enableMultiStringUnison) enableMultiStringUnison.checked = physicsSettings.multiStringUnison;
         if (enableAttackNoise) enableAttackNoise.checked = physicsSettings.attackNoise;
@@ -470,6 +479,20 @@ function initPhysicsSettings() {
         });
     }
 
+    if (enableSpectralBalance) {
+        enableSpectralBalance.addEventListener('change', (e) => {
+            physicsSettings.spectralBalance = e.target.checked;
+            // Update spectral balance enabled state
+            if (window.spectralBalanceSettings) {
+                window.spectralBalanceSettings.enabled = e.target.checked;
+                // Reconnect audio chain
+                if (window.reconnectAudioChain) {
+                    window.reconnectAudioChain();
+                }
+            }
+        });
+    }
+
     // Priority 1: Critical Realism
     if (enableInharmonicity) {
         enableInharmonicity.addEventListener('change', (e) => {
@@ -593,6 +616,22 @@ function initPhysicsSettings() {
     // Initialize frequency compensation settings popup
     if (window.initFrequencyCompensationSettings) {
         window.initFrequencyCompensationSettings();
+    }
+
+    // Setup spectral balance settings button
+    const spectralBalanceSettingsBtn = document.getElementById('spectral-balance-settings-btn');
+    if (spectralBalanceSettingsBtn) {
+        spectralBalanceSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openSpectralBalanceSettings) {
+                window.openSpectralBalanceSettings();
+            }
+        });
+    }
+
+    // Initialize spectral balance settings popup
+    if (window.initSpectralBalanceSettings) {
+        window.initSpectralBalanceSettings();
     }
 
     // Setup pitch harmonic rolloff settings button

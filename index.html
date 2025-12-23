@@ -612,6 +612,21 @@
                         </div>
                     </label>
                 </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-spectral-balance">
+                        <div>
+                            <strong>Spectral Balance (Pink-Noise EQ)</strong>
+                            <button class="binaural-reverb-button" id="spectral-balance-settings-btn">[...]</button>
+                            <div class="setting-description">
+                                Applies a gentle high-frequency rolloff to create a pink-noise-like spectral balance, dimming mid-high frequencies for a warmer, more natural sound. Similar to how real acoustic instruments naturally roll off at higher frequencies.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Continuous (final output filter)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact (single filter on final output)</div>
+                        </div>
+                    </label>
+                </div>
             </div>
             
         </div>
@@ -656,6 +671,9 @@
     <!-- Binaural reverb module -->
     <script src="binaural-reverb/binaural-reverb.js"></script>
     <script src="binaural-reverb/binaural-reverb-settings.js"></script>
+    <!-- Spectral balance module -->
+    <script src="spectral-balance/spectral-balance.js"></script>
+    <script src="spectral-balance/spectral-balance-settings.js"></script>
     <!-- Inharmonicity settings module -->
     <script src="inharmonicity/inharmonicity-settings.js"></script>
     <!-- Pitch harmonic rolloff settings module -->

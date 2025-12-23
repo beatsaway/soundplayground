@@ -538,6 +538,7 @@ const synth = new Tone.PolySynth(Tone.Synth, {
 const filter = initializeDynamicFilter();
 let fakeBinauralOutput = null; // Will hold the fake binaural output node
 let reverbOutput = null; // Will hold the reverb output node
+let spectralBalanceOutput = null; // Will hold the spectral balance output node
 
 // Function to reconnect audio chain (called when reverb or fake binaural is toggled)
 window.reconnectAudioChain = function() {
@@ -551,6 +552,9 @@ window.reconnectAudioChain = function() {
     }
     if (reverbOutput) {
         reverbOutput.disconnect();
+    }
+    if (spectralBalanceOutput) {
+        spectralBalanceOutput.disconnect();
     }
     
     // Start with synth output
@@ -588,6 +592,16 @@ window.reconnectAudioChain = function() {
         reverbOutput = null;
     }
     
+    // Connect spectral balance filter if enabled (after reverb, before destination)
+    if (window.physicsSettings && window.physicsSettings.spectralBalance && 
+        window.spectralBalanceSettings && window.spectralBalanceSettings.enabled &&
+        window.connectSpectralBalance) {
+        spectralBalanceOutput = window.connectSpectralBalance(currentOutput);
+        currentOutput = spectralBalanceOutput;
+    } else {
+        spectralBalanceOutput = null;
+    }
+    
     // Connect to destination
     if (currentOutput) {
         currentOutput.toDestination();
@@ -619,6 +633,14 @@ if (window.physicsSettings && window.physicsSettings.binauralReverb &&
     window.connectBinauralReverb) {
     reverbOutput = window.connectBinauralReverb(currentOutput);
     currentOutput = reverbOutput;
+}
+
+// Connect spectral balance filter if enabled (after reverb, before destination)
+if (window.physicsSettings && window.physicsSettings.spectralBalance && 
+    window.spectralBalanceSettings && window.spectralBalanceSettings.enabled &&
+    window.connectSpectralBalance) {
+    spectralBalanceOutput = window.connectSpectralBalance(currentOutput);
+    currentOutput = spectralBalanceOutput;
 }
 
 // Connect to destination
