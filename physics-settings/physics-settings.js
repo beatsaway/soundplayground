@@ -8,49 +8,49 @@
 const physicsSettings = {
     velocityTimbre: true,
     twoStageDecay: true,
-    pedalCoupling: false,
+    pedalCoupling: true,
     sustainDecay: true,
-    advancedTimbre: false, // Custom waveform generation (more CPU intensive)
+    advancedTimbre: true, // Custom waveform generation (more CPU intensive)
     velocityAttack: true, // Velocity-dependent attack time
-    timeVaryingBrightness: false, // Time-varying harmonic content
+    timeVaryingBrightness: true, // Time-varying harmonic content
     dynamicFilter: true, // Dynamic low-pass filter that closes as notes decay
     frequencyCompensation: true, // Equal-loudness contour compensation (CPU: Medium impact)
-    frequencyEnvelope: false, // Pitch modulation (initial drift, vibrato, release drift) - CPU: Medium impact
-    binauralReverb: false, // Binaural 3D spatial reverb - CPU: High impact
-    fakeBinaural: false, // Fake binaural mono-to-stereo processing - CPU: Low-Medium impact
+    frequencyEnvelope: true, // Pitch modulation (initial drift, vibrato, release drift) - CPU: Medium impact
+    binauralReverb: true, // Binaural 3D spatial reverb - CPU: High impact
+    fakeBinaural: true, // Fake binaural mono-to-stereo processing - CPU: Low-Medium impact
     // Priority 1: Critical Realism
-    inharmonicity: false, // Pitch-dependent partial sharpening - CRITICAL for realism
-    multiStringUnison: false, // Multiple detuned oscillators per note - HIGH impact
+    inharmonicity: true, // Pitch-dependent partial sharpening - CRITICAL for realism
+    multiStringUnison: false, // Multiple detuned oscillators per note - HIGH impact (OFF by default)
     // Priority 2: High Impact
-    attackNoise: false, // Hammer strike noise component
-    oddEvenHarmonicBalance: false, // Explicit 2:1 ratio for odd:even harmonics
-    pitchHarmonicRolloff: false, // Pitch-dependent harmonic content (bass has more harmonics)
+    attackNoise: false, // Hammer strike noise component (OFF by default)
+    oddEvenHarmonicBalance: true, // Explicit 2:1 ratio for odd:even harmonics
+    pitchHarmonicRolloff: true, // Pitch-dependent harmonic content (bass has more harmonics)
     // Priority 3: Polish & Detail
-    perPartialDecay: false, // Higher partials decay faster
-    releaseTransient: false // Key-off sound (damper lift-off)
+    perPartialDecay: true, // Higher partials decay faster
+    releaseTransient: false // Key-off sound (damper lift-off) (OFF by default)
 };
 
 // Default settings (for reset)
 const defaultSettings = {
     velocityTimbre: true,
     twoStageDecay: true,
-    pedalCoupling: false,
+    pedalCoupling: true,
     sustainDecay: true,
-    advancedTimbre: false,
+    advancedTimbre: true,
     velocityAttack: true,
-    timeVaryingBrightness: false,
+    timeVaryingBrightness: true,
     dynamicFilter: true,
     frequencyCompensation: true,
-    frequencyEnvelope: false,
-    binauralReverb: false,
-    fakeBinaural: false,
-    inharmonicity: false,
-    multiStringUnison: false,
-    attackNoise: false,
-    oddEvenHarmonicBalance: false,
-    pitchHarmonicRolloff: false,
-    perPartialDecay: false,
-    releaseTransient: false
+    frequencyEnvelope: true,
+    binauralReverb: true, // Binaural (3D Spatial) mode enabled
+    fakeBinaural: true,
+    inharmonicity: true,
+    multiStringUnison: false, // OFF by default
+    attackNoise: false, // OFF by default
+    oddEvenHarmonicBalance: true,
+    pitchHarmonicRolloff: true,
+    perPartialDecay: true,
+    releaseTransient: false // OFF by default
 };
 
 // Preset configurations
@@ -183,70 +183,6 @@ const settingsPresets = {
         pitchHarmonicRolloff: false,
         perPartialDecay: false,
         releaseTransient: false
-    },
-    // Sound-based presets (3 options)
-    classic: {
-        velocityTimbre: true,
-        twoStageDecay: true,
-        pedalCoupling: true,
-        sustainDecay: true,
-        advancedTimbre: false,
-        velocityAttack: true,
-        timeVaryingBrightness: false,
-        dynamicFilter: true,
-        frequencyCompensation: true,
-        frequencyEnvelope: false,
-        binauralReverb: false,
-        fakeBinaural: false,
-        inharmonicity: true,
-        multiStringUnison: true,
-        attackNoise: true,
-        oddEvenHarmonicBalance: true,
-        pitchHarmonicRolloff: true,
-        perPartialDecay: true,
-        releaseTransient: true
-    },
-    modern: {
-        velocityTimbre: true,
-        twoStageDecay: true,
-        pedalCoupling: false,
-        sustainDecay: true,
-        advancedTimbre: true,
-        velocityAttack: true,
-        timeVaryingBrightness: true,
-        dynamicFilter: true,
-        frequencyCompensation: true,
-        frequencyEnvelope: true,
-        binauralReverb: true,
-        fakeBinaural: true,
-        inharmonicity: true,
-        multiStringUnison: false,
-        attackNoise: false,
-        oddEvenHarmonicBalance: false,
-        pitchHarmonicRolloff: false,
-        perPartialDecay: false,
-        releaseTransient: false
-    },
-    experimental: {
-        velocityTimbre: true,
-        twoStageDecay: true,
-        pedalCoupling: true,
-        sustainDecay: true,
-        advancedTimbre: true,
-        velocityAttack: true,
-        timeVaryingBrightness: true,
-        dynamicFilter: true,
-        frequencyCompensation: true,
-        frequencyEnvelope: true,
-        binauralReverb: true,
-        fakeBinaural: true,
-        inharmonicity: true,
-        multiStringUnison: true,
-        attackNoise: true,
-        oddEvenHarmonicBalance: true,
-        pitchHarmonicRolloff: true,
-        perPartialDecay: true,
-        releaseTransient: true
     }
 };
 
