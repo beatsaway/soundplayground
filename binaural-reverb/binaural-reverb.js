@@ -320,8 +320,8 @@ function connectBinauralReverb(inputNode) {
         // Connect right channel to right reverb  
         splitter.connect(rightReverb, 1);
         
-        const wetGainLeft = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
-        const wetGainRight = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
+        const wetGainLeft = new Tone.Gain(wetLevel);
+        const wetGainRight = new Tone.Gain(wetLevel);
         
         // Split dry signal to handle stereo properly
         const drySplitter = new Tone.Split();
@@ -360,8 +360,8 @@ function connectBinauralReverb(inputNode) {
         regularReverb.connect(wetSplitter);
         
         // Apply wet gain to each channel separately
-        const wetGainLeft = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
-        const wetGainRight = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
+        const wetGainLeft = new Tone.Gain(wetLevel);
+        const wetGainRight = new Tone.Gain(wetLevel);
         wetSplitter.connect(wetGainLeft, 0);
         wetSplitter.connect(wetGainRight, 1);
         
