@@ -404,6 +404,7 @@
                         <input type="checkbox" id="enable-inharmonicity">
                         <div>
                             <strong>⭐ Inharmonicity (Critical)</strong>
+                            <button class="binaural-reverb-button" id="inharmonicity-settings-btn">[...]</button>
                             <div class="setting-description">
                                 Pitch-dependent partial sharpening. Real piano strings are stiff, causing partials to be sharp (not perfect harmonics). This + velocity brightness = 80% of realism improvement!
                                 <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack, pitch-dependent)</span>
@@ -446,6 +447,7 @@
                         <input type="checkbox" id="enable-pitch-harmonic-rolloff">
                         <div>
                             <strong>Pitch-Dependent Harmonic Rolloff</strong>
+                            <button class="binaural-reverb-button" id="pitch-harmonic-rolloff-settings-btn">[...]</button>
                             <div class="setting-description">
                                 Frequency-dependent harmonic content. Bass notes have more audible harmonics (10-15) than treble notes (2-3). More realistic spectral distribution.
                                 <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack, pitch-dependent)</span>
@@ -636,6 +638,10 @@
     <!-- Binaural reverb module -->
     <script src="binaural-reverb/binaural-reverb.js"></script>
     <script src="binaural-reverb/binaural-reverb-settings.js"></script>
+    <!-- Inharmonicity settings module -->
+    <script src="inharmonicity/inharmonicity-settings.js"></script>
+    <!-- Pitch harmonic rolloff settings module -->
+    <script src="pitch-harmonic-rolloff/pitch-harmonic-rolloff-settings.js"></script>
     <script type="module" src="main.js"></script>
 </body>
 </html>

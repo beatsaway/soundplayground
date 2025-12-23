@@ -21,26 +21,24 @@ function calculatePitchDependentRolloffRate(frequency) {
         return 0.15; // Default rolloff when disabled
     }
     
+    // Get settings from pitchHarmonicRolloffSettings if available
+    const settings = (typeof window !== 'undefined' && window.pitchHarmonicRolloffSettings) ? window.pitchHarmonicRolloffSettings : {};
+    
     // Rolloff rate increases with frequency
     // Bass (A0 ~27Hz): α ≈ 0.10 (gentle rolloff, many harmonics)
     // Mid (C4 ~262Hz): α ≈ 0.15 (moderate rolloff)
     // Treble (C8 ~4186Hz): α ≈ 0.30 (steep rolloff, few harmonics)
     
     if (frequency < 100) {
-        // Bass register: gentle rolloff
-        return 0.10;
+        return settings.bassRolloff !== undefined ? settings.bassRolloff : 0.10;
     } else if (frequency < 500) {
-        // Lower mid: moderate rolloff
-        return 0.12;
+        return settings.lowerMidRolloff !== undefined ? settings.lowerMidRolloff : 0.12;
     } else if (frequency < 1000) {
-        // Upper mid: moderate-steep rolloff
-        return 0.18;
+        return settings.upperMidRolloff !== undefined ? settings.upperMidRolloff : 0.18;
     } else if (frequency < 2000) {
-        // Lower treble: steep rolloff
-        return 0.25;
+        return settings.lowerTrebleRolloff !== undefined ? settings.lowerTrebleRolloff : 0.25;
     } else {
-        // Upper treble: very steep rolloff
-        return 0.30;
+        return settings.upperTrebleRolloff !== undefined ? settings.upperTrebleRolloff : 0.30;
     }
 }
 
@@ -57,28 +55,31 @@ function calculateMaxAudibleHarmonics(frequency, velocity) {
         return 20; // Default when disabled
     }
     
+    // Get settings from pitchHarmonicRolloffSettings if available
+    const settings = (typeof window !== 'undefined' && window.pitchHarmonicRolloffSettings) ? window.pitchHarmonicRolloffSettings : {};
+    const velocityBoost = settings.velocityBoost !== undefined ? settings.velocityBoost : 0.3;
+    
     const vNorm = Math.max(0, Math.min(127, velocity)) / 127.0;
     
-    // Base harmonic count by frequency
-    let baseHarmonics;
+    // Base harmonic count by frequency (from settings or defaults)
+    let maxHarmonics;
     if (frequency < 100) {
-        // Bass: 10-15 harmonics
-        baseHarmonics = 10 + Math.floor(vNorm * 5);
+        maxHarmonics = settings.bassMaxHarmonics !== undefined ? settings.bassMaxHarmonics : 15;
     } else if (frequency < 500) {
-        // Lower mid: 8-12 harmonics
-        baseHarmonics = 8 + Math.floor(vNorm * 4);
+        maxHarmonics = settings.lowerMidMaxHarmonics !== undefined ? settings.lowerMidMaxHarmonics : 12;
     } else if (frequency < 1000) {
-        // Upper mid: 6-10 harmonics
-        baseHarmonics = 6 + Math.floor(vNorm * 4);
+        maxHarmonics = settings.upperMidMaxHarmonics !== undefined ? settings.upperMidMaxHarmonics : 10;
     } else if (frequency < 2000) {
-        // Lower treble: 4-6 harmonics
-        baseHarmonics = 4 + Math.floor(vNorm * 2);
+        maxHarmonics = settings.lowerTrebleMaxHarmonics !== undefined ? settings.lowerTrebleMaxHarmonics : 6;
     } else {
-        // Upper treble: 2-3 harmonics
-        baseHarmonics = 2 + Math.floor(vNorm * 1);
+        maxHarmonics = settings.upperTrebleMaxHarmonics !== undefined ? settings.upperTrebleMaxHarmonics : 3;
     }
     
-    return baseHarmonics;
+    // Apply velocity boost
+    const baseHarmonics = Math.floor(maxHarmonics * (1.0 - velocityBoost * 0.5));
+    const boostedHarmonics = baseHarmonics + Math.floor(vNorm * velocityBoost * maxHarmonics);
+    
+    return Math.min(maxHarmonics, boostedHarmonics);
 }
 
 /**
@@ -105,8 +106,10 @@ function calculatePitchDependentHarmonicAmplitude(harmonicNumber, frequency, vel
     let amplitude = Math.exp(-harmonicNumber * alpha);
     
     // Apply velocity boost (higher velocity = more harmonics)
+    const settings = (typeof window !== 'undefined' && window.pitchHarmonicRolloffSettings) ? window.pitchHarmonicRolloffSettings : {};
+    const velocityBoostAmount = settings.velocityBoost !== undefined ? settings.velocityBoost : 0.3;
     const vNorm = Math.max(0, Math.min(127, velocity)) / 127.0;
-    const velocityBoost = 1.0 + (vNorm * 0.3 * Math.exp(-harmonicNumber / 8));
+    const velocityBoost = 1.0 + (vNorm * velocityBoostAmount * Math.exp(-harmonicNumber / 8));
     amplitude *= velocityBoost;
     
     // Check if harmonic is audible (above threshold)

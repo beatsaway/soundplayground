@@ -546,6 +546,38 @@ function initPhysicsSettings() {
     if (window.initFakeBinauralSettings) {
         window.initFakeBinauralSettings();
     }
+
+    // Setup inharmonicity settings button
+    const inharmonicitySettingsBtn = document.getElementById('inharmonicity-settings-btn');
+    if (inharmonicitySettingsBtn) {
+        inharmonicitySettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openInharmonicitySettings) {
+                window.openInharmonicitySettings();
+            }
+        });
+    }
+
+    // Initialize inharmonicity settings popup
+    if (window.initInharmonicitySettings) {
+        window.initInharmonicitySettings();
+    }
+
+    // Setup pitch harmonic rolloff settings button
+    const pitchHarmonicRolloffSettingsBtn = document.getElementById('pitch-harmonic-rolloff-settings-btn');
+    if (pitchHarmonicRolloffSettingsBtn) {
+        pitchHarmonicRolloffSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openPitchHarmonicRolloffSettings) {
+                window.openPitchHarmonicRolloffSettings();
+            }
+        });
+    }
+
+    // Initialize pitch harmonic rolloff settings popup
+    if (window.initPitchHarmonicRolloffSettings) {
+        window.initPitchHarmonicRolloffSettings();
+    }
 }
 
 // Export for use in other modules

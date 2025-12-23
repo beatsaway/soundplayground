@@ -28,15 +28,27 @@ function calculateInharmonicityCoefficient(midiNote) {
     const A0_MIDI = 21; // A0 MIDI note number
     const C8_MIDI = 108; // C8 MIDI note number
     
-    // B ranges from 0.0001 (A0) to 0.02 (C8)
-    const B_min = 0.0001;
-    const B_max = 0.02;
+    // Get settings from inharmonicitySettings if available
+    const settings = (typeof window !== 'undefined' && window.inharmonicitySettings) ? window.inharmonicitySettings : {};
+    const B_min = settings.bMin !== undefined ? settings.bMin : 0.0001;
+    const B_max = settings.bMax !== undefined ? settings.bMax : 0.02;
+    const curveExponent = settings.curveExponent !== undefined ? settings.curveExponent : 1.5;
+    const bassBoost = settings.bassBoost !== undefined ? settings.bassBoost : 1.0;
+    const bassBoostThreshold = settings.bassBoostThreshold !== undefined ? settings.bassBoostThreshold : 262;
     
     // Normalize MIDI note to 0-1 range (A0 to C8)
     const normalized = Math.max(0, Math.min(1, (midiNote - A0_MIDI) / (C8_MIDI - A0_MIDI)));
     
     // Exponential interpolation (inharmonicity increases faster in treble)
-    const B = B_min * Math.pow(B_max / B_min, Math.pow(normalized, 1.5));
+    let B = B_min * Math.pow(B_max / B_min, Math.pow(normalized, curveExponent));
+    
+    // Apply bass boost if note frequency is below threshold
+    const noteFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
+    if (noteFreq < bassBoostThreshold && bassBoost > 1.0) {
+        // Apply boost that decreases as we approach the threshold
+        const boostFactor = 1.0 + (bassBoost - 1.0) * (1.0 - noteFreq / bassBoostThreshold);
+        B *= boostFactor;
+    }
     
     return B;
 }
