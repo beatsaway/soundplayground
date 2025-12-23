@@ -309,7 +309,6 @@ function connectBinauralReverb(inputNode) {
     // Get dry and wet levels (default to 0.5 if not set)
     const dryLevel = binauralReverbSettings.dry !== undefined ? binauralReverbSettings.dry : 0.5;
     const wetLevel = binauralReverbSettings.wet !== undefined ? binauralReverbSettings.wet : 0.5;
-    const dryGain = new Tone.Gain(dryLevel);
     
     if (mode === 'binaural') {
         // Binaural mode: separate reverb engines for left and right channels
@@ -324,8 +323,15 @@ function connectBinauralReverb(inputNode) {
         const wetGainLeft = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
         const wetGainRight = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
         
-        // Connect dry signal (mono to stereo)
-        inputNode.connect(dryGain);
+        // Split dry signal to handle stereo properly
+        const drySplitter = new Tone.Split();
+        inputNode.connect(drySplitter);
+        
+        // Apply dry gain to each channel separately
+        const dryGainLeft = new Tone.Gain(dryLevel);
+        const dryGainRight = new Tone.Gain(dryLevel);
+        drySplitter.connect(dryGainLeft, 0);
+        drySplitter.connect(dryGainRight, 1);
         
         // Connect wet signals (reverb outputs)
         leftReverb.connect(wetGainLeft);
@@ -333,9 +339,9 @@ function connectBinauralReverb(inputNode) {
         
         // Merge dry and wet
         const merger = new Tone.Merge();
-        // Dry signal goes to both channels
-        dryGain.connect(merger, 0, 0);
-        dryGain.connect(merger, 0, 1);
+        // Dry signals - each channel goes to its respective output
+        dryGainLeft.connect(merger, 0, 0);
+        dryGainRight.connect(merger, 0, 1);
         // Wet signals
         wetGainLeft.connect(merger, 0, 0);
         wetGainRight.connect(merger, 0, 1);
@@ -344,25 +350,39 @@ function connectBinauralReverb(inputNode) {
     } else {
         // Regular mode: single reverb engine for both channels
         // Tone.js Reverb handles stereo input/output automatically
-        const wetGain = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
+        // Split wet signal to handle stereo properly
+        const wetSplitter = new Tone.Split();
         
         // Connect input directly to reverb (handles stereo)
         inputNode.connect(regularReverb);
         
-        // Connect dry signal
-        inputNode.connect(dryGain);
+        // Connect reverb output to wet splitter
+        regularReverb.connect(wetSplitter);
         
-        // Connect wet signal (reverb output)
-        regularReverb.connect(wetGain);
+        // Apply wet gain to each channel separately
+        const wetGainLeft = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
+        const wetGainRight = new Tone.Gain(wetLevel * binauralReverbSettings.lateReverb);
+        wetSplitter.connect(wetGainLeft, 0);
+        wetSplitter.connect(wetGainRight, 1);
+        
+        // Split dry signal to handle stereo properly
+        const drySplitter = new Tone.Split();
+        inputNode.connect(drySplitter);
+        
+        // Apply dry gain to each channel separately
+        const dryGainLeft = new Tone.Gain(dryLevel);
+        const dryGainRight = new Tone.Gain(dryLevel);
+        drySplitter.connect(dryGainLeft, 0);
+        drySplitter.connect(dryGainRight, 1);
         
         // Merge dry and wet signals
         const merger = new Tone.Merge();
-        // Dry signal goes to both channels
-        dryGain.connect(merger, 0, 0);
-        dryGain.connect(merger, 0, 1);
-        // Wet signal goes to both channels (reverb outputs stereo)
-        wetGain.connect(merger, 0, 0);
-        wetGain.connect(merger, 0, 1);
+        // Dry signals - each channel goes to its respective output
+        dryGainLeft.connect(merger, 0, 0);
+        dryGainRight.connect(merger, 0, 1);
+        // Wet signals - each channel goes to its respective output
+        wetGainLeft.connect(merger, 0, 0);
+        wetGainRight.connect(merger, 0, 1);
         
         return merger;
     }
