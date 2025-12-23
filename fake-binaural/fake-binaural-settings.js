@@ -396,9 +396,9 @@ function resetFakeBinauralToDefaults() {
         frequencyPanning: true,
         itdDelay: true,
         eqDifferences: true,
-        panIntensity: 0.4,
-        itdAmount: 0.0002,
-        eqIntensity: 0.5
+        panIntensity: 0.7,
+        itdAmount: 0.0004,
+        eqIntensity: 0.8
     };
 
     if (window.setFakeBinauralSettings) {
@@ -414,9 +414,9 @@ function resetFakeBinauralToDefaults() {
     const itdDelayCheckbox = document.getElementById('fake-binaural-itd-delay');
     const eqDifferencesCheckbox = document.getElementById('fake-binaural-eq-differences');
 
-    if (panIntensitySlider) panIntensitySlider.value = 40;
-    if (itdAmountSlider) itdAmountSlider.value = 20;
-    if (eqIntensitySlider) eqIntensitySlider.value = 50;
+    if (panIntensitySlider) panIntensitySlider.value = 70;
+    if (itdAmountSlider) itdAmountSlider.value = 40;
+    if (eqIntensitySlider) eqIntensitySlider.value = 80;
     if (playerPerspectiveCheckbox) playerPerspectiveCheckbox.checked = true;
     if (frequencyPanningCheckbox) frequencyPanningCheckbox.checked = true;
     if (itdDelayCheckbox) itdDelayCheckbox.checked = true;

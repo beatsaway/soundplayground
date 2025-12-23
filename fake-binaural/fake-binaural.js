@@ -23,9 +23,9 @@ const fakeBinauralSettings = {
     frequencyPanning: true,       // Frequency-based panning
     itdDelay: true,              // Interaural Time Difference (micro-delays)
     eqDifferences: true,          // Per-channel EQ differences (head shadow)
-    panIntensity: 0.4,           // Panning intensity (0.0 to 1.0)
-    itdAmount: 0.0002,           // ITD delay in seconds (200μs)
-    eqIntensity: 0.5              // EQ difference intensity (0.0 to 1.0)
+    panIntensity: 0.7,           // Panning intensity (0.0 to 1.0) - increased for stronger effect
+    itdAmount: 0.0004,           // ITD delay in seconds (400μs) - increased for stronger effect
+    eqIntensity: 0.8              // EQ difference intensity (0.0 to 1.0) - increased for stronger effect
 };
 
 // Processing nodes (lazy initialization)

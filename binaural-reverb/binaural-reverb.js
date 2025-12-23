@@ -21,8 +21,9 @@ const binauralReverbSettings = {
     enabled: false,
     roomSize: 0.7,           // 0.0 (small) to 1.0 (large)
     reverbTime: 2.0,        // RT60 in seconds (0.5 to 5.0)
-    earlyReflections: 0.4,  // Early reflection level (0.0 to 1.0)
-    lateReverb: 0.3,        // Late reverb level (0.0 to 1.0)
+    earlyReflections: 0.6,  // Early reflection level (0.0 to 1.0) - increased for stronger effect
+    lateReverb: 0.6,        // Late reverb level (0.0 to 1.0) - increased for stronger effect
+    dryWet: 0.5,            // Dry/wet mix (0.0 = all dry, 1.0 = all wet)
     itdIntensity: 0.8,      // Interaural Time Difference intensity (0.0 to 1.0)
     ildIntensity: 0.6,      // Interaural Level Difference intensity (0.0 to 1.0)
     frequencyDependent: true, // Enable frequency-dependent binaural effects
@@ -207,9 +208,10 @@ function updateBinauralReverbSettings() {
     leftReverb.decay.value = binauralReverbSettings.reverbTime;
     rightReverb.decay.value = binauralReverbSettings.reverbTime;
     
-    // Update wet levels
-    leftReverb.wet.value = binauralReverbSettings.lateReverb;
-    rightReverb.wet.value = binauralReverbSettings.lateReverb;
+    // Update wet levels (Tone.js reverb wet parameter controls internal wet/dry)
+    // We'll control overall dry/wet mix in connectBinauralReverb, so set reverb wet to 1.0
+    leftReverb.wet.value = 1.0;
+    rightReverb.wet.value = 1.0;
     
     // Regenerate impulse responses if room size changed significantly
     // (Tone.js handles this automatically, but we can force regeneration)
@@ -245,10 +247,11 @@ function connectBinauralReverb(inputNode) {
     // Connect right channel to right reverb  
     splitter.connect(rightReverb, 1);
     
-    // Create dry/wet mix
-    const dryGain = new Tone.Gain(1.0 - binauralReverbSettings.lateReverb);
-    const wetGainLeft = new Tone.Gain(binauralReverbSettings.lateReverb);
-    const wetGainRight = new Tone.Gain(binauralReverbSettings.lateReverb);
+    // Create dry/wet mix using dryWet parameter
+    const dryWet = binauralReverbSettings.dryWet !== undefined ? binauralReverbSettings.dryWet : 0.5;
+    const dryGain = new Tone.Gain(1.0 - dryWet);
+    const wetGainLeft = new Tone.Gain(dryWet * binauralReverbSettings.lateReverb);
+    const wetGainRight = new Tone.Gain(dryWet * binauralReverbSettings.lateReverb);
     
     // Connect dry signal (mono to stereo)
     inputNode.connect(dryGain);
