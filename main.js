@@ -802,6 +802,7 @@ function handleNoteOn(midiNote, velocity) {
             // Release all voices for this note (including unison voices if any)
             const voicesToRelease = unisonVoices.get(midiNote);
             if (voicesToRelease && voicesToRelease.length > 0) {
+                // Release all tracked voices (including duplicates - each triggerAttack needs a triggerRelease)
                 voicesToRelease.forEach(voiceNoteName => {
                     try {
                         synth.triggerRelease(voiceNoteName);
@@ -813,6 +814,17 @@ function handleNoteOn(midiNote, velocity) {
             } else {
                 try {
                     synth.triggerRelease(noteName);
+                    // If unison is enabled, try releasing a few more times to catch any untracked voices
+                    if (window.physicsSettings && window.physicsSettings.multiStringUnison) {
+                        const stringCount = window.getStringCountForNote ? window.getStringCountForNote(midiNote) : 1;
+                        for (let i = 1; i < stringCount; i++) {
+                            try {
+                                synth.triggerRelease(noteName);
+                            } catch (e) {
+                                // Ignore - voice might not exist
+                            }
+                        }
+                    }
                 } catch (e) {
                     // Ignore errors if note doesn't exist
                 }
@@ -927,10 +939,10 @@ function handleNoteOn(midiNote, velocity) {
                     
                     if (detunedNoteName) {
                         synth.triggerAttack(detunedNoteName, undefined, stringAmplitude);
-                        triggeredNoteNames.push(detunedNoteName);
+                        triggeredNoteNames.push(detunedNoteName); // Keep all, even duplicates
                     }
                 }
-                // Store all unison voices for this MIDI note
+                // Store all unison voices for this MIDI note (including duplicates for proper release count)
                 unisonVoices.set(midiNote, triggeredNoteNames);
             } else {
                 // Single string: normal trigger
@@ -1022,7 +1034,8 @@ function handleNoteOff(midiNote) {
             // Release all voices for this note (including unison voices if any)
             const voicesToRelease = unisonVoices.get(midiNote);
             if (voicesToRelease && voicesToRelease.length > 0) {
-                // Release all tracked voices
+                // Release all tracked voices (including duplicates - each triggerAttack needs a triggerRelease)
+                // Important: Even if multiple strings round to the same note name, we must release each one
                 voicesToRelease.forEach(voiceNoteName => {
                     try {
                         synth.triggerRelease(voiceNoteName);
@@ -1037,6 +1050,17 @@ function handleNoteOff(midiNote) {
                 // Fallback: release main note name if no tracking found
                 try {
                     synth.triggerRelease(noteName);
+                    // If unison is enabled, try releasing a few more times to catch any untracked voices
+                    if (window.physicsSettings && window.physicsSettings.multiStringUnison) {
+                        const stringCount = window.getStringCountForNote ? window.getStringCountForNote(midiNote) : 1;
+                        for (let i = 1; i < stringCount; i++) {
+                            try {
+                                synth.triggerRelease(noteName);
+                            } catch (e) {
+                                // Ignore - voice might not exist
+                            }
+                        }
+                    }
                 } catch (e) {
                     console.warn('Note release failed (may have been voice-stolen):', noteName);
                 }
@@ -1201,7 +1225,8 @@ async function initMIDI() {
                             // Release all voices for this note (including unison voices if any)
                             const voicesToRelease = unisonVoices.get(midiNote);
                             if (voicesToRelease && voicesToRelease.length > 0) {
-                                // Release all tracked voices
+                                // Release all tracked voices (including duplicates - each triggerAttack needs a triggerRelease)
+                                // Important: Even if multiple strings round to the same note name, we must release each one
                                 voicesToRelease.forEach(voiceNoteName => {
                                     try {
                                         synth.triggerRelease(voiceNoteName);
@@ -1217,6 +1242,17 @@ async function initMIDI() {
                                 if (noteName) {
                                     try {
                                         synth.triggerRelease(noteName);
+                                        // If unison is enabled, try releasing a few more times to catch any untracked voices
+                                        if (window.physicsSettings && window.physicsSettings.multiStringUnison) {
+                                            const stringCount = window.getStringCountForNote ? window.getStringCountForNote(midiNote) : 1;
+                                            for (let i = 1; i < stringCount; i++) {
+                                                try {
+                                                    synth.triggerRelease(noteName);
+                                                } catch (e) {
+                                                    // Ignore - voice might not exist
+                                                }
+                                            }
+                                        }
                                     } catch (e) {
                                         // Ignore errors
                                     }
