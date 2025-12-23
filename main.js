@@ -1171,6 +1171,24 @@ async function initMIDI() {
                         // Create a copy to avoid modification during iteration
                         const notesToRelease = Array.from(sustainedNotes);
                         notesToRelease.forEach((midiNote) => {
+                            // Stop attack noise if it exists
+                            if (attackNoiseNodes.has(midiNote)) {
+                                const noiseNode = attackNoiseNodes.get(midiNote);
+                                if (noiseNode && noiseNode.stop) {
+                                    noiseNode.stop();
+                                }
+                                attackNoiseNodes.delete(midiNote);
+                            }
+                            
+                            // Stop release transient if it exists
+                            if (releaseTransientNodes.has(midiNote)) {
+                                const transientNode = releaseTransientNodes.get(midiNote);
+                                if (transientNode && transientNode.stop) {
+                                    transientNode.stop();
+                                }
+                                releaseTransientNodes.delete(midiNote);
+                            }
+                            
                             // Cancel any sustain decay automation
                             if (sustainDecayAutomations.has(midiNote)) {
                                 const automation = sustainDecayAutomations.get(midiNote);
