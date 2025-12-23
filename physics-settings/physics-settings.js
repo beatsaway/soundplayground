@@ -251,6 +251,7 @@ function initPhysicsSettings() {
     const enableFrequencyEnvelope = document.getElementById('enable-frequency-envelope');
     const enableBinauralReverb = document.getElementById('enable-binaural-reverb');
     const enableFakeBinaural = document.getElementById('enable-fake-binaural');
+    const enableSpectralBalance = document.getElementById('enable-spectral-balance');
     // Priority 1: Critical Realism
     const enableInharmonicity = document.getElementById('enable-inharmonicity');
     const enableMultiStringUnison = document.getElementById('enable-multi-string-unison');
