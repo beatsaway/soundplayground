@@ -265,39 +265,63 @@ function updateBinauralReverbSettings() {
             return;
         }
 
-        // Update room size
-        leftReverb.roomSize.value = binauralReverbSettings.roomSize;
-        rightReverb.roomSize.value = binauralReverbSettings.roomSize;
+        // Update room size (check if property exists)
+        if (leftReverb.roomSize && leftReverb.roomSize.value !== undefined) {
+            leftReverb.roomSize.value = binauralReverbSettings.roomSize;
+        }
+        if (rightReverb.roomSize && rightReverb.roomSize.value !== undefined) {
+            rightReverb.roomSize.value = binauralReverbSettings.roomSize;
+        }
         
         // Update decay time (RT60)
-        leftReverb.decay.value = binauralReverbSettings.reverbTime;
-        rightReverb.decay.value = binauralReverbSettings.reverbTime;
+        if (leftReverb.decay && leftReverb.decay.value !== undefined) {
+            leftReverb.decay.value = binauralReverbSettings.reverbTime;
+        }
+        if (rightReverb.decay && rightReverb.decay.value !== undefined) {
+            rightReverb.decay.value = binauralReverbSettings.reverbTime;
+        }
         
         // Update wet levels (Tone.js reverb wet parameter controls internal wet/dry)
         // We'll control overall dry/wet mix in connectBinauralReverb, so set reverb wet to 1.0
-        leftReverb.wet.value = 1.0;
-        rightReverb.wet.value = 1.0;
+        if (leftReverb.wet && leftReverb.wet.value !== undefined) {
+            leftReverb.wet.value = 1.0;
+        }
+        if (rightReverb.wet && rightReverb.wet.value !== undefined) {
+            rightReverb.wet.value = 1.0;
+        }
         
         // Regenerate impulse responses if room size changed significantly
         // (Tone.js handles this automatically, but we can force regeneration)
-        leftReverb.generate();
-        rightReverb.generate();
+        if (typeof leftReverb.generate === 'function') {
+            leftReverb.generate();
+        }
+        if (typeof rightReverb.generate === 'function') {
+            rightReverb.generate();
+        }
     } else {
         if (!regularReverb) {
             return;
         }
 
-        // Update room size
-        regularReverb.roomSize.value = binauralReverbSettings.roomSize;
+        // Update room size (check if property exists)
+        if (regularReverb.roomSize && regularReverb.roomSize.value !== undefined) {
+            regularReverb.roomSize.value = binauralReverbSettings.roomSize;
+        }
         
         // Update decay time (RT60)
-        regularReverb.decay.value = binauralReverbSettings.reverbTime;
+        if (regularReverb.decay && regularReverb.decay.value !== undefined) {
+            regularReverb.decay.value = binauralReverbSettings.reverbTime;
+        }
         
         // Update wet level
-        regularReverb.wet.value = 1.0;
+        if (regularReverb.wet && regularReverb.wet.value !== undefined) {
+            regularReverb.wet.value = 1.0;
+        }
         
         // Regenerate impulse response
-        regularReverb.generate();
+        if (typeof regularReverb.generate === 'function') {
+            regularReverb.generate();
+        }
     }
 }
 
