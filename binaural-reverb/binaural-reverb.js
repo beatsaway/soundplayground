@@ -28,8 +28,8 @@ const binauralReverbSettings = {
     reverbTime: 2.0,        // RT60 in seconds (0.5 to 5.0)
     earlyReflections: 0.6,  // Early reflection level (0.0 to 1.0) - increased for stronger effect
     lateReverb: 0.6,        // Late reverb level (0.0 to 1.0) - increased for stronger effect
-    dry: 0.5,               // Dry signal level (0.0 to 1.0)
-    wet: 0.5,               // Wet (reverb) signal level (0.0 to 1.0)
+    dry: 0.3,               // Dry signal level (0.0 to 1.0) - default 30% like WaterSynth
+    wet: 1.0,               // Wet (reverb) signal level (0.0 to 1.0) - default 100% like WaterSynth
     itdIntensity: 0.8,      // Interaural Time Difference intensity (0.0 to 1.0) - binaural mode only
     ildIntensity: 0.6,      // Interaural Level Difference intensity (0.0 to 1.0) - binaural mode only
     frequencyDependent: true, // Enable frequency-dependent binaural effects - binaural mode only
@@ -41,6 +41,13 @@ const binauralReverbSettings = {
 let leftReverb = null;
 let rightReverb = null;
 let regularReverb = null;
+
+// Store gain node references for dynamic updates
+let dryGainLeft = null;
+let dryGainRight = null;
+let wetGainLeft = null;
+let wetGainRight = null;
+let reverbMerger = null;
 
 /**
  * Initialize reverb system
@@ -60,13 +67,13 @@ function initializeBinauralReverb() {
             // This allows for binaural processing with ITD/ILD differences
             leftReverb = new Tone.Reverb({
                 roomSize: binauralReverbSettings.roomSize,
-                wet: binauralReverbSettings.lateReverb,
+                wet: 1.0,  // 100% wet internally - we handle dry/wet mix externally
                 decay: binauralReverbSettings.reverbTime
             });
             
             rightReverb = new Tone.Reverb({
                 roomSize: binauralReverbSettings.roomSize,
-                wet: binauralReverbSettings.lateReverb,
+                wet: 1.0,  // 100% wet internally - we handle dry/wet mix externally
                 decay: binauralReverbSettings.reverbTime
             });
 
@@ -83,7 +90,7 @@ function initializeBinauralReverb() {
             // Regular mode: single reverb engine for both channels
             regularReverb = new Tone.Reverb({
                 roomSize: binauralReverbSettings.roomSize,
-                wet: binauralReverbSettings.lateReverb,
+                wet: 1.0,  // 100% wet internally - we handle dry/wet mix externally
                 decay: binauralReverbSettings.reverbTime
             });
 
@@ -229,6 +236,24 @@ function applyBinauralReverb(inputNode, frequency = 440) {
 }
 
 /**
+ * Update dry/wet gain levels dynamically (without rebuilding chain)
+ */
+function updateDryWetGains() {
+    const dryLevel = binauralReverbSettings.dry !== undefined ? binauralReverbSettings.dry : 0.3;
+    const wetLevel = binauralReverbSettings.wet !== undefined ? binauralReverbSettings.wet : 1.0;
+    
+    if (dryGainLeft && dryGainRight) {
+        dryGainLeft.gain.value = dryLevel;
+        dryGainRight.gain.value = dryLevel;
+    }
+    
+    if (wetGainLeft && wetGainRight) {
+        wetGainLeft.gain.value = wetLevel;
+        wetGainRight.gain.value = wetLevel;
+    }
+}
+
+/**
  * Update reverb parameters
  * Call this when settings change
  */
@@ -306,9 +331,9 @@ function connectBinauralReverb(inputNode) {
         }
     }
 
-    // Get dry and wet levels (default to 0.5 if not set)
-    const dryLevel = binauralReverbSettings.dry !== undefined ? binauralReverbSettings.dry : 0.5;
-    const wetLevel = binauralReverbSettings.wet !== undefined ? binauralReverbSettings.wet : 0.5;
+    // Get dry and wet levels (use defaults if not set)
+    const dryLevel = binauralReverbSettings.dry !== undefined ? binauralReverbSettings.dry : 0.3;
+    const wetLevel = binauralReverbSettings.wet !== undefined ? binauralReverbSettings.wet : 1.0;
     
     if (mode === 'binaural') {
         // Binaural mode: separate reverb engines for left and right channels
@@ -320,16 +345,17 @@ function connectBinauralReverb(inputNode) {
         // Connect right channel to right reverb  
         splitter.connect(rightReverb, 1);
         
-        const wetGainLeft = new Tone.Gain(wetLevel);
-        const wetGainRight = new Tone.Gain(wetLevel);
+        // Create and store wet gain nodes
+        wetGainLeft = new Tone.Gain(wetLevel);
+        wetGainRight = new Tone.Gain(wetLevel);
         
         // Split dry signal to handle stereo properly
         const drySplitter = new Tone.Split();
         inputNode.connect(drySplitter);
         
-        // Apply dry gain to each channel separately
-        const dryGainLeft = new Tone.Gain(dryLevel);
-        const dryGainRight = new Tone.Gain(dryLevel);
+        // Create and store dry gain nodes
+        dryGainLeft = new Tone.Gain(dryLevel);
+        dryGainRight = new Tone.Gain(dryLevel);
         drySplitter.connect(dryGainLeft, 0);
         drySplitter.connect(dryGainRight, 1);
         
@@ -338,15 +364,15 @@ function connectBinauralReverb(inputNode) {
         rightReverb.connect(wetGainRight);
         
         // Merge dry and wet
-        const merger = new Tone.Merge();
+        reverbMerger = new Tone.Merge();
         // Dry signals - each channel goes to its respective output
-        dryGainLeft.connect(merger, 0, 0);
-        dryGainRight.connect(merger, 0, 1);
+        dryGainLeft.connect(reverbMerger, 0, 0);
+        dryGainRight.connect(reverbMerger, 0, 1);
         // Wet signals
-        wetGainLeft.connect(merger, 0, 0);
-        wetGainRight.connect(merger, 0, 1);
+        wetGainLeft.connect(reverbMerger, 0, 0);
+        wetGainRight.connect(reverbMerger, 0, 1);
         
-        return merger;
+        return reverbMerger;
     } else {
         // Regular mode: single reverb engine for both channels
         // Tone.js Reverb handles stereo input/output automatically
@@ -359,9 +385,9 @@ function connectBinauralReverb(inputNode) {
         // Connect reverb output to wet splitter
         regularReverb.connect(wetSplitter);
         
-        // Apply wet gain to each channel separately
-        const wetGainLeft = new Tone.Gain(wetLevel);
-        const wetGainRight = new Tone.Gain(wetLevel);
+        // Create and store wet gain nodes
+        wetGainLeft = new Tone.Gain(wetLevel);
+        wetGainRight = new Tone.Gain(wetLevel);
         wetSplitter.connect(wetGainLeft, 0);
         wetSplitter.connect(wetGainRight, 1);
         
@@ -369,22 +395,22 @@ function connectBinauralReverb(inputNode) {
         const drySplitter = new Tone.Split();
         inputNode.connect(drySplitter);
         
-        // Apply dry gain to each channel separately
-        const dryGainLeft = new Tone.Gain(dryLevel);
-        const dryGainRight = new Tone.Gain(dryLevel);
+        // Create and store dry gain nodes
+        dryGainLeft = new Tone.Gain(dryLevel);
+        dryGainRight = new Tone.Gain(dryLevel);
         drySplitter.connect(dryGainLeft, 0);
         drySplitter.connect(dryGainRight, 1);
         
         // Merge dry and wet signals
-        const merger = new Tone.Merge();
+        reverbMerger = new Tone.Merge();
         // Dry signals - each channel goes to its respective output
-        dryGainLeft.connect(merger, 0, 0);
-        dryGainRight.connect(merger, 0, 1);
+        dryGainLeft.connect(reverbMerger, 0, 0);
+        dryGainRight.connect(reverbMerger, 0, 1);
         // Wet signals - each channel goes to its respective output
-        wetGainLeft.connect(merger, 0, 0);
-        wetGainRight.connect(merger, 0, 1);
+        wetGainLeft.connect(reverbMerger, 0, 0);
+        wetGainRight.connect(reverbMerger, 0, 1);
         
-        return merger;
+        return reverbMerger;
     }
 }
 
@@ -402,6 +428,7 @@ function getBinauralReverbSettings() {
  */
 function setBinauralReverbSettings(newSettings) {
     const oldMode = binauralReverbSettings.reverbMode;
+    const oldEnabled = binauralReverbSettings.enabled;
     Object.assign(binauralReverbSettings, newSettings);
     
     // If mode changed, reinitialize reverb engines
@@ -409,7 +436,18 @@ function setBinauralReverbSettings(newSettings) {
         initializeBinauralReverb();
     }
     
-    updateBinauralReverbSettings();
+    // If enabled state changed, reconnect chain
+    if (oldEnabled !== binauralReverbSettings.enabled) {
+        if (window.reconnectAudioChain) {
+            window.reconnectAudioChain();
+        }
+    } else {
+        // Update reverb parameters
+        updateBinauralReverbSettings();
+        
+        // Update dry/wet gains dynamically (if chain is already connected)
+        updateDryWetGains();
+    }
 }
 
 // Export for use in other modules
@@ -421,5 +459,6 @@ if (typeof window !== 'undefined') {
     window.getBinauralReverbSettings = getBinauralReverbSettings;
     window.setBinauralReverbSettings = setBinauralReverbSettings;
     window.updateBinauralReverbSettings = updateBinauralReverbSettings;
+    window.updateDryWetGains = updateDryWetGains;
 }
 

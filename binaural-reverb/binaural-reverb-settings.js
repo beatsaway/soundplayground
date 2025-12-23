@@ -368,6 +368,40 @@ function createBinauralReverbPopup() {
 }
 
 /**
+ * Setup slider with delayed update (updates UI during drag, applies audio on release)
+ * @param {HTMLElement} slider - The slider element
+ * @param {HTMLElement} valueDisplay - The element to display the value
+ * @param {Function} valueFormatter - Function to format the value for display
+ * @param {Function} valueConverter - Function to convert slider value (0-100) to actual value
+ * @param {Function} updateFunction - Function to call when slider is released
+ */
+function setupSliderWithDelayedUpdate(slider, valueDisplay, valueFormatter, valueConverter, updateFunction) {
+    if (!slider || !valueDisplay) return;
+    
+    // Initialize display with current slider value
+    const rawValue = parseFloat(slider.value);
+    const actualValue = valueConverter ? valueConverter(rawValue) : rawValue / 100;
+    valueDisplay.textContent = valueFormatter ? valueFormatter(actualValue) : actualValue.toFixed(2);
+    
+    // Update UI during drag (input event)
+    slider.addEventListener('input', (e) => {
+        const rawValue = parseFloat(e.target.value);
+        const actualValue = valueConverter ? valueConverter(rawValue) : rawValue / 100;
+        valueDisplay.textContent = valueFormatter ? valueFormatter(actualValue) : actualValue.toFixed(2);
+    });
+    
+    // Apply audio changes only on release (mouseup/touchend)
+    const applyUpdate = (e) => {
+        const rawValue = parseFloat(slider.value);
+        const actualValue = valueConverter ? valueConverter(rawValue) : rawValue / 100;
+        updateFunction(actualValue);
+    };
+    
+    slider.addEventListener('mouseup', applyUpdate);
+    slider.addEventListener('touchend', applyUpdate);
+}
+
+/**
  * Setup event listeners for binaural reverb controls
  */
 function setupBinauralReverbControls() {
@@ -457,140 +491,152 @@ function setupBinauralReverbControls() {
     // Room Size
     const roomSizeSlider = document.getElementById('binaural-room-size');
     const roomSizeValue = document.getElementById('binaural-room-size-value');
-    if (roomSizeSlider && roomSizeValue) {
-        roomSizeSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            roomSizeValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        roomSizeSlider,
+        roomSizeValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ roomSize: value });
             }
-        });
-    }
+        }
+    );
 
     // Reverb Time
     const reverbTimeSlider = document.getElementById('binaural-reverb-time');
     const reverbTimeValue = document.getElementById('binaural-reverb-time-value');
-    if (reverbTimeSlider && reverbTimeValue) {
-        reverbTimeSlider.addEventListener('input', (e) => {
-            const value = 0.5 + (parseFloat(e.target.value) / 100) * 4.5; // 0.5 to 5.0
-            reverbTimeValue.textContent = value.toFixed(1) + 's';
+    setupSliderWithDelayedUpdate(
+        reverbTimeSlider,
+        reverbTimeValue,
+        (v) => v.toFixed(1) + 's',
+        (v) => 0.5 + (v / 100) * 4.5, // 0.5 to 5.0
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ reverbTime: value });
             }
-        });
-    }
+        }
+    );
 
     // Early Reflections
     const earlyReflectionsSlider = document.getElementById('binaural-early-reflections');
     const earlyReflectionsValue = document.getElementById('binaural-early-reflections-value');
-    if (earlyReflectionsSlider && earlyReflectionsValue) {
-        earlyReflectionsSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            earlyReflectionsValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        earlyReflectionsSlider,
+        earlyReflectionsValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ earlyReflections: value });
             }
-        });
-    }
+        }
+    );
 
     // Late Reverb
     const lateReverbSlider = document.getElementById('binaural-late-reverb');
     const lateReverbValue = document.getElementById('binaural-late-reverb-value');
-    if (lateReverbSlider && lateReverbValue) {
-        lateReverbSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            lateReverbValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        lateReverbSlider,
+        lateReverbValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ lateReverb: value });
             }
-        });
-    }
+        }
+    );
 
     // Dry Level
     const drySlider = document.getElementById('binaural-dry');
     const dryValue = document.getElementById('binaural-dry-value');
-    if (drySlider && dryValue) {
-        drySlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            dryValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        drySlider,
+        dryValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ dry: value });
-                // Reconnect audio chain to apply changes
-                if (window.reconnectAudioChain) {
-                    window.reconnectAudioChain();
-                }
             }
-        });
-    }
+        }
+    );
 
     // Wet Level
     const wetSlider = document.getElementById('binaural-wet');
     const wetValue = document.getElementById('binaural-wet-value');
-    if (wetSlider && wetValue) {
-        wetSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            wetValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        wetSlider,
+        wetValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ wet: value });
-                // Reconnect audio chain to apply changes
-                if (window.reconnectAudioChain) {
-                    window.reconnectAudioChain();
-                }
             }
-        });
-    }
+        }
+    );
 
     // ITD Intensity
     const itdIntensitySlider = document.getElementById('binaural-itd-intensity');
     const itdIntensityValue = document.getElementById('binaural-itd-intensity-value');
-    if (itdIntensitySlider && itdIntensityValue) {
-        itdIntensitySlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            itdIntensityValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        itdIntensitySlider,
+        itdIntensityValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ itdIntensity: value });
             }
-        });
-    }
+        }
+    );
 
     // ILD Intensity
     const ildIntensitySlider = document.getElementById('binaural-ild-intensity');
     const ildIntensityValue = document.getElementById('binaural-ild-intensity-value');
-    if (ildIntensitySlider && ildIntensityValue) {
-        ildIntensitySlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            ildIntensityValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        ildIntensitySlider,
+        ildIntensityValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ ildIntensity: value });
             }
-        });
-    }
+        }
+    );
 
     // Piano Lid Position
     const pianoLidSlider = document.getElementById('binaural-piano-lid');
     const pianoLidValue = document.getElementById('binaural-piano-lid-value');
-    if (pianoLidSlider && pianoLidValue) {
-        pianoLidSlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            pianoLidValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        pianoLidSlider,
+        pianoLidValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ pianoLidPosition: value });
             }
-        });
-    }
+        }
+    );
 
     // Binaural Quality
     const qualitySlider = document.getElementById('binaural-quality');
     const qualityValue = document.getElementById('binaural-quality-value');
-    if (qualitySlider && qualityValue) {
-        qualitySlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value) / 100;
-            qualityValue.textContent = value.toFixed(2);
+    setupSliderWithDelayedUpdate(
+        qualitySlider,
+        qualityValue,
+        (v) => v.toFixed(2),
+        (v) => v / 100,
+        (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ binauralQuality: value });
             }
-        });
-    }
+        }
+    );
 
     // Frequency Dependent
     const freqDependentCheckbox = document.getElementById('binaural-frequency-dependent');
