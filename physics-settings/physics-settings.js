@@ -281,31 +281,17 @@ function initPhysicsSettings() {
     });
     
     // Setup preset dropdown
-    const presetButton = document.getElementById('preset-button');
-    const presetMenu = document.getElementById('preset-menu');
-    const presetItems = document.querySelectorAll('.settings-preset-item[data-preset]');
+    const presetSelect = document.getElementById('preset-select');
     
-    if (presetButton && presetMenu) {
-        // Toggle menu on button click
-        presetButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            presetMenu.classList.toggle('show');
-        });
-        
-        // Close menu when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!presetButton.contains(e.target) && !presetMenu.contains(e.target)) {
-                presetMenu.classList.remove('show');
-            }
-        });
-        
+    if (presetSelect) {
         // Handle preset selection
-        presetItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const presetName = item.getAttribute('data-preset');
+        presetSelect.addEventListener('change', (e) => {
+            const presetName = e.target.value;
+            if (presetName) {
                 applyPreset(presetName);
-                presetMenu.classList.remove('show');
-            });
+                // Reset select to show placeholder
+                e.target.value = '';
+            }
         });
     }
     

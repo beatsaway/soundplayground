@@ -117,8 +117,9 @@
         .settings-preset-dropdown {
             position: relative;
         }
-        .settings-preset-button {
+        .settings-preset-select {
             padding: 6px 12px;
+            padding-right: 32px;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 6px;
@@ -128,46 +129,31 @@
             cursor: pointer;
             transition: all 0.2s;
             white-space: nowrap;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 12px;
+            min-width: 180px;
         }
-        .settings-preset-button:hover {
-            background: rgba(255, 255, 255, 0.15);
+        .settings-preset-select:hover {
+            background-color: rgba(255, 255, 255, 0.15);
         }
-        .settings-preset-menu {
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 4px;
+        .settings-preset-select:focus {
+            outline: none;
+            border-color: #4a9eff;
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        .settings-preset-select option {
             background: rgba(40, 40, 55, 0.98);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            padding: 6px 0;
-            min-width: 160px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-            display: none;
-            z-index: 10;
-        }
-        .settings-preset-menu.show {
-            display: block;
-        }
-        .settings-preset-item {
-            padding: 8px 14px;
             color: #fff;
-            font-family: 'Inter', sans-serif;
-            font-size: 12px;
-            cursor: pointer;
-            transition: background 0.2s;
+            padding: 8px 14px;
         }
-        .settings-preset-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-        .settings-preset-item.separator {
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            margin: 4px 0;
-            padding: 0;
-            cursor: default;
-        }
-        .settings-preset-item.separator:hover {
-            background: transparent;
+        .settings-preset-select option:disabled {
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
         }
         .settings-navbar {
             display: flex;
@@ -299,20 +285,20 @@
                 <div class="settings-header-controls">
                     <h2>Physics Settings</h2>
                     <div class="settings-preset-dropdown">
-                        <button class="settings-preset-button" id="preset-button">⚙️ Presets ▼</button>
-                        <div class="settings-preset-menu" id="preset-menu">
-                            <div class="settings-preset-item" data-preset="defaults">↺ Reset to Defaults</div>
-                            <div class="settings-preset-item separator"></div>
-                            <div class="settings-preset-item" data-preset="maximum">🔥 Maximum (All Features)</div>
-                            <div class="settings-preset-item" data-preset="high">⚡ High Performance</div>
-                            <div class="settings-preset-item" data-preset="default">⚙️ Default</div>
-                            <div class="settings-preset-item" data-preset="low">💚 Low Performance</div>
-                            <div class="settings-preset-item" data-preset="minimal">🔹 Minimal</div>
-                            <div class="settings-preset-item separator"></div>
-                            <div class="settings-preset-item" data-preset="classic">🎼 Classic Piano</div>
-                            <div class="settings-preset-item" data-preset="modern">✨ Modern Piano</div>
-                            <div class="settings-preset-item" data-preset="experimental">🔬 Experimental</div>
-                        </div>
+                        <select class="settings-preset-select" id="preset-select">
+                            <option value="" disabled selected>⚙️ Presets</option>
+                            <option value="defaults">↺ Reset to Defaults</option>
+                            <option disabled>──────────</option>
+                            <option value="maximum">🔥 Maximum (All Features)</option>
+                            <option value="high">⚡ High Performance</option>
+                            <option value="default">⚙️ Default</option>
+                            <option value="low">💚 Low Performance</option>
+                            <option value="minimal">🔹 Minimal</option>
+                            <option disabled>──────────</option>
+                            <option value="classic">🎼 Classic Piano</option>
+                            <option value="modern">✨ Modern Piano</option>
+                            <option value="experimental">🔬 Experimental</option>
+                        </select>
                     </div>
                 </div>
                 
