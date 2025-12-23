@@ -1263,6 +1263,48 @@ async function initMIDI() {
                             noteAttackTimes.delete(midiNote); // Clean up attack time tracking
                             frequencyModulations.delete(midiNote); // Clean up frequency modulation
                         });
+                        
+                        // Safety fix: Release one additional earlier note to account for voice stealing indexing issue
+                        // When Tone.js PolySynth steals voices (maxPolyphony reached), there can be an off-by-one
+                        // indexing issue where the earliest note is left behind. Release the oldest remaining note.
+                        if (activeNotes.size > 0 && noteAttackTimes.size > 0) {
+                            // Find the oldest note by attack timestamp
+                            let oldestMidiNote = null;
+                            let oldestTimestamp = Infinity;
+                            noteAttackTimes.forEach((noteInfo, midiNote) => {
+                                if (noteInfo.attackTimestamp < oldestTimestamp && activeNotes.has(midiNote)) {
+                                    oldestTimestamp = noteInfo.attackTimestamp;
+                                    oldestMidiNote = midiNote;
+                                }
+                            });
+                            
+                            if (oldestMidiNote !== null) {
+                                const oldestNoteName = activeNotes.get(oldestMidiNote);
+                                if (oldestNoteName) {
+                                    try {
+                                        synth.triggerRelease(oldestNoteName);
+                                        // Also try releasing unison voices if any
+                                        const oldestVoices = unisonVoices.get(oldestMidiNote);
+                                        if (oldestVoices && oldestVoices.length > 0) {
+                                            oldestVoices.forEach(voiceNoteName => {
+                                                try {
+                                                    synth.triggerRelease(voiceNoteName);
+                                                } catch (e) {
+                                                    // Ignore errors
+                                                }
+                                            });
+                                            unisonVoices.delete(oldestMidiNote);
+                                        }
+                                        activeNotes.delete(oldestMidiNote);
+                                        sustainedNotes.delete(oldestMidiNote);
+                                        noteAttackTimes.delete(oldestMidiNote);
+                                        frequencyModulations.delete(oldestMidiNote);
+                                    } catch (e) {
+                                        // Ignore errors
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
