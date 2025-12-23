@@ -874,8 +874,10 @@ function handleNoteOn(midiNote, velocity) {
         }
         
         // Play sound with two-stage velocity mapping (velocity curve + frequency compensation)
-        // Uses k=2.0 for velocity curve and 85 dB SPL reference for frequency compensation
-        let amplitude = velocityToAmplitudeWithCompensation(velocity, midiNote, 2.0, 85);
+        // Uses settings from velocity-mapping-settings.js if available, otherwise defaults
+        const k = (window.velocityMappingSettings && window.velocityMappingSettings.velocityExponent) ? window.velocityMappingSettings.velocityExponent : 2.0;
+        const targetSPL = (window.velocityMappingSettings && window.velocityMappingSettings.targetSPL) ? window.velocityMappingSettings.targetSPL : 85;
+        let amplitude = velocityToAmplitudeWithCompensation(velocity, midiNote, k, targetSPL);
         
         // Apply pedal coupling (research4) - adds sympathetic resonance - from pedal-coupling.js module
         if (window.physicsSettings && window.physicsSettings.pedalCoupling && sustainPedalActive && window.applyPedalCoupling) {

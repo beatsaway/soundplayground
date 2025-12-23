@@ -547,6 +547,22 @@ function initPhysicsSettings() {
         window.initFakeBinauralSettings();
     }
 
+    // Setup velocity mapping settings button
+    const velocityMappingSettingsBtn = document.getElementById('velocity-mapping-settings-btn');
+    if (velocityMappingSettingsBtn) {
+        velocityMappingSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.openVelocityMappingSettings) {
+                window.openVelocityMappingSettings();
+            }
+        });
+    }
+
+    // Initialize velocity mapping settings popup
+    if (window.initVelocityMappingSettings) {
+        window.initVelocityMappingSettings();
+    }
+
     // Setup inharmonicity settings button
     const inharmonicitySettingsBtn = document.getElementById('inharmonicity-settings-btn');
     if (inharmonicitySettingsBtn) {

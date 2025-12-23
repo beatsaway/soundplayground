@@ -477,6 +477,21 @@
                 
                 <div class="setting-item">
                     <label>
+                        <input type="checkbox" checked disabled>
+                        <div>
+                            <strong>Velocity Mapping</strong>
+                            <button class="binaural-reverb-button" id="velocity-mapping-settings-btn">[...]</button>
+                            <div class="setting-description">
+                                Maps MIDI velocity (0-127) to amplitude using a power curve. Controls the "feel" of velocity response and applies frequency compensation for equal-loudness perception.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact (runs on every note)</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
                         <input type="checkbox" id="enable-frequency-envelope">
                         <div>
                             <strong>Frequency Envelope (Pitch Modulation)</strong>
@@ -622,6 +637,7 @@
     <script src="sustain-decay/sustain-decay.js"></script>
     <!-- Velocity mapping module -->
     <script src="velocity-mapping-two-stage/velocity-mapping-two-stage.js"></script>
+    <script src="velocity-mapping-two-stage/velocity-mapping-settings.js"></script>
     <!-- Priority 1: Critical Realism -->
     <script src="inharmonicity/inharmonicity.js"></script>
     <script src="multi-string-unison/multi-string-unison.js"></script>
