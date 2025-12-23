@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MememePiano</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(20, 20, 30, 0.9);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #header h1 {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #fff;
+            letter-spacing: 0.5px;
+            cursor: default;
+        }
+        #settings-icon {
+            cursor: pointer;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        #settings-icon:hover {
+            transform: rotate(90deg);
+        }
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        #settings-modal.active {
+            display: flex;
+        }
+        #settings-panel {
+            background: rgba(30, 30, 45, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        #settings-panel h2 {
+            margin: 0 0 20px 0;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 24px;
+            color: #fff;
+        }
+        .setting-item {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        .setting-item label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+            font-size: 14px;
+        }
+        .setting-item input[type="checkbox"] {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .setting-description {
+            margin-top: 6px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Inter', sans-serif;
+        }
+        .setting-cpu-warning {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #ffaa44;
+            font-family: 'Inter', sans-serif;
+        }
+        #settings-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        #settings-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>MememePiano<span id="settings-icon">⚙️</span></h1>
+    </div>
+    <div id="settings-modal">
+        <div id="settings-panel">
+            <button id="settings-close">×</button>
+            <h2>Physics Settings</h2>
+            
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-velocity-timbre" checked>
+                    <div>
+                        <strong>Velocity-Dependent Timbre</strong>
+                        <div class="setting-description">
+                            Higher velocities produce brighter sounds with more harmonics. Based on piano hammer-string physics.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Low impact</div>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-two-stage-decay" checked>
+                    <div>
+                        <strong>Two-Stage Decay</strong>
+                        <div class="setting-description">
+                            Realistic piano decay: fast initial decay followed by slower long decay. Velocity affects decay rates.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Low impact</div>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enable-pedal-coupling">
+                    <div>
+                        <strong>Pedal String Coupling</strong>
+                        <div class="setting-description">
+                            Simulates sympathetic vibrations between strings when sustain pedal is active. Creates realistic resonance.
+                        </div>
+                        <div class="setting-cpu-warning">CPU: Medium impact (limited to 8 nearby notes)</div>
+                    </div>
+                </label>
+            </div>
+            
+        </div>
+    </div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+    <!-- Physics modules (load before main.js) -->
+    <script src="physics-settings.js"></script>
+    <script src="velocity-timbre.js"></script>
+    <script src="two-stage-decay.js"></script>
+    <script src="pedal-coupling.js"></script>
+    <!-- Velocity mapping module -->
+    <script src="velocity-mapping-two-stage.js"></script>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
+
