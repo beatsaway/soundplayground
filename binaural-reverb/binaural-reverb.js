@@ -21,8 +21,9 @@
  */
 
 // Default binaural reverb settings
+// Note: enabled will be set based on physicsSettings.binauralReverb on page load
 const binauralReverbSettings = {
-    enabled: false,
+    enabled: false, // Will be set to true if physicsSettings.binauralReverb is true
     reverbMode: 'binaural',  // 'binaural' or 'regular'
     roomSize: 0.7,           // 0.0 (small) to 1.0 (large)
     reverbTime: 2.0,        // RT60 in seconds (0.5 to 5.0)

@@ -644,16 +644,35 @@ Tone.getDestination().volume.value = -6; // Slightly reduce volume
 // ========== Physics Settings ==========
 // Physics settings are managed by physics-settings.js module
 // Initialize settings UI when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (typeof window.initPhysicsSettings === 'function') {
-            window.initPhysicsSettings();
-        }
-    });
-} else {
+// Also initialize binaural reverb if it's enabled by default
+function initializePhysicsSettings() {
     if (typeof window.initPhysicsSettings === 'function') {
         window.initPhysicsSettings();
     }
+    
+    // If binaural reverb is enabled in physics settings, initialize it
+    // Use a small delay to ensure all modules are loaded
+    setTimeout(() => {
+        if (window.physicsSettings && window.physicsSettings.binauralReverb) {
+            if (window.binauralReverbSettings) {
+                window.binauralReverbSettings.enabled = true;
+                // Initialize reverb if enabling
+                if (window.initializeBinauralReverb) {
+                    window.initializeBinauralReverb();
+                }
+                // Reconnect audio chain to apply changes
+                if (window.reconnectAudioChain) {
+                    window.reconnectAudioChain();
+                }
+            }
+        }
+    }, 100); // Small delay to ensure all modules are loaded
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializePhysicsSettings);
+} else {
+    initializePhysicsSettings();
 }
 
 // Sustain pedal state
