@@ -9,8 +9,19 @@ let envelopeSettings = {
     attack: 0.01,      // Attack time in seconds (default 10ms)
     decay: 0.1,        // Decay time in seconds (default 100ms)
     sustain: 0.3,      // Sustain level (0-1, default 0.3)
-    release: 0.5       // Release time in seconds (default 500ms)
+    release: 0.5,      // Release time in seconds (default 500ms)
+    sustainPedalSustainBoost: true // Default: ON - Boost sustain to 1.0 when sustain pedal is pressed
 };
+
+// Track effective sustain level (user sustain + sustain pedal boost)
+// This allows the displayed sustain value to stay unchanged while the actual sustain boosts
+let effectiveSustain = null; // Will be set to user sustain initially
+let sustainPedalSustainAutomation = null; // Automation state tracking
+
+// Initialize effective sustain to user sustain
+if (typeof window !== 'undefined') {
+    effectiveSustain = envelopeSettings.sustain;
+}
 
 /**
  * Initialize envelope settings popup
@@ -76,6 +87,14 @@ function createEnvelopeSettingsPopup() {
                         <span class="envelope-settings-value" id="envelope-release-value">500 ms</span>
                     </label>
                     <div class="envelope-settings-description">Time for note to fade out after release. Range: 50-2000ms. Default: 500ms</div>
+                </div>
+                
+                <div class="envelope-settings-setting">
+                    <label style="display: flex; align-items: center; gap: 12px;">
+                        <input type="checkbox" id="envelope-sustain-pedal-boost" style="width: 18px; height: 18px; cursor: pointer;">
+                        <span>Sustain Pedal Sustain Boost</span>
+                    </label>
+                    <div class="envelope-settings-description" style="margin-left: 30px;">When enabled, sustain level gradually increases to 1.0 over 5 seconds when sustain pedal is pressed, then returns to set value over 2 seconds when released. The displayed sustain value remains unchanged.</div>
                 </div>
                 
                 <div class="envelope-settings-popup-footer">
@@ -331,6 +350,38 @@ function setupEnvelopeSettingsControls() {
             setEnvelopeSettings({ release: valueSec });
         });
     }
+
+    // Sustain Pedal Sustain Boost checkbox
+    const sustainPedalBoostCheckbox = document.getElementById('envelope-sustain-pedal-boost');
+    if (sustainPedalBoostCheckbox) {
+        sustainPedalBoostCheckbox.checked = envelopeSettings.sustainPedalSustainBoost !== false; // Default to true
+        
+        sustainPedalBoostCheckbox.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            setEnvelopeSettings({ sustainPedalSustainBoost: enabled });
+            // If disabled, restore effective sustain to user sustain
+            if (!enabled && effectiveSustain !== null) {
+                effectiveSustain = envelopeSettings.sustain;
+                updateSynthSustainLevel();
+            }
+        });
+    }
+}
+
+/**
+ * Update synth sustain level (called when effective sustain changes)
+ */
+function updateSynthSustainLevel() {
+    if (typeof window === 'undefined' || typeof Tone === 'undefined') {
+        return;
+    }
+    
+    // Get synth from midi-mapping or main.js
+    // We need to access the synth instance - it's stored in midi-mapping module
+    // For now, we'll use a callback approach or access via window if available
+    if (window.updateSynthEnvelopeSustain) {
+        window.updateSynthEnvelopeSustain(effectiveSustain !== null ? effectiveSustain : envelopeSettings.sustain);
+    }
 }
 
 /**
@@ -343,6 +394,14 @@ function setEnvelopeSettings(newSettings) {
     // Update global settings object
     if (typeof window !== 'undefined') {
         window.envelopeSettings = envelopeSettings;
+    }
+    
+    // If sustain changed and pedal boost is not active, update effective sustain
+    if (newSettings.sustain !== undefined) {
+        if (!sustainPedalSustainAutomation || !sustainPedalSustainAutomation.isActive) {
+            effectiveSustain = envelopeSettings.sustain;
+            updateSynthSustainLevel();
+        }
     }
 }
 
@@ -362,7 +421,8 @@ function resetEnvelopeSettingsToDefaults() {
         attack: 0.01,   // 10ms
         decay: 0.1,      // 100ms
         sustain: 0.3,   // 0.3
-        release: 0.5    // 500ms
+        release: 0.5,   // 500ms
+        sustainPedalSustainBoost: true
     };
 
     setEnvelopeSettings(defaults);
@@ -427,8 +487,100 @@ function openEnvelopeSettings() {
             releaseValue.textContent = Math.round(currentRelease) + ' ms';
         }
         
+        const sustainPedalBoostCheckbox = document.getElementById('envelope-sustain-pedal-boost');
+        if (sustainPedalBoostCheckbox) {
+            sustainPedalBoostCheckbox.checked = envelopeSettings.sustainPedalSustainBoost !== false;
+        }
+        
         popup.classList.add('active');
     }
+}
+
+/**
+ * Handle sustain pedal state change for envelope sustain boost
+ * Gradually increases sustain to 1.0 when pedal is pressed (5s), restores when released (2s)
+ * @param {boolean} pedalActive - Whether sustain pedal is active
+ */
+function handleSustainPedalChangeEnvelope(pedalActive) {
+    // Check if feature is enabled
+    if (!envelopeSettings.sustainPedalSustainBoost) {
+        // Feature disabled - ensure effective sustain matches user sustain
+        if (effectiveSustain !== null && effectiveSustain !== envelopeSettings.sustain) {
+            effectiveSustain = envelopeSettings.sustain;
+            updateSynthSustainLevel();
+        }
+        return; // Feature disabled
+    }
+    
+    if (typeof window === 'undefined' || typeof Tone === 'undefined') {
+        return;
+    }
+    
+    // Cancel any existing automation
+    if (sustainPedalSustainAutomation && sustainPedalSustainAutomation.isActive) {
+        if (sustainPedalSustainAutomation.cancel) {
+            sustainPedalSustainAutomation.cancel();
+        }
+        sustainPedalSustainAutomation = null;
+    }
+    
+    // Get current user-set sustain (from settings)
+    const userSustain = envelopeSettings.sustain !== undefined ? envelopeSettings.sustain : 0.3;
+    
+    // Initialize effective sustain if needed
+    if (effectiveSustain === null) {
+        effectiveSustain = userSustain;
+    }
+    
+    const currentSustain = effectiveSustain;
+    const targetSustain = pedalActive ? 1.0 : userSustain; // 1.0 when pedal active, user sustain when released
+    const transitionDuration = pedalActive ? 5.0 : 2.0; // 5s when pressing, 2s when releasing
+    
+    // We need to smoothly transition the sustain level
+    // Since Tone.js synth.set() affects all voices immediately, we'll use a gradual update approach
+    const startTime = Tone.now();
+    const endTime = startTime + transitionDuration;
+    const steps = Math.ceil(transitionDuration * 60); // 60 updates per second for smooth transition
+    const stepDuration = transitionDuration / steps;
+    
+    let currentStep = 0;
+    const updateInterval = setInterval(() => {
+        currentStep++;
+        const progress = currentStep / steps;
+        const newSustain = currentSustain + (targetSustain - currentSustain) * progress;
+        effectiveSustain = newSustain;
+        updateSynthSustainLevel();
+        
+        if (currentStep >= steps) {
+            clearInterval(updateInterval);
+            effectiveSustain = targetSustain;
+            updateSynthSustainLevel();
+            if (sustainPedalSustainAutomation) {
+                sustainPedalSustainAutomation.isActive = false;
+            }
+        }
+    }, stepDuration * 1000);
+    
+    // Track automation state
+    sustainPedalSustainAutomation = {
+        isActive: true,
+        targetSustain: targetSustain,
+        pedalActive: pedalActive,
+        cancel: () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            sustainPedalSustainAutomation.isActive = false;
+        }
+    };
+}
+
+/**
+ * Get effective sustain level (user sustain + sustain pedal boost)
+ * @returns {number} - Effective sustain level (0-1)
+ */
+function getEffectiveSustain() {
+    return effectiveSustain !== null ? effectiveSustain : envelopeSettings.sustain;
 }
 
 // Export for use in other modules
@@ -439,5 +591,7 @@ if (typeof window !== 'undefined') {
     window.setEnvelopeSettings = setEnvelopeSettings;
     window.getEnvelopeSettings = getEnvelopeSettings;
     window.resetEnvelopeSettingsToDefaults = resetEnvelopeSettingsToDefaults;
+    window.getEffectiveSustain = getEffectiveSustain;
+    window.handleSustainPedalChangeEnvelope = handleSustainPedalChangeEnvelope;
 }
 

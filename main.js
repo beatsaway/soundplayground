@@ -1260,6 +1260,11 @@ function handleControlChange(controller, value) {
             window.handleSustainPedalChangeSpectralBalance(isNowActive);
         }
         
+        // Handle envelope sustain boost on sustain pedal change
+        if (window.handleSustainPedalChangeEnvelope) {
+            window.handleSustainPedalChangeEnvelope(isNowActive);
+        }
+        
         // If sustain pedal is released, release only the sustained notes
         if (wasActive && !sustainPedalActive) {
             // Create a copy to avoid modification during iteration

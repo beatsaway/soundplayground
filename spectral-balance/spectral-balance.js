@@ -88,7 +88,7 @@ function updateSpectralBalance(settings) {
 
 /**
  * Handle sustain pedal state change
- * Gradually reduces gain to 0dB when pedal is pressed (5s), restores when released (1s)
+ * Gradually reduces gain to 0dB when pedal is pressed (5s), restores when released (2s)
  * If pedal is pressed/released again during transition, cancels current transition and starts new one from current gain value
  * @param {boolean} pedalActive - Whether sustain pedal is active
  */
@@ -131,8 +131,8 @@ function handleSustainPedalChange(pedalActive) {
     // Get current gain value from filter (may be mid-transition)
     const currentGain = spectralBalanceFilter.gain.value;
     const targetGain = pedalActive ? 0 : userGain; // 0dB when pedal active, user gain when released
-    // Different durations: 5 seconds when pressing (reducing), 1 second when releasing (restoring)
-    const transitionDuration = pedalActive ? 5.0 : 1.0;
+    // Different durations: 5 seconds when pressing (reducing), 2 seconds when releasing (restoring)
+    const transitionDuration = pedalActive ? 5.0 : 2.0;
     
     // Create smooth automation
     const startTime = Tone.now();

@@ -210,6 +210,16 @@
             adjustedDecayTime = perPartialEnvelope.decay;
         }
         
+        // Get effective sustain level (may be boosted by sustain pedal)
+        let effectiveSustain = baseEnvelope.sustain;
+        if (window.getEffectiveSustain) {
+            effectiveSustain = window.getEffectiveSustain();
+        }
+        // Apply two-stage decay adjustment if enabled
+        if (window.physicsSettings && window.physicsSettings.twoStageDecay) {
+            effectiveSustain = effectiveSustain * twoStageDecay.amplitudeRatio;
+        }
+        
         // Update envelope parameters on the synth before triggering
         // Note: synth.set() affects all voices, but since we call it right before triggerAttack,
         // the new voice will use these settings. For true per-voice control, we'd need
@@ -221,8 +231,7 @@
             envelope: {
                 attack: attackTime,
                 decay: adjustedDecayTime,
-                sustain: (window.physicsSettings && window.physicsSettings.twoStageDecay) ? 
-                    (baseEnvelope.sustain * twoStageDecay.amplitudeRatio) : baseEnvelope.sustain,
+                sustain: effectiveSustain,
                 release: releaseTime
             }
         });
@@ -394,6 +403,23 @@
     };
     
     /**
+     * Update synth envelope sustain level
+     * Called when effective sustain changes (e.g., sustain pedal boost)
+     * @param {number} sustainLevel - New sustain level (0-1)
+     */
+    window.updateSynthEnvelopeSustain = function(sustainLevel) {
+        if (!synth) return;
+        
+        // Update synth sustain for all voices
+        // Note: This affects all active voices, but Tone.js PolySynth doesn't support per-voice control
+        synth.set({
+            envelope: {
+                sustain: sustainLevel
+            }
+        });
+    };
+    
+    /**
      * Handle MIDI control change event
      * @param {number} controller - Controller number (0-127)
      * @param {number} value - Controller value (0-127)
@@ -408,6 +434,11 @@
             // Handle spectral balance gain reduction on sustain pedal change
             if (window.handleSustainPedalChangeSpectralBalance) {
                 window.handleSustainPedalChangeSpectralBalance(isNowActive);
+            }
+            
+            // Handle envelope sustain boost on sustain pedal change
+            if (window.handleSustainPedalChangeEnvelope) {
+                window.handleSustainPedalChangeEnvelope(isNowActive);
             }
             
             // If sustain pedal is released, release only the sustained notes
