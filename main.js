@@ -628,7 +628,7 @@ const synth = new Tone.PolySynth(Tone.Synth, {
 
 // Connect synth through filter if filter is available
 const filter = initializeDynamicFilter();
-initializeAttackDarkeningFilter(); // Initialize attack darkening filter (before dynamic filter)
+let attackDarkeningFilter = null; // Will hold the attack darkening filter node
 let fakeBinauralOutput = null; // Will hold the fake binaural output node
 let reverbOutput = null; // Will hold the reverb output node
 let spectralBalanceOutput = null; // Will hold the spectral balance output node
@@ -637,6 +637,7 @@ let spectralBalanceOutput = null; // Will hold the spectral balance output node
 window.reconnectAudioChain = function() {
     // Disconnect everything first
     synth.disconnect();
+    attackDarkeningFilter = initializeAttackDarkeningFilter(); // Get or initialize filter
     if (attackDarkeningFilter) {
         attackDarkeningFilter.disconnect();
     }
@@ -657,7 +658,7 @@ window.reconnectAudioChain = function() {
     let currentOutput = synth;
     
     // Connect through attack darkening filter if enabled (before dynamic filter)
-    const attackDarkeningFilter = initializeAttackDarkeningFilter();
+    attackDarkeningFilter = initializeAttackDarkeningFilter();
     if (attackDarkeningFilter && window.attackDarkeningSettings && window.attackDarkeningSettings.enabled) {
         synth.connect(attackDarkeningFilter);
         currentOutput = attackDarkeningFilter;
@@ -716,7 +717,7 @@ window.reconnectAudioChain = function() {
 let currentOutput = synth;
 
 // Connect through attack darkening filter if enabled (before dynamic filter)
-const attackDarkeningFilter = initializeAttackDarkeningFilter();
+attackDarkeningFilter = initializeAttackDarkeningFilter();
 if (attackDarkeningFilter && window.attackDarkeningSettings && window.attackDarkeningSettings.enabled) {
     synth.connect(attackDarkeningFilter);
     currentOutput = attackDarkeningFilter;
