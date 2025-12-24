@@ -85,8 +85,16 @@
      * @param {Object} keyData - Key data from keyMap
      */
     window.applyKeyHighlight = function(keyData) {
-        if (!window.keyHighlightSettings.enabled || !keyData) return;
+        if (!window.keyHighlightSettings.enabled || !keyData || !keyData.mesh) return;
         
+        // If pressedMaterial doesn't exist, try to get it now
+        if (!keyData.pressedMaterial) {
+            if (window.getKeyPressedMaterial) {
+                keyData.pressedMaterial = window.getKeyPressedMaterial(keyData.isBlack);
+            }
+        }
+        
+        // Apply the pressed material if available
         if (keyData.pressedMaterial) {
             keyData.mesh.material = keyData.pressedMaterial;
         }

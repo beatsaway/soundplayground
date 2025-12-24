@@ -402,7 +402,6 @@
         if (controller === 64 && sustainPedalActiveRef) {
             const wasActive = sustainPedalActiveRef.value;
             sustainPedalActiveRef.value = value >= 64; // >= 64 means pedal down
-            console.log('Sustain pedal:', sustainPedalActiveRef.value ? 'ON' : 'OFF');
             
             // If sustain pedal is released, release only the sustained notes
             if (wasActive && !sustainPedalActiveRef.value) {

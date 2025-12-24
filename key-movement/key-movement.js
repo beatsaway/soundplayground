@@ -9,7 +9,7 @@
     // Settings
     window.keyMovementSettings = {
         enabled: true, // Default: ON
-        animationStyle: 'none', // 'none', 'instant', 'animated'
+        animationStyle: 'instant', // 'none', 'instant', 'animated' - Default: 'instant' for immediate movement
         pressDepth: 0.7, // 70% of key height
         animationDuration: 0.1 // seconds for animated style
     };
@@ -75,12 +75,9 @@
             keyData.originalY = keyData.mesh.position.y;
         }
         
-        // Get midiNote from keyData or use a fallback
-        const midiNote = keyData.midiNote || (keyData.mesh ? keyData.mesh.userData.midiNote : null);
-        if (!midiNote) {
-            console.warn('Key movement: midiNote not found in keyData');
-            return;
-        }
+        // Get midiNote from keyData
+        const midiNote = keyData.midiNote;
+        if (midiNote === undefined || midiNote === null) return;
         
         const pressDepth = keyHeight * window.keyMovementSettings.pressDepth;
         const targetY = keyData.originalY - pressDepth;
@@ -106,6 +103,10 @@
                     keyData: keyData
                 });
                 break;
+            default:
+                // Fallback to instant
+                keyData.mesh.position.y = targetY;
+                break;
         }
     };
     
@@ -117,9 +118,9 @@
     window.releaseKeyMovement = function(keyData, keyHeight) {
         if (!keyData) return;
         
-        // Get midiNote from keyData or use a fallback
-        const midiNote = keyData.midiNote || (keyData.mesh ? keyData.mesh.userData.midiNote : null);
-        if (midiNote) {
+        // Get midiNote from keyData
+        const midiNote = keyData.midiNote;
+        if (midiNote !== undefined && midiNote !== null) {
             // Cancel any existing animation
             keyAnimations.delete(midiNote);
         }
@@ -145,7 +146,7 @@
                 break;
             case 'animated':
                 // Animated movement
-                if (midiNote) {
+                if (midiNote !== undefined && midiNote !== null) {
                     const startTime = performance.now() / 1000; // Convert to seconds
                     keyAnimations.set(midiNote, {
                         startTime: startTime,

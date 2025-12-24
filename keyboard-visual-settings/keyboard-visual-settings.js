@@ -94,6 +94,18 @@
                     </div>
                 </label>
             </div>
+            
+            <div class="keyboard-visual-setting-item">
+                <label>
+                    <input type="checkbox" id="enable-keypress-input" checked>
+                    <div>
+                        <strong>Keyboard Input</strong>
+                        <div class="setting-description">
+                            Play piano with computer keyboard: a,w,s,e,d,f,t,g,y,h,u,j,k,o,l (C3-D4). Use &lt; and &gt; to shift octave (A0-C8 range).
+                        </div>
+                    </div>
+                </label>
+            </div>
         `;
         
         modal.appendChild(panel);
@@ -183,6 +195,21 @@
                         window.enableMidiInput();
                     } else {
                         window.disableMidiInput();
+                    }
+                }
+                updateUI();
+            });
+        }
+        
+        // Keypress input toggle
+        const keypressInputCheckbox = document.getElementById('enable-keypress-input');
+        if (keypressInputCheckbox) {
+            keypressInputCheckbox.addEventListener('change', (e) => {
+                if (window.enableKeypressInput && window.disableKeypressInput) {
+                    if (e.target.checked) {
+                        window.enableKeypressInput();
+                    } else {
+                        window.disableKeypressInput();
                     }
                 }
                 updateUI();
@@ -816,6 +843,7 @@
         const movementCheckbox = document.getElementById('enable-key-movement');
         const labelsCheckbox = document.getElementById('enable-key-labels');
         const midiInputCheckbox = document.getElementById('enable-midi-input');
+        const keypressInputCheckbox = document.getElementById('enable-keypress-input');
         
         if (highlightCheckbox) {
             highlightCheckbox.checked = window.keyHighlightSettings.enabled;
@@ -828,6 +856,9 @@
         }
         if (midiInputCheckbox && window.isMidiInputEnabled) {
             midiInputCheckbox.checked = window.isMidiInputEnabled();
+        }
+        if (keypressInputCheckbox && window.isKeypressInputEnabled) {
+            keypressInputCheckbox.checked = window.isKeypressInputEnabled();
         }
     }
     

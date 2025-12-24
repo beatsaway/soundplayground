@@ -1252,7 +1252,6 @@ function handleControlChange(controller, value) {
     if (controller === 64) {
         const wasActive = sustainPedalActive;
         sustainPedalActive = value >= 64; // >= 64 means pedal down
-        console.log('Sustain pedal:', sustainPedalActive ? 'ON' : 'OFF');
         
         // If sustain pedal is released, release only the sustained notes
         if (wasActive && !sustainPedalActive) {
@@ -1330,16 +1329,27 @@ function initializeMidiInput() {
     }
 }
 
+// Initialize keypress input module
+function initializeKeypressInput() {
+    if (window.initKeypressInput) {
+        window.initKeypressInput(handleNoteOn, handleNoteOff);
+    } else {
+        console.warn('Keypress input module not loaded');
+    }
+}
+
 document.addEventListener('click', () => {
     if (Tone.context.state !== 'running') {
         Tone.start();
     }
     initializeMidiInput();
+    initializeKeypressInput();
 }, { once: true });
 
-// Also try to initialize MIDI immediately (may require user interaction for audio)
+// Also try to initialize MIDI and keypress input immediately (may require user interaction for audio)
 if (Tone.context.state === 'running') {
     initializeMidiInput();
+    initializeKeypressInput();
 } else {
     console.log('Click anywhere to enable MIDI and audio');
 }
