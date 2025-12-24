@@ -9,9 +9,9 @@ let spectralBalanceSettings = {
     frequency: 2000, // Cutoff frequency in Hz (default: 2kHz)
     gain: -20, // Gain reduction in dB (default: -20dB)
     Q: 0.7, // Filter Q (default: 0.7 for gentle slope)
-    sustainPedalGainReduction: true, // Default: ON - Reduce gain to 0dB when sustain pedal is pressed
-    gainReductionDuration: 16.0, // Duration to reach 0dB when pedal pressed (default 16s, min 1s, max 32s)
-    gainRestoreDuration: 0.2 // Duration to restore gain when pedal released (default 0.2s, min 0.1s, max 5s)
+    sustainPedalGainReduction: true, // Default: ON - Increase cutoff frequency to 14000Hz when sustain pedal is pressed
+    frequencyIncreaseDuration: 16.0, // Duration to reach 14000Hz when pedal pressed (default 16s, min 1s, max 32s)
+    frequencyRestoreDuration: 0.2 // Duration to restore frequency when pedal released (default 0.2s, min 0.1s, max 5s)
 };
 
 /**
@@ -76,25 +76,25 @@ function createSpectralBalancePopup() {
                         <input type="checkbox" id="spectral-balance-sustain-pedal-gain" style="width: 18px; height: 18px; cursor: pointer;">
                         <span>Sustain Pedal Gain Reduction</span>
                     </label>
-                    <div class="spectral-balance-description" style="margin-left: 30px;">When enabled, gain gradually reduces to 0dB when sustain pedal is pressed, then returns to set value over 2 seconds when released. The displayed gain value remains unchanged.</div>
+                    <div class="spectral-balance-description" style="margin-left: 30px;">When enabled, cutoff frequency gradually increases to 14000Hz when sustain pedal is pressed, then returns to set value over 0.2 seconds when released. The displayed frequency value remains unchanged.</div>
                 </div>
                 
-                <div class="spectral-balance-setting" id="spectral-balance-gain-reduction-duration-container" style="margin-left: 30px;">
+                <div class="spectral-balance-setting" id="spectral-balance-frequency-increase-duration-container" style="margin-left: 30px;">
                     <label>
-                        <span>Gain Reduction Duration</span>
-                        <input type="range" id="spectral-balance-gain-reduction-duration" min="1" max="32" value="16" step="0.5">
-                        <span class="spectral-balance-value" id="spectral-balance-gain-reduction-duration-value">16.0 s</span>
+                        <span>Frequency Increase Duration</span>
+                        <input type="range" id="spectral-balance-frequency-increase-duration" min="1" max="32" value="16" step="0.5">
+                        <span class="spectral-balance-value" id="spectral-balance-frequency-increase-duration-value">16.0 s</span>
                     </label>
-                    <div class="spectral-balance-description">Time for gain to reach 0dB when sustain pedal is pressed. Range: 1-32 seconds. Default: 16 seconds</div>
+                    <div class="spectral-balance-description">Time for cutoff frequency to transition from current value to 14000Hz when sustain pedal is pressed 0dB when sustain pedal is pressed. Range: 1-32 seconds. Default: 16 seconds</div>
                 </div>
                 
-                <div class="spectral-balance-setting" id="spectral-balance-gain-restore-duration-container" style="margin-left: 30px;">
+                <div class="spectral-balance-setting" id="spectral-balance-frequency-restore-duration-container" style="margin-left: 30px;">
                     <label>
-                        <span>Gain Restore Duration</span>
-                        <input type="range" id="spectral-balance-gain-restore-duration" min="0.1" max="5" value="0.2" step="0.1">
-                        <span class="spectral-balance-value" id="spectral-balance-gain-restore-duration-value">0.2 s</span>
+                        <span>Frequency Restore Duration</span>
+                        <input type="range" id="spectral-balance-frequency-restore-duration" min="0.1" max="5" value="0.2" step="0.1">
+                        <span class="spectral-balance-value" id="spectral-balance-frequency-restore-duration-value">0.2 s</span>
                     </label>
-                    <div class="spectral-balance-description">Time for gain to restore to set value when sustain pedal is released. Range: 0.1-5 seconds. Default: 0.2 seconds</div>
+                    <div class="spectral-balance-description">Time for cutoff frequency to restore to set value when sustain pedal is released. Range: 0.1-5 seconds. Default: 0.2 seconds</div>
                 </div>
                 
                 <div class="spectral-balance-info">
@@ -384,33 +384,33 @@ function setupSpectralBalanceControls() {
         });
     }
 
-    // Gain Reduction Duration slider
-    const gainReductionDurationSlider = document.getElementById('spectral-balance-gain-reduction-duration');
-    const gainReductionDurationValue = document.getElementById('spectral-balance-gain-reduction-duration-value');
-    if (gainReductionDurationSlider && gainReductionDurationValue) {
-        const currentDuration = spectralBalanceSettings.gainReductionDuration !== undefined ? spectralBalanceSettings.gainReductionDuration : 16.0;
-        gainReductionDurationSlider.value = currentDuration;
-        gainReductionDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+    // Frequency Increase Duration slider
+    const frequencyIncreaseDurationSlider = document.getElementById('spectral-balance-frequency-increase-duration');
+    const frequencyIncreaseDurationValue = document.getElementById('spectral-balance-frequency-increase-duration-value');
+    if (frequencyIncreaseDurationSlider && frequencyIncreaseDurationValue) {
+        const currentDuration = spectralBalanceSettings.frequencyIncreaseDuration !== undefined ? spectralBalanceSettings.frequencyIncreaseDuration : 16.0;
+        frequencyIncreaseDurationSlider.value = currentDuration;
+        frequencyIncreaseDurationValue.textContent = currentDuration.toFixed(1) + ' s';
         
-        gainReductionDurationSlider.addEventListener('input', (e) => {
+        frequencyIncreaseDurationSlider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
-            gainReductionDurationValue.textContent = value.toFixed(1) + ' s';
-            setSpectralBalanceSettings({ gainReductionDuration: value });
+            frequencyIncreaseDurationValue.textContent = value.toFixed(1) + ' s';
+            setSpectralBalanceSettings({ frequencyIncreaseDuration: value });
         });
     }
 
-    // Gain Restore Duration slider
-    const gainRestoreDurationSlider = document.getElementById('spectral-balance-gain-restore-duration');
-    const gainRestoreDurationValue = document.getElementById('spectral-balance-gain-restore-duration-value');
-    if (gainRestoreDurationSlider && gainRestoreDurationValue) {
-        const currentDuration = spectralBalanceSettings.gainRestoreDuration !== undefined ? spectralBalanceSettings.gainRestoreDuration : 0.2;
-        gainRestoreDurationSlider.value = currentDuration;
-        gainRestoreDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+    // Frequency Restore Duration slider
+    const frequencyRestoreDurationSlider = document.getElementById('spectral-balance-frequency-restore-duration');
+    const frequencyRestoreDurationValue = document.getElementById('spectral-balance-frequency-restore-duration-value');
+    if (frequencyRestoreDurationSlider && frequencyRestoreDurationValue) {
+        const currentDuration = spectralBalanceSettings.frequencyRestoreDuration !== undefined ? spectralBalanceSettings.frequencyRestoreDuration : 0.2;
+        frequencyRestoreDurationSlider.value = currentDuration;
+        frequencyRestoreDurationValue.textContent = currentDuration.toFixed(1) + ' s';
         
-        gainRestoreDurationSlider.addEventListener('input', (e) => {
+        frequencyRestoreDurationSlider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
-            gainRestoreDurationValue.textContent = value.toFixed(1) + ' s';
-            setSpectralBalanceSettings({ gainRestoreDuration: value });
+            frequencyRestoreDurationValue.textContent = value.toFixed(1) + ' s';
+            setSpectralBalanceSettings({ frequencyRestoreDuration: value });
         });
     }
 }
@@ -451,8 +451,8 @@ function resetSpectralBalanceToDefaults() {
         gain: -20,
         Q: 0.7,
         sustainPedalGainReduction: true,
-        gainReductionDuration: 16.0, // 16 seconds
-        gainRestoreDuration: 0.2 // 0.2 seconds
+        frequencyIncreaseDuration: 16.0, // 16 seconds
+        frequencyRestoreDuration: 0.2 // 0.2 seconds
     };
 
     setSpectralBalanceSettings(defaults);
@@ -510,20 +510,20 @@ function openSpectralBalanceSettings() {
             sustainPedalGainCheckbox.checked = spectralBalanceSettings.sustainPedalGainReduction !== false;
         }
         
-        const gainReductionDurationSlider = document.getElementById('spectral-balance-gain-reduction-duration');
-        const gainReductionDurationValue = document.getElementById('spectral-balance-gain-reduction-duration-value');
-        if (gainReductionDurationSlider && gainReductionDurationValue) {
-            const currentDuration = spectralBalanceSettings.gainReductionDuration !== undefined ? spectralBalanceSettings.gainReductionDuration : 16.0;
-            gainReductionDurationSlider.value = currentDuration;
-            gainReductionDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        const frequencyIncreaseDurationSlider = document.getElementById('spectral-balance-frequency-increase-duration');
+        const frequencyIncreaseDurationValue = document.getElementById('spectral-balance-frequency-increase-duration-value');
+        if (frequencyIncreaseDurationSlider && frequencyIncreaseDurationValue) {
+            const currentDuration = spectralBalanceSettings.frequencyIncreaseDuration !== undefined ? spectralBalanceSettings.frequencyIncreaseDuration : 16.0;
+            frequencyIncreaseDurationSlider.value = currentDuration;
+            frequencyIncreaseDurationValue.textContent = currentDuration.toFixed(1) + ' s';
         }
         
-        const gainRestoreDurationSlider = document.getElementById('spectral-balance-gain-restore-duration');
-        const gainRestoreDurationValue = document.getElementById('spectral-balance-gain-restore-duration-value');
-        if (gainRestoreDurationSlider && gainRestoreDurationValue) {
-            const currentDuration = spectralBalanceSettings.gainRestoreDuration !== undefined ? spectralBalanceSettings.gainRestoreDuration : 0.2;
-            gainRestoreDurationSlider.value = currentDuration;
-            gainRestoreDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        const frequencyRestoreDurationSlider = document.getElementById('spectral-balance-frequency-restore-duration');
+        const frequencyRestoreDurationValue = document.getElementById('spectral-balance-frequency-restore-duration-value');
+        if (frequencyRestoreDurationSlider && frequencyRestoreDurationValue) {
+            const currentDuration = spectralBalanceSettings.frequencyRestoreDuration !== undefined ? spectralBalanceSettings.frequencyRestoreDuration : 0.2;
+            frequencyRestoreDurationSlider.value = currentDuration;
+            frequencyRestoreDurationValue.textContent = currentDuration.toFixed(1) + ' s';
         }
         
         popup.classList.add('active');

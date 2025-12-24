@@ -132,11 +132,11 @@ function handleSustainPedalChange(pedalActive) {
     const currentGain = spectralBalanceFilter.gain.value;
     const targetGain = pedalActive ? 0 : userGain; // 0dB when pedal active, user gain when released
     // Get duration from settings (default 16s for reduction, 0.2s for restore)
-    const reductionDuration = (window.spectralBalanceSettings && window.spectralBalanceSettings.gainReductionDuration !== undefined) 
-        ? window.spectralBalanceSettings.gainReductionDuration 
+    const reductionDuration = (window.spectralBalanceSettings && window.spectralBalanceSettings.frequencyIncreaseDuration !== undefined) 
+        ? window.spectralBalanceSettings.frequencyIncreaseDuration 
         : 16.0;
-    const restoreDuration = (window.spectralBalanceSettings && window.spectralBalanceSettings.gainRestoreDuration !== undefined)
-        ? window.spectralBalanceSettings.gainRestoreDuration
+    const restoreDuration = (window.spectralBalanceSettings && window.spectralBalanceSettings.frequencyRestoreDuration !== undefined)
+        ? window.spectralBalanceSettings.frequencyRestoreDuration
         : 0.2;
     const transitionDuration = pedalActive ? reductionDuration : restoreDuration; // Configurable durations for both directions
     
