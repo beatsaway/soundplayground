@@ -12,6 +12,11 @@
 // Spectral balance filter node
 let spectralBalanceFilter = null;
 
+// Track effective gain (user gain + sustain pedal reduction)
+// This allows the displayed gain to stay unchanged while the actual gain reduces
+let effectiveGain = null; // Will be set to user gain initially
+let sustainPedalGainAutomation = null; // Tone.js automation for smooth transitions
+
 /**
  * Initialize the spectral balance filter
  */
@@ -58,12 +63,109 @@ function updateSpectralBalance(settings) {
     }
     
     if (settings.gain !== undefined) {
-        spectralBalanceFilter.gain.value = settings.gain;
+        // Update user-set gain, but use effective gain for actual filter
+        // Effective gain will be set if sustain pedal is active
+        if (effectiveGain === null) {
+            effectiveGain = settings.gain;
+        }
+        // If sustain pedal reduction is not active, update effective gain too
+        // Otherwise, keep the current effective gain (which may be reduced by sustain pedal)
+        if (!sustainPedalGainAutomation || !sustainPedalGainAutomation.isActive) {
+            effectiveGain = settings.gain;
+            spectralBalanceFilter.gain.value = effectiveGain;
+        } else {
+            // Sustain pedal automation is active - don't change effective gain yet
+            // The automation will complete and then we can update
+            // But we should update the target for when pedal is released
+            // This is handled in handleSustainPedalChange
+        }
     }
     
     if (settings.Q !== undefined) {
         spectralBalanceFilter.Q.value = settings.Q;
     }
+}
+
+/**
+ * Handle sustain pedal state change
+ * Gradually reduces gain to 0dB when pedal is pressed (5s), restores when released (1s)
+ * If pedal is pressed/released again during transition, cancels current transition and starts new one from current gain value
+ * @param {boolean} pedalActive - Whether sustain pedal is active
+ */
+function handleSustainPedalChange(pedalActive) {
+    // Check if feature is enabled
+    if (!window.spectralBalanceSettings || !window.spectralBalanceSettings.sustainPedalGainReduction) {
+        // Feature disabled - ensure effective gain matches user gain
+        if (spectralBalanceFilter && effectiveGain !== null) {
+            const userGain = (window.spectralBalanceSettings && window.spectralBalanceSettings.gain !== undefined) 
+                ? window.spectralBalanceSettings.gain 
+                : -20;
+            effectiveGain = userGain;
+            spectralBalanceFilter.gain.value = effectiveGain;
+        }
+        return; // Feature disabled
+    }
+    
+    if (!spectralBalanceFilter) {
+        if (!initializeSpectralBalance()) {
+            return;
+        }
+    }
+    
+    // Cancel any existing automation
+    if (sustainPedalGainAutomation && sustainPedalGainAutomation.isActive) {
+        sustainPedalGainAutomation.cancel();
+        sustainPedalGainAutomation = null;
+    }
+    
+    // Get current user-set gain (from settings)
+    const userGain = (window.spectralBalanceSettings && window.spectralBalanceSettings.gain !== undefined) 
+        ? window.spectralBalanceSettings.gain 
+        : -20; // Default
+    
+    // Initialize effective gain if needed
+    if (effectiveGain === null) {
+        effectiveGain = userGain;
+    }
+    
+    // Get current gain value from filter (may be mid-transition)
+    const currentGain = spectralBalanceFilter.gain.value;
+    const targetGain = pedalActive ? 0 : userGain; // 0dB when pedal active, user gain when released
+    // Different durations: 5 seconds when pressing (reducing), 1 second when releasing (restoring)
+    const transitionDuration = pedalActive ? 5.0 : 1.0;
+    
+    // Create smooth automation
+    const startTime = Tone.now();
+    const endTime = startTime + transitionDuration;
+    
+    // Use Tone.js automation for smooth transition
+    spectralBalanceFilter.gain.cancelScheduledValues(startTime);
+    spectralBalanceFilter.gain.setValueAtTime(currentGain, startTime);
+    spectralBalanceFilter.gain.linearRampToValueAtTime(targetGain, endTime);
+    
+    // Track automation state
+    sustainPedalGainAutomation = {
+        isActive: true,
+        targetGain: targetGain,
+        pedalActive: pedalActive,
+        cancel: () => {
+            if (sustainPedalGainAutomation && sustainPedalGainAutomation.isActive) {
+                const now = Tone.now();
+                const currentValue = spectralBalanceFilter.gain.value;
+                spectralBalanceFilter.gain.cancelScheduledValues(now);
+                spectralBalanceFilter.gain.setValueAtTime(currentValue, now);
+                sustainPedalGainAutomation.isActive = false;
+            }
+        }
+    };
+    
+    // Update effective gain after transition completes
+    setTimeout(() => {
+        effectiveGain = targetGain;
+        if (sustainPedalGainAutomation) {
+            sustainPedalGainAutomation.isActive = false;
+        }
+    }, transitionDuration * 1000);
 }
 
 /**
@@ -98,9 +200,14 @@ function connectSpectralBalance(inputNode) {
     
     // Update filter with current settings
     if (window.spectralBalanceSettings) {
+        const userGain = window.spectralBalanceSettings.gain || -20;
+        // Initialize effective gain to user gain
+        if (effectiveGain === null) {
+            effectiveGain = userGain;
+        }
         updateSpectralBalance({
             frequency: window.spectralBalanceSettings.frequency || 2000,
-            gain: window.spectralBalanceSettings.gain || -20,
+            gain: userGain,
             Q: window.spectralBalanceSettings.Q || 0.7
         });
     }
@@ -126,5 +233,6 @@ if (typeof window !== 'undefined') {
     window.updateSpectralBalance = updateSpectralBalance;
     window.connectSpectralBalance = connectSpectralBalance;
     window.disconnectSpectralBalance = disconnectSpectralBalance;
+    window.handleSustainPedalChangeSpectralBalance = handleSustainPedalChange;
 }
 

@@ -8,7 +8,8 @@ let spectralBalanceSettings = {
     enabled: true, // Default: ON
     frequency: 2000, // Cutoff frequency in Hz (default: 2kHz)
     gain: -20, // Gain reduction in dB (default: -20dB)
-    Q: 0.7 // Filter Q (default: 0.7 for gentle slope)
+    Q: 0.7, // Filter Q (default: 0.7 for gentle slope)
+    sustainPedalGainReduction: true // Default: ON - Reduce gain to 0dB when sustain pedal is pressed
 };
 
 /**
@@ -66,6 +67,14 @@ function createSpectralBalancePopup() {
                         <span class="spectral-balance-value" id="spectral-balance-q-value">0.7</span>
                     </label>
                     <div class="spectral-balance-description">Filter resonance/steepness (0.1 to 2.0). Lower = gentler slope (more pink-noise-like). Default: 0.7</div>
+                </div>
+                
+                <div class="spectral-balance-setting">
+                    <label style="display: flex; align-items: center; gap: 12px;">
+                        <input type="checkbox" id="spectral-balance-sustain-pedal-gain" style="width: 18px; height: 18px; cursor: pointer;">
+                        <span>Sustain Pedal Gain Reduction</span>
+                    </label>
+                    <div class="spectral-balance-description" style="margin-left: 30px;">When enabled, gain gradually reduces to 0dB over 5 seconds when sustain pedal is pressed, then returns to set value when released. The displayed gain value remains unchanged.</div>
                 </div>
                 
                 <div class="spectral-balance-info">
@@ -343,6 +352,17 @@ function setupSpectralBalanceControls() {
             }
         });
     }
+
+    // Sustain Pedal Gain Reduction checkbox
+    const sustainPedalGainCheckbox = document.getElementById('spectral-balance-sustain-pedal-gain');
+    if (sustainPedalGainCheckbox) {
+        sustainPedalGainCheckbox.checked = spectralBalanceSettings.sustainPedalGainReduction !== false; // Default to true
+        
+        sustainPedalGainCheckbox.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            setSpectralBalanceSettings({ sustainPedalGainReduction: enabled });
+        });
+    }
 }
 
 /**
@@ -379,7 +399,8 @@ function resetSpectralBalanceToDefaults() {
         enabled: true,
         frequency: 2000,
         gain: -20,
-        Q: 0.7
+        Q: 0.7,
+        sustainPedalGainReduction: true
     };
 
     setSpectralBalanceSettings(defaults);
@@ -430,6 +451,11 @@ function openSpectralBalanceSettings() {
             const currentQ = spectralBalanceSettings.Q;
             qSlider.value = Math.round(currentQ * 10) / 10;
             qValue.textContent = currentQ.toFixed(1);
+        }
+        
+        const sustainPedalGainCheckbox = document.getElementById('spectral-balance-sustain-pedal-gain');
+        if (sustainPedalGainCheckbox) {
+            sustainPedalGainCheckbox.checked = spectralBalanceSettings.sustainPedalGainReduction !== false;
         }
         
         popup.classList.add('active');

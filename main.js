@@ -975,8 +975,9 @@ function handleNoteOn_OLD(midiNote, velocity) {
         
         // Get velocity-dependent attack time (from velocity-attack.js module)
         // If velocity-dependent attack is enabled, use it; otherwise use envelope settings
+        // Pass primary envelope attack as base for velocity-dependent scaling
         const attackTime = (window.physicsSettings && window.physicsSettings.velocityAttack && window.getAttackTimeForVelocity) ?
-            window.getAttackTimeForVelocity(velocity) : baseEnvelope.attack;
+            window.getAttackTimeForVelocity(velocity, baseEnvelope.attack) : baseEnvelope.attack;
         
         // Get frequency for this note (for filter keytracking)
         const frequency = midiNoteToFrequency(midiNote);
@@ -1251,7 +1252,13 @@ function handleControlChange(controller, value) {
     // Sustain pedal is controller 64
     if (controller === 64) {
         const wasActive = sustainPedalActive;
-        sustainPedalActive = value >= 64; // >= 64 means pedal down
+        const isNowActive = value >= 64; // >= 64 means pedal down
+        sustainPedalActive = isNowActive;
+        
+        // Handle spectral balance gain reduction on sustain pedal change
+        if (window.handleSustainPedalChangeSpectralBalance) {
+            window.handleSustainPedalChangeSpectralBalance(isNowActive);
+        }
         
         // If sustain pedal is released, release only the sustained notes
         if (wasActive && !sustainPedalActive) {
