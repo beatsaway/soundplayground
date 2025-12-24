@@ -9,7 +9,8 @@ let spectralBalanceSettings = {
     frequency: 2000, // Cutoff frequency in Hz (default: 2kHz)
     gain: -20, // Gain reduction in dB (default: -20dB)
     Q: 0.7, // Filter Q (default: 0.7 for gentle slope)
-    sustainPedalGainReduction: true // Default: ON - Reduce gain to 0dB when sustain pedal is pressed
+    sustainPedalGainReduction: true, // Default: ON - Reduce gain to 0dB when sustain pedal is pressed
+    gainReductionDuration: 16.0 // Duration to reach 0dB when pedal pressed (default 16s, min 1s, max 32s)
 };
 
 /**
@@ -74,7 +75,16 @@ function createSpectralBalancePopup() {
                         <input type="checkbox" id="spectral-balance-sustain-pedal-gain" style="width: 18px; height: 18px; cursor: pointer;">
                         <span>Sustain Pedal Gain Reduction</span>
                     </label>
-                    <div class="spectral-balance-description" style="margin-left: 30px;">When enabled, gain gradually reduces to 0dB over 5 seconds when sustain pedal is pressed, then returns to set value when released. The displayed gain value remains unchanged.</div>
+                    <div class="spectral-balance-description" style="margin-left: 30px;">When enabled, gain gradually reduces to 0dB when sustain pedal is pressed, then returns to set value over 2 seconds when released. The displayed gain value remains unchanged.</div>
+                </div>
+                
+                <div class="spectral-balance-setting" id="spectral-balance-gain-reduction-duration-container" style="margin-left: 30px;">
+                    <label>
+                        <span>Gain Reduction Duration</span>
+                        <input type="range" id="spectral-balance-gain-reduction-duration" min="1" max="32" value="16" step="0.5">
+                        <span class="spectral-balance-value" id="spectral-balance-gain-reduction-duration-value">16.0 s</span>
+                    </label>
+                    <div class="spectral-balance-description">Time for gain to reach 0dB when sustain pedal is pressed. Range: 1-32 seconds. Default: 16 seconds</div>
                 </div>
                 
                 <div class="spectral-balance-info">
@@ -363,6 +373,21 @@ function setupSpectralBalanceControls() {
             setSpectralBalanceSettings({ sustainPedalGainReduction: enabled });
         });
     }
+
+    // Gain Reduction Duration slider
+    const gainReductionDurationSlider = document.getElementById('spectral-balance-gain-reduction-duration');
+    const gainReductionDurationValue = document.getElementById('spectral-balance-gain-reduction-duration-value');
+    if (gainReductionDurationSlider && gainReductionDurationValue) {
+        const currentDuration = spectralBalanceSettings.gainReductionDuration !== undefined ? spectralBalanceSettings.gainReductionDuration : 16.0;
+        gainReductionDurationSlider.value = currentDuration;
+        gainReductionDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        
+        gainReductionDurationSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            gainReductionDurationValue.textContent = value.toFixed(1) + ' s';
+            setSpectralBalanceSettings({ gainReductionDuration: value });
+        });
+    }
 }
 
 /**
@@ -400,7 +425,8 @@ function resetSpectralBalanceToDefaults() {
         frequency: 2000,
         gain: -20,
         Q: 0.7,
-        sustainPedalGainReduction: true
+        sustainPedalGainReduction: true,
+        gainReductionDuration: 16.0 // 16 seconds
     };
 
     setSpectralBalanceSettings(defaults);
@@ -456,6 +482,14 @@ function openSpectralBalanceSettings() {
         const sustainPedalGainCheckbox = document.getElementById('spectral-balance-sustain-pedal-gain');
         if (sustainPedalGainCheckbox) {
             sustainPedalGainCheckbox.checked = spectralBalanceSettings.sustainPedalGainReduction !== false;
+        }
+        
+        const gainReductionDurationSlider = document.getElementById('spectral-balance-gain-reduction-duration');
+        const gainReductionDurationValue = document.getElementById('spectral-balance-gain-reduction-duration-value');
+        if (gainReductionDurationSlider && gainReductionDurationValue) {
+            const currentDuration = spectralBalanceSettings.gainReductionDuration !== undefined ? spectralBalanceSettings.gainReductionDuration : 16.0;
+            gainReductionDurationSlider.value = currentDuration;
+            gainReductionDurationValue.textContent = currentDuration.toFixed(1) + ' s';
         }
         
         popup.classList.add('active');

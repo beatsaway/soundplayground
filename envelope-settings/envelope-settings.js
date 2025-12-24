@@ -10,7 +10,8 @@ let envelopeSettings = {
     decay: 0.1,        // Decay time in seconds (default 100ms)
     sustain: 0.3,      // Sustain level (0-1, default 0.3)
     release: 0.5,      // Release time in seconds (default 500ms)
-    sustainPedalSustainBoost: true // Default: ON - Boost sustain to 1.0 when sustain pedal is pressed
+    sustainPedalSustainBoost: true, // Default: ON - Boost sustain to 1.0 when sustain pedal is pressed
+    sustainBoostDuration: 8.0 // Duration to reach 1.0 when pedal pressed (default 8s, min 1s, max 16s)
 };
 
 // Track effective sustain level (user sustain + sustain pedal boost)
@@ -94,7 +95,16 @@ function createEnvelopeSettingsPopup() {
                         <input type="checkbox" id="envelope-sustain-pedal-boost" style="width: 18px; height: 18px; cursor: pointer;">
                         <span>Sustain Pedal Sustain Boost</span>
                     </label>
-                    <div class="envelope-settings-description" style="margin-left: 30px;">When enabled, sustain level gradually increases to 1.0 over 5 seconds when sustain pedal is pressed, then returns to set value over 2 seconds when released. The displayed sustain value remains unchanged.</div>
+                    <div class="envelope-settings-description" style="margin-left: 30px;">When enabled, sustain level gradually increases to 1.0 when sustain pedal is pressed, then returns to set value over 2 seconds when released. The displayed sustain value remains unchanged.</div>
+                </div>
+                
+                <div class="envelope-settings-setting" id="envelope-sustain-boost-duration-container" style="margin-left: 30px;">
+                    <label>
+                        <span>Sustain Boost Duration</span>
+                        <input type="range" id="envelope-sustain-boost-duration" min="1" max="16" value="8" step="0.5">
+                        <span class="envelope-settings-value" id="envelope-sustain-boost-duration-value">8.0 s</span>
+                    </label>
+                    <div class="envelope-settings-description">Time for sustain level to reach 1.0 when sustain pedal is pressed. Range: 1-16 seconds. Default: 8 seconds</div>
                 </div>
                 
                 <div class="envelope-settings-popup-footer">
@@ -366,6 +376,21 @@ function setupEnvelopeSettingsControls() {
             }
         });
     }
+
+    // Sustain Boost Duration slider
+    const sustainBoostDurationSlider = document.getElementById('envelope-sustain-boost-duration');
+    const sustainBoostDurationValue = document.getElementById('envelope-sustain-boost-duration-value');
+    if (sustainBoostDurationSlider && sustainBoostDurationValue) {
+        const currentDuration = envelopeSettings.sustainBoostDuration !== undefined ? envelopeSettings.sustainBoostDuration : 8.0;
+        sustainBoostDurationSlider.value = currentDuration;
+        sustainBoostDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        
+        sustainBoostDurationSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            sustainBoostDurationValue.textContent = value.toFixed(1) + ' s';
+            setEnvelopeSettings({ sustainBoostDuration: value });
+        });
+    }
 }
 
 /**
@@ -422,7 +447,8 @@ function resetEnvelopeSettingsToDefaults() {
         decay: 0.1,      // 100ms
         sustain: 0.3,   // 0.3
         release: 0.5,   // 500ms
-        sustainPedalSustainBoost: true
+        sustainPedalSustainBoost: true,
+        sustainBoostDuration: 8.0 // 8 seconds
     };
 
     setEnvelopeSettings(defaults);
@@ -492,6 +518,14 @@ function openEnvelopeSettings() {
             sustainPedalBoostCheckbox.checked = envelopeSettings.sustainPedalSustainBoost !== false;
         }
         
+        const sustainBoostDurationSlider = document.getElementById('envelope-sustain-boost-duration');
+        const sustainBoostDurationValue = document.getElementById('envelope-sustain-boost-duration-value');
+        if (sustainBoostDurationSlider && sustainBoostDurationValue) {
+            const currentDuration = envelopeSettings.sustainBoostDuration !== undefined ? envelopeSettings.sustainBoostDuration : 8.0;
+            sustainBoostDurationSlider.value = currentDuration;
+            sustainBoostDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        }
+        
         popup.classList.add('active');
     }
 }
@@ -534,7 +568,9 @@ function handleSustainPedalChangeEnvelope(pedalActive) {
     
     const currentSustain = effectiveSustain;
     const targetSustain = pedalActive ? 1.0 : userSustain; // 1.0 when pedal active, user sustain when released
-    const transitionDuration = pedalActive ? 5.0 : 2.0; // 5s when pressing, 2s when releasing
+    // Get duration from settings (default 8s for boost, 2s for release)
+    const boostDuration = envelopeSettings.sustainBoostDuration !== undefined ? envelopeSettings.sustainBoostDuration : 8.0;
+    const transitionDuration = pedalActive ? boostDuration : 2.0; // Configurable when pressing, 2s when releasing
     
     // We need to smoothly transition the sustain level
     // Since Tone.js synth.set() affects all voices immediately, we'll use a gradual update approach
