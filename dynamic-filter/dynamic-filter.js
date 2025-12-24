@@ -28,8 +28,8 @@ function getInitialFilterCutoff(velocity, frequency) {
     const keytrackedBase = Math.min(20000, frequency * 20); // Higher notes naturally brighter
     
     // Velocity effect: louder = brighter = higher cutoff
-    // Range: 0.3x to 1.0x of keytracked base
-    const velocityMultiplier = 0.3 + 0.7 * vNorm;
+    // Range: 0.2x to 1.2x of keytracked base (increased from 0.3-1.0 for stronger effect)
+    const velocityMultiplier = 0.2 + 1.0 * vNorm;
     
     // Final cutoff: combine keytracking and velocity
     const initialCutoff = keytrackedBase * velocityMultiplier;
