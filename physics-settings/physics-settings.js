@@ -244,7 +244,6 @@ function initPhysicsSettings() {
     const enableBinauralReverb = document.getElementById('enable-binaural-reverb');
     const enableFakeBinaural = document.getElementById('enable-fake-binaural');
     const enableSpectralBalance = document.getElementById('enable-spectral-balance');
-    const enableAttackDarkeningFilter = document.getElementById('enable-attack-darkening-filter');
     // Priority 1: Critical Realism
     const enableInharmonicity = document.getElementById('enable-inharmonicity');
     // Priority 2: High Impact
@@ -272,10 +271,6 @@ function initPhysicsSettings() {
         if (enableBinauralReverb) enableBinauralReverb.checked = physicsSettings.binauralReverb;
         if (enableFakeBinaural) enableFakeBinaural.checked = physicsSettings.fakeBinaural;
         if (enableSpectralBalance) enableSpectralBalance.checked = physicsSettings.spectralBalance;
-        if (enableAttackDarkeningFilter) {
-            // Attack darkening filter has its own settings object
-            enableAttackDarkeningFilter.checked = (window.attackDarkeningSettings && window.attackDarkeningSettings.enabled !== false);
-        }
         if (enableInharmonicity) enableInharmonicity.checked = physicsSettings.inharmonicity;
         if (enableAttackNoise) enableAttackNoise.checked = physicsSettings.attackNoise;
         if (enableOddEvenHarmonicBalance) enableOddEvenHarmonicBalance.checked = physicsSettings.oddEvenHarmonicBalance;
@@ -489,18 +484,6 @@ function initPhysicsSettings() {
         });
     }
 
-    if (enableAttackDarkeningFilter) {
-        enableAttackDarkeningFilter.addEventListener('change', (e) => {
-            // Update attack darkening filter enabled state
-            if (window.attackDarkeningSettings) {
-                window.attackDarkeningSettings.enabled = e.target.checked;
-                // Reconnect audio chain to apply changes
-                if (window.reconnectAudioChain) {
-                    window.reconnectAudioChain();
-                }
-            }
-        });
-    }
 
     // Priority 1: Critical Realism
     if (enableInharmonicity) {
@@ -637,21 +620,6 @@ function initPhysicsSettings() {
         window.initSpectralBalanceSettings();
     }
 
-    // Setup attack darkening filter settings button
-    const attackDarkeningFilterSettingsBtn = document.getElementById('attack-darkening-filter-settings-btn');
-    if (attackDarkeningFilterSettingsBtn) {
-        attackDarkeningFilterSettingsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (window.showAttackDarkeningFilterSettings) {
-                window.showAttackDarkeningFilterSettings();
-            }
-        });
-    }
-
-    // Initialize attack darkening filter settings popup
-    if (window.initAttackDarkeningFilterSettings) {
-        window.initAttackDarkeningFilterSettings();
-    }
 
     // Setup sustain decay settings button
     const sustainDecaySettingsBtn = document.getElementById('sustain-decay-settings-btn');

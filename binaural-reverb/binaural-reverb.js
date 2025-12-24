@@ -26,10 +26,10 @@ const binauralReverbSettings = {
     enabled: false, // Will be set to true if physicsSettings.binauralReverb is true
     reverbMode: 'binaural',  // 'binaural' or 'regular'
     roomSize: 0.89,          // 0.0 (small) to 1.0 (large)
-    reverbTime: 1.6,         // RT60 in seconds (0.5 to 5.0)
-    earlyReflections: 0.31,  // Early reflection level (0.0 to 1.0)
-    lateReverb: 0.60,        // Late reverb level (0.0 to 1.0)
-    dry: 0.51,               // Dry signal level (0.0 to 1.0)
+    reverbTime: 2.8,         // RT60 in seconds (0.5 to 4.0)
+    earlyReflections: 0.1,   // Early reflection level (0.0 to 1.0)
+    lateReverb: 0.2,         // Late reverb level (0.0 to 1.0)
+    dry: 0.1,                // Dry signal level (0.0 to 1.0)
     wet: 0.85,               // Wet (reverb) signal level (0.0 to 1.0)
     itdIntensity: 0.10,      // Interaural Time Difference intensity (0.0 to 1.0) - binaural mode only
     ildIntensity: 0.60,      // Interaural Level Difference intensity (0.0 to 1.0) - binaural mode only

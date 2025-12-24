@@ -62,17 +62,17 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Reverb Time (RT60)</span>
-                        <input type="range" id="binaural-reverb-time" min="5" max="50" value="24" step="1">
-                        <span class="binaural-reverb-value" id="binaural-reverb-time-value">1.6s</span>
+                        <input type="range" id="binaural-reverb-time" min="5" max="50" value="66" step="1">
+                        <span class="binaural-reverb-value" id="binaural-reverb-time-value">2.8s</span>
                     </label>
-                    <div class="binaural-reverb-description">Time for reverb to decay by 60dB (0.5s to 5.0s)</div>
+                    <div class="binaural-reverb-description">Time for reverb to decay by 60dB (0.5s to 4.0s)</div>
                 </div>
                 
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Early Reflections</span>
-                        <input type="range" id="binaural-early-reflections" min="0" max="100" value="31" step="1">
-                        <span class="binaural-reverb-value" id="binaural-early-reflections-value">0.31</span>
+                        <input type="range" id="binaural-early-reflections" min="0" max="100" value="10" step="1">
+                        <span class="binaural-reverb-value" id="binaural-early-reflections-value">0.10</span>
                     </label>
                     <div class="binaural-reverb-description">Level of early reflections (0.0 to 1.0)</div>
                 </div>
@@ -80,8 +80,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Late Reverb</span>
-                        <input type="range" id="binaural-late-reverb" min="0" max="100" value="60" step="1">
-                        <span class="binaural-reverb-value" id="binaural-late-reverb-value">0.60</span>
+                        <input type="range" id="binaural-late-reverb" min="0" max="100" value="20" step="1">
+                        <span class="binaural-reverb-value" id="binaural-late-reverb-value">0.20</span>
                     </label>
                     <div class="binaural-reverb-description">Level of late reverb tail (0.0 to 1.0)</div>
                 </div>
@@ -89,8 +89,8 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Dry Level</span>
-                        <input type="range" id="binaural-dry" min="0" max="100" value="51" step="1">
-                        <span class="binaural-reverb-value" id="binaural-dry-value">0.51</span>
+                        <input type="range" id="binaural-dry" min="0" max="100" value="10" step="1">
+                        <span class="binaural-reverb-value" id="binaural-dry-value">0.10</span>
                     </label>
                     <div class="binaural-reverb-description">Level of dry (unprocessed) signal (0.0 to 1.0)</div>
                 </div>
@@ -510,7 +510,7 @@ function setupBinauralReverbControls() {
         reverbTimeSlider,
         reverbTimeValue,
         (v) => v.toFixed(1) + 's',
-        (v) => 0.5 + (v / 100) * 4.5, // 0.5 to 5.0
+        (v) => 0.5 + (v / 100) * 3.5, // 0.5 to 4.0
         (value) => {
             if (window.setBinauralReverbSettings) {
                 window.setBinauralReverbSettings({ reverbTime: value });
@@ -656,10 +656,10 @@ function resetBinauralReverbToDefaults() {
     const defaults = {
         reverbMode: 'binaural',
         roomSize: 0.89,
-        reverbTime: 1.6,
-        earlyReflections: 0.31,
-        lateReverb: 0.60,
-        dry: 0.51,
+        reverbTime: 2.8,
+        earlyReflections: 0.1,
+        lateReverb: 0.2,
+        dry: 0.1,
         wet: 0.85,
         itdIntensity: 0.10,
         ildIntensity: 0.60,
@@ -692,10 +692,10 @@ function resetBinauralReverbToDefaults() {
     if (regularModeRadio) regularModeRadio.checked = false;
     
     if (roomSizeSlider) roomSizeSlider.value = 89;
-    if (reverbTimeSlider) reverbTimeSlider.value = 24;
-    if (earlyReflectionsSlider) earlyReflectionsSlider.value = 31;
-    if (lateReverbSlider) lateReverbSlider.value = 60;
-    if (drySlider) drySlider.value = 51;
+    if (reverbTimeSlider) reverbTimeSlider.value = 66;
+    if (earlyReflectionsSlider) earlyReflectionsSlider.value = 10;
+    if (lateReverbSlider) lateReverbSlider.value = 20;
+    if (drySlider) drySlider.value = 10;
     if (wetSlider) wetSlider.value = 85;
     if (itdIntensitySlider) itdIntensitySlider.value = 10;
     if (ildIntensitySlider) ildIntensitySlider.value = 60;
@@ -754,8 +754,8 @@ function openBinauralReverbSettings() {
         }
         
         // Sync dry and wet sliders with current settings
-        const currentDry = window.binauralReverbSettings?.dry !== undefined ? window.binauralReverbSettings.dry : 0.06;
-        const currentWet = window.binauralReverbSettings?.wet !== undefined ? window.binauralReverbSettings.wet : 0.5;
+        const currentDry = window.binauralReverbSettings?.dry !== undefined ? window.binauralReverbSettings.dry : 0.1;
+        const currentWet = window.binauralReverbSettings?.wet !== undefined ? window.binauralReverbSettings.wet : 0.85;
         const drySlider = document.getElementById('binaural-dry');
         const wetSlider = document.getElementById('binaural-wet');
         const dryValue = document.getElementById('binaural-dry-value');

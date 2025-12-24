@@ -486,14 +486,6 @@ function initializeDynamicFilter() {
     return dynamicFilter;
 }
 
-// Initialize attack darkening filter (starts dark when notes attack, opens over time)
-let attackDarkeningFilterNode = null;
-function initializeAttackDarkeningFilter() {
-    if (!attackDarkeningFilterNode && typeof Tone !== 'undefined' && window.getAttackDarkeningFilter) {
-        attackDarkeningFilterNode = window.getAttackDarkeningFilter();
-    }
-    return attackDarkeningFilterNode;
-}
 
 // Animation loop
 // Optimize: Track frame count to update filter less frequently (every 3 frames = ~20fps instead of 60fps)
@@ -536,11 +528,6 @@ function animate() {
             } else if (window.physicsSettings && window.physicsSettings.dynamicFilter && filter) {
                 // No active notes - open filter fully
                 filter.frequency.rampTo(20000, 0.1);
-            }
-            
-            // Update attack darkening filter (starts dark when notes attack, opens over time)
-            if (window.updateAttackDarkeningFilter) {
-                window.updateAttackDarkeningFilter();
             }
             
             // Update frequency modulations (pitch drift/vibrato) if enabled
@@ -628,7 +615,6 @@ const synth = new Tone.PolySynth(Tone.Synth, {
 
 // Connect synth through filter if filter is available
 const filter = initializeDynamicFilter();
-let attackDarkeningFilter = null; // Will hold the attack darkening filter node
 let fakeBinauralOutput = null; // Will hold the fake binaural output node
 let reverbOutput = null; // Will hold the reverb output node
 let spectralBalanceOutput = null; // Will hold the spectral balance output node
@@ -637,10 +623,6 @@ let spectralBalanceOutput = null; // Will hold the spectral balance output node
 window.reconnectAudioChain = function() {
     // Disconnect everything first
     synth.disconnect();
-    attackDarkeningFilter = initializeAttackDarkeningFilter(); // Get or initialize filter
-    if (attackDarkeningFilter) {
-        attackDarkeningFilter.disconnect();
-    }
     if (filter) {
         filter.disconnect();
     }
@@ -656,13 +638,6 @@ window.reconnectAudioChain = function() {
     
     // Start with synth output
     let currentOutput = synth;
-    
-    // Connect through attack darkening filter if enabled (before dynamic filter)
-    attackDarkeningFilter = initializeAttackDarkeningFilter();
-    if (attackDarkeningFilter && window.attackDarkeningSettings && window.attackDarkeningSettings.enabled) {
-        synth.connect(attackDarkeningFilter);
-        currentOutput = attackDarkeningFilter;
-    }
     
     // Connect through dynamic filter if enabled
     if (filter) {
@@ -715,13 +690,6 @@ window.reconnectAudioChain = function() {
 
 // Initial connection
 let currentOutput = synth;
-
-// Connect through attack darkening filter if enabled (before dynamic filter)
-attackDarkeningFilter = initializeAttackDarkeningFilter();
-if (attackDarkeningFilter && window.attackDarkeningSettings && window.attackDarkeningSettings.enabled) {
-    synth.connect(attackDarkeningFilter);
-    currentOutput = attackDarkeningFilter;
-}
 
 // Connect through dynamic filter if enabled
 if (filter) {
