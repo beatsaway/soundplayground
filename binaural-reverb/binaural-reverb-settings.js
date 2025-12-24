@@ -62,7 +62,7 @@ function createBinauralReverbPopup() {
                 <div class="binaural-reverb-setting">
                     <label>
                         <span>Reverb Time (RT60)</span>
-                        <input type="range" id="binaural-reverb-time" min="5" max="50" value="66" step="1">
+                        <input type="range" id="binaural-reverb-time" min="0" max="100" value="66" step="1">
                         <span class="binaural-reverb-value" id="binaural-reverb-time-value">2.8s</span>
                     </label>
                     <div class="binaural-reverb-description">Time for reverb to decay by 60dB (0.5s to 4.0s)</div>
