@@ -486,6 +486,15 @@ function initializeDynamicFilter() {
     return dynamicFilter;
 }
 
+// Initialize attack darkening filter (starts dark when notes attack, opens over time)
+let attackDarkeningFilterNode = null;
+function initializeAttackDarkeningFilter() {
+    if (!attackDarkeningFilterNode && typeof Tone !== 'undefined' && window.getAttackDarkeningFilter) {
+        attackDarkeningFilterNode = window.getAttackDarkeningFilter();
+    }
+    return attackDarkeningFilterNode;
+}
+
 // Animation loop
 // Optimize: Track frame count to update filter less frequently (every 3 frames = ~20fps instead of 60fps)
 let filterUpdateFrameCounter = 0;
@@ -501,39 +510,44 @@ function animate() {
     
     renderer.render(scene, camera);
     
-    // Update dynamic filter based on active notes (if enabled)
-    // Optimize: Only update filter every 3 frames to reduce CPU usage (~20fps instead of 60fps)
-    filterUpdateFrameCounter++;
-    if (filterUpdateFrameCounter >= 3) {
-        filterUpdateFrameCounter = 0;
-        
-        const filter = initializeDynamicFilter();
-        if (window.physicsSettings && window.physicsSettings.dynamicFilter && window.getDynamicFilterSettings && filter && noteAttackTimes.size > 0) {
-            const now = Tone.now();
-            let maxCutoff = 200; // Minimum cutoff
+        // Update dynamic filter based on active notes (if enabled)
+        // Optimize: Only update filter every 3 frames to reduce CPU usage (~20fps instead of 60fps)
+        filterUpdateFrameCounter++;
+        if (filterUpdateFrameCounter >= 3) {
+            filterUpdateFrameCounter = 0;
             
-            // Find the highest cutoff needed based on all active notes
-            noteAttackTimes.forEach((noteInfo, midiNote) => {
-                const timeSinceAttack = now - noteInfo.attackTimestamp;
-                const initialCutoff = window.getInitialFilterCutoff ? 
-                    window.getInitialFilterCutoff(noteInfo.velocity, noteInfo.frequency) : 20000;
-                const currentCutoff = window.getFilterCutoffAtTime ? 
-                    window.getFilterCutoffAtTime(initialCutoff, timeSinceAttack, noteInfo.frequency) : initialCutoff;
-                maxCutoff = Math.max(maxCutoff, currentCutoff);
-            });
+            const filter = initializeDynamicFilter();
+            if (window.physicsSettings && window.physicsSettings.dynamicFilter && window.getDynamicFilterSettings && filter && noteAttackTimes.size > 0) {
+                const now = Tone.now();
+                let maxCutoff = 200; // Minimum cutoff
+                
+                // Find the highest cutoff needed based on all active notes
+                noteAttackTimes.forEach((noteInfo, midiNote) => {
+                    const timeSinceAttack = now - noteInfo.attackTimestamp;
+                    const initialCutoff = window.getInitialFilterCutoff ? 
+                        window.getInitialFilterCutoff(noteInfo.velocity, noteInfo.frequency) : 20000;
+                    const currentCutoff = window.getFilterCutoffAtTime ? 
+                        window.getFilterCutoffAtTime(initialCutoff, timeSinceAttack, noteInfo.frequency) : initialCutoff;
+                    maxCutoff = Math.max(maxCutoff, currentCutoff);
+                });
+                
+                // Smoothly update filter to highest needed cutoff
+                filter.frequency.rampTo(maxCutoff, 0.05);
+            } else if (window.physicsSettings && window.physicsSettings.dynamicFilter && filter) {
+                // No active notes - open filter fully
+                filter.frequency.rampTo(20000, 0.1);
+            }
             
-            // Smoothly update filter to highest needed cutoff
-            filter.frequency.rampTo(maxCutoff, 0.05);
-        } else if (window.physicsSettings && window.physicsSettings.dynamicFilter && filter) {
-            // No active notes - open filter fully
-            filter.frequency.rampTo(20000, 0.1);
+            // Update attack darkening filter (starts dark when notes attack, opens over time)
+            if (window.updateAttackDarkeningFilter) {
+                window.updateAttackDarkeningFilter();
+            }
+            
+            // Update frequency modulations (pitch drift/vibrato) if enabled
+            // Note: Tone.js PolySynth doesn't easily support per-voice frequency modulation
+            // The modulation is tracked but would require custom synth architecture for full implementation
+            // For now, we track the modulations for future enhancement
         }
-        
-        // Update frequency modulations (pitch drift/vibrato) if enabled
-        // Note: Tone.js PolySynth doesn't easily support per-voice frequency modulation
-        // The modulation is tracked but would require custom synth architecture for full implementation
-        // For now, we track the modulations for future enhancement
-    }
 }
 
 // Handle window resize
@@ -614,6 +628,7 @@ const synth = new Tone.PolySynth(Tone.Synth, {
 
 // Connect synth through filter if filter is available
 const filter = initializeDynamicFilter();
+initializeAttackDarkeningFilter(); // Initialize attack darkening filter (before dynamic filter)
 let fakeBinauralOutput = null; // Will hold the fake binaural output node
 let reverbOutput = null; // Will hold the reverb output node
 let spectralBalanceOutput = null; // Will hold the spectral balance output node
@@ -622,6 +637,9 @@ let spectralBalanceOutput = null; // Will hold the spectral balance output node
 window.reconnectAudioChain = function() {
     // Disconnect everything first
     synth.disconnect();
+    if (attackDarkeningFilter) {
+        attackDarkeningFilter.disconnect();
+    }
     if (filter) {
         filter.disconnect();
     }
@@ -638,9 +656,16 @@ window.reconnectAudioChain = function() {
     // Start with synth output
     let currentOutput = synth;
     
-    // Connect through filter if enabled
+    // Connect through attack darkening filter if enabled (before dynamic filter)
+    const attackDarkeningFilter = initializeAttackDarkeningFilter();
+    if (attackDarkeningFilter && window.attackDarkeningSettings && window.attackDarkeningSettings.enabled) {
+        synth.connect(attackDarkeningFilter);
+        currentOutput = attackDarkeningFilter;
+    }
+    
+    // Connect through dynamic filter if enabled
     if (filter) {
-        synth.connect(filter);
+        currentOutput.connect(filter);
         currentOutput = filter;
     }
     
@@ -690,9 +715,16 @@ window.reconnectAudioChain = function() {
 // Initial connection
 let currentOutput = synth;
 
-// Connect through filter if enabled
+// Connect through attack darkening filter if enabled (before dynamic filter)
+const attackDarkeningFilter = initializeAttackDarkeningFilter();
+if (attackDarkeningFilter && window.attackDarkeningSettings && window.attackDarkeningSettings.enabled) {
+    synth.connect(attackDarkeningFilter);
+    currentOutput = attackDarkeningFilter;
+}
+
+// Connect through dynamic filter if enabled
 if (filter) {
-    synth.connect(filter);
+    currentOutput.connect(filter);
     currentOutput = filter;
 }
 
@@ -1025,18 +1057,8 @@ function handleNoteOn_OLD(midiNote, velocity) {
             envelope: {
                 attack: attackTime,
                 decay: adjustedDecayTime,
-                sustain: (() => {
-                    if (window.physicsSettings && window.physicsSettings.twoStageDecay) {
-                        // If target sustain level is set, use it directly (overrides amplitudeRatio)
-                        const settings = (window.twoStageDecaySettings) ? window.twoStageDecaySettings : {};
-                        if (settings.targetSustainLevel !== undefined) {
-                            return settings.targetSustainLevel;
-                        }
-                        // Otherwise use amplitudeRatio calculation
-                        return baseEnvelope.sustain * twoStageDecay.amplitudeRatio;
-                    }
-                    return baseEnvelope.sustain;
-                })(),
+                sustain: (window.physicsSettings && window.physicsSettings.twoStageDecay) ? 
+                    (baseEnvelope.sustain * twoStageDecay.amplitudeRatio) : baseEnvelope.sustain,
                 release: releaseTime
             }
         });

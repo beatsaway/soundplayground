@@ -187,6 +187,11 @@
             frequency: frequency
         });
         
+        // Track note for attack darkening filter (starts dark, opens over time)
+        if (window.trackAttackDarkeningNote) {
+            window.trackAttackDarkeningNote(midiNote, velocity, frequency);
+        }
+        
         // Create frequency modulation controller (if enabled)
         if (window.physicsSettings && window.physicsSettings.frequencyEnvelope && window.createFrequencyModulation) {
             const modulation = window.createFrequencyModulation(frequency, attackTime);
@@ -365,6 +370,11 @@
             sustainedNotes.delete(midiNote); // Clean up if it was there
             noteAttackTimes.delete(midiNote); // Clean up attack time tracking
             
+            // Remove from attack darkening tracking
+            if (window.removeAttackDarkeningNote) {
+                window.removeAttackDarkeningNote(midiNote);
+            }
+            
             // Mark frequency modulation as released
             if (frequencyModulations.has(midiNote)) {
                 const modData = frequencyModulations.get(midiNote);
@@ -502,6 +512,11 @@
                     sustainedNotes.delete(midiNote);
                     noteAttackTimes.delete(midiNote); // Clean up attack time tracking
                     frequencyModulations.delete(midiNote); // Clean up frequency modulation
+                    
+                    // Remove from attack darkening tracking
+                    if (window.removeAttackDarkeningNote) {
+                        window.removeAttackDarkeningNote(midiNote);
+                    }
                 });
             }
         }

@@ -1,0 +1,262 @@
+/**
+ * Attack Darkening Filter Module
+ * Implements per-note low-pass filter that starts dark (low cutoff) when note attacks
+ * and gradually opens up (higher cutoff) over time, creating a natural attack character
+ * 
+ * This works alongside the spectral balance filter and dynamic filter:
+ * - Spectral balance: Global high-shelf filter for overall spectral shaping
+ * - Dynamic filter: Global filter that closes as notes decay
+ * - Attack darkening: Per-note filter that opens as notes age
+ */
+
+// Global attack darkening filter (shared by all notes since PolySynth output is shared)
+let attackDarkeningFilter = null;
+
+// Track per-note attack darkening data (for calculating filter cutoff)
+const attackDarkeningData = new Map(); // midiNote -> { attackTimestamp: number, initialCutoff: number, targetCutoff: number, frequency: number }
+
+/**
+ * Calculate initial filter cutoff (dark) based on velocity and note frequency
+ * Lower velocity = darker = lower initial cutoff
+ * Higher notes naturally have higher base cutoff (keytracked)
+ * 
+ * @param {number} velocity - MIDI velocity (0-127)
+ * @param {number} frequency - Note frequency in Hz
+ * @returns {number} - Initial cutoff frequency in Hz (dark)
+ */
+function getInitialAttackDarkeningCutoff(velocity, frequency) {
+    if (typeof window !== 'undefined' && window.attackDarkeningSettings && !window.attackDarkeningSettings.enabled) {
+        return 20000; // No filtering when disabled
+    }
+    
+    const vNorm = Math.max(0, Math.min(127, velocity)) / 127.0;
+    
+    // Base cutoff: keytracked (higher notes = higher base cutoff)
+    // This accounts for natural frequency-dependent harmonic content
+    const keytrackedBase = Math.min(20000, frequency * 20); // Higher notes naturally brighter
+    
+    // Velocity effect: louder = brighter = higher initial cutoff
+    // Range: 0.2x to 0.8x of keytracked base (starts darker than dynamic filter)
+    const velocityMultiplier = 0.2 + 0.6 * vNorm;
+    
+    // Final cutoff: combine keytracking and velocity
+    const initialCutoff = keytrackedBase * velocityMultiplier;
+    
+    // Clamp to reasonable range (100 Hz to 20 kHz)
+    return Math.max(100, Math.min(20000, initialCutoff));
+}
+
+/**
+ * Calculate target filter cutoff (bright) that filter opens up to
+ * This is the fully open cutoff after attack darkening fades
+ * 
+ * @param {number} velocity - MIDI velocity (0-127)
+ * @param {number} frequency - Note frequency in Hz
+ * @returns {number} - Target cutoff frequency in Hz (bright)
+ */
+function getTargetAttackDarkeningCutoff(velocity, frequency) {
+    if (typeof window !== 'undefined' && window.attackDarkeningSettings && !window.attackDarkeningSettings.enabled) {
+        return 20000; // No filtering when disabled
+    }
+    
+    const vNorm = Math.max(0, Math.min(127, velocity)) / 127.0;
+    
+    // Base cutoff: keytracked
+    const keytrackedBase = Math.min(20000, frequency * 20);
+    
+    // Velocity effect: louder = brighter = higher target cutoff
+    // Range: 0.8x to 1.0x of keytracked base (opens to near full brightness)
+    const velocityMultiplier = 0.8 + 0.2 * vNorm;
+    
+    const targetCutoff = keytrackedBase * velocityMultiplier;
+    
+    // Clamp to reasonable range (200 Hz to 20 kHz)
+    return Math.max(200, Math.min(20000, targetCutoff));
+}
+
+/**
+ * Calculate filter cutoff at a given time after note attack
+ * Filter opens (cutoff increases) from initial dark cutoff to target bright cutoff
+ * 
+ * @param {number} initialCutoff - Initial cutoff frequency in Hz (dark)
+ * @param {number} targetCutoff - Target cutoff frequency in Hz (bright)
+ * @param {number} timeSinceAttack - Time since note attack in seconds
+ * @param {number} frequency - Note frequency in Hz (for keytracked opening rate)
+ * @returns {number} - Current cutoff frequency in Hz
+ */
+function getAttackDarkeningCutoffAtTime(initialCutoff, targetCutoff, timeSinceAttack, frequency) {
+    if (typeof window !== 'undefined' && window.attackDarkeningSettings && !window.attackDarkeningSettings.enabled) {
+        return targetCutoff; // No filtering when disabled
+    }
+    
+    // Get opening time from settings (default: 0.1 seconds)
+    const openingTime = (window.attackDarkeningSettings && window.attackDarkeningSettings.openingTime !== undefined)
+        ? window.attackDarkeningSettings.openingTime
+        : 0.1; // Default: 100ms
+    
+    // Opening rate: higher notes open faster (lose attack darkness faster)
+    const freqRatio = frequency / 440; // Relative to A4
+    const adjustedOpeningTime = openingTime / Math.sqrt(freqRatio); // Faster for higher notes
+    
+    // Exponential opening: cutoff = target - (target - initial) * exp(-t/openingTime)
+    const cutoffRange = targetCutoff - initialCutoff;
+    const currentCutoff = targetCutoff - cutoffRange * Math.exp(-timeSinceAttack / adjustedOpeningTime);
+    
+    return Math.max(initialCutoff, Math.min(targetCutoff, currentCutoff));
+}
+
+/**
+ * Create and configure an attack darkening filter for a note
+ * Returns filter settings that can be applied to a Tone.js filter
+ * 
+ * @param {number} velocity - MIDI velocity (0-127)
+ * @param {number} frequency - Note frequency in Hz
+ * @param {number} timeSinceAttack - Time since note attack in seconds
+ * @returns {Object} - Filter settings for Tone.js
+ */
+function getAttackDarkeningFilterSettings(velocity, frequency, timeSinceAttack) {
+    const initialCutoff = getInitialAttackDarkeningCutoff(velocity, frequency);
+    const targetCutoff = getTargetAttackDarkeningCutoff(velocity, frequency);
+    const currentCutoff = getAttackDarkeningCutoffAtTime(initialCutoff, targetCutoff, timeSinceAttack, frequency);
+    
+    return {
+        type: 'lowpass',
+        frequency: currentCutoff,
+        Q: 1.0, // Moderate resonance
+        gain: 0
+    };
+}
+
+/**
+ * Initialize global attack darkening filter
+ * This is a shared filter for all notes (since PolySynth output is shared)
+ * 
+ * @returns {Tone.Filter|null} - Filter node, or null if disabled/error
+ */
+function initializeAttackDarkeningFilter() {
+    if (typeof window === 'undefined' || typeof Tone === 'undefined') {
+        return null;
+    }
+    
+    if (window.attackDarkeningSettings && !window.attackDarkeningSettings.enabled) {
+        return null;
+    }
+    
+    if (attackDarkeningFilter) {
+        return attackDarkeningFilter;
+    }
+    
+    try {
+        // Create filter starting fully open (will be darkened when notes attack)
+        attackDarkeningFilter = new Tone.Filter({
+            type: 'lowpass',
+            frequency: 20000, // Start fully open
+            Q: 1.0
+        });
+        
+        return attackDarkeningFilter;
+    } catch (e) {
+        console.warn('Failed to initialize attack darkening filter:', e);
+        return null;
+    }
+}
+
+/**
+ * Track attack darkening data for a specific note
+ * This stores metadata used to calculate the filter cutoff
+ * 
+ * @param {number} midiNote - MIDI note number (0-127)
+ * @param {number} velocity - MIDI velocity (0-127)
+ * @param {number} frequency - Note frequency in Hz
+ */
+function trackAttackDarkeningNote(midiNote, velocity, frequency) {
+    if (typeof window === 'undefined' || typeof Tone === 'undefined') {
+        return;
+    }
+    
+    if (window.attackDarkeningSettings && !window.attackDarkeningSettings.enabled) {
+        return;
+    }
+    
+    const initialCutoff = getInitialAttackDarkeningCutoff(velocity, frequency);
+    const targetCutoff = getTargetAttackDarkeningCutoff(velocity, frequency);
+    
+    // Store attack data for this note
+    attackDarkeningData.set(midiNote, {
+        attackTimestamp: Tone.now(),
+        initialCutoff: initialCutoff,
+        targetCutoff: targetCutoff,
+        frequency: frequency
+    });
+}
+
+/**
+ * Update global attack darkening filter based on all active notes
+ * Applies the darkest cutoff needed (from most recently attacked notes)
+ * Should be called periodically (e.g., in animation loop)
+ */
+function updateAttackDarkeningFilter() {
+    if (typeof window === 'undefined' || typeof window.attackDarkeningSettings === 'undefined' || !window.attackDarkeningSettings.enabled) {
+        return;
+    }
+    
+    const filter = initializeAttackDarkeningFilter();
+    if (!filter || attackDarkeningData.size === 0) {
+        // No active notes - open filter fully
+        if (filter) {
+            filter.frequency.rampTo(20000, 0.1);
+        }
+        return;
+    }
+    
+    const now = Tone.now();
+    let minCutoff = 20000; // Start with fully open
+    
+    // Find the darkest cutoff needed (minimum cutoff from all active notes)
+    // This ensures that recently attacked notes get the darkening effect
+    attackDarkeningData.forEach((noteData, midiNote) => {
+        const timeSinceAttack = now - noteData.attackTimestamp;
+        const currentCutoff = getAttackDarkeningCutoffAtTime(
+            noteData.initialCutoff,
+            noteData.targetCutoff,
+            timeSinceAttack,
+            noteData.frequency
+        );
+        minCutoff = Math.min(minCutoff, currentCutoff);
+    });
+    
+    // Smoothly update filter to darkest needed cutoff
+    filter.frequency.rampTo(minCutoff, 0.01);
+}
+
+/**
+ * Remove attack darkening data for a specific note
+ * Should be called when note is released
+ * 
+ * @param {number} midiNote - MIDI note number (0-127)
+ */
+function removeAttackDarkeningNote(midiNote) {
+    attackDarkeningData.delete(midiNote);
+}
+
+/**
+ * Get the global attack darkening filter
+ * @returns {Tone.Filter|null} - The global filter node
+ */
+function getAttackDarkeningFilter() {
+    return initializeAttackDarkeningFilter();
+}
+
+// Export for use in other modules
+if (typeof window !== 'undefined') {
+    window.getInitialAttackDarkeningCutoff = getInitialAttackDarkeningCutoff;
+    window.getTargetAttackDarkeningCutoff = getTargetAttackDarkeningCutoff;
+    window.getAttackDarkeningCutoffAtTime = getAttackDarkeningCutoffAtTime;
+    window.getAttackDarkeningFilterSettings = getAttackDarkeningFilterSettings;
+    window.initializeAttackDarkeningFilter = initializeAttackDarkeningFilter;
+    window.getAttackDarkeningFilter = getAttackDarkeningFilter;
+    window.trackAttackDarkeningNote = trackAttackDarkeningNote;
+    window.updateAttackDarkeningFilter = updateAttackDarkeningFilter;
+    window.removeAttackDarkeningNote = removeAttackDarkeningNote;
+}
+
