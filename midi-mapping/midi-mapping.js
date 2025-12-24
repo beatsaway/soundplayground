@@ -209,20 +209,13 @@
             adjustedDecayTime = perPartialEnvelope.decay;
         }
         
-        // Get velocity-dependent oscillator type (if enabled)
-        // This is a key velocity-dependent timbre change: soft = sine, medium = triangle, loud = square
-        let oscillatorType = 'triangle'; // Default fallback
-        if (window.physicsSettings && window.physicsSettings.velocityTimbre && window.getOscillatorTypeForVelocity) {
-            oscillatorType = window.getOscillatorTypeForVelocity(velocity);
-        }
-        
         // Update envelope parameters on the synth before triggering
         // Note: synth.set() affects all voices, but since we call it right before triggerAttack,
         // the new voice will use these settings. For true per-voice control, we'd need
         // individual synths per note (more CPU-intensive).
         synth.set({
             oscillator: {
-                type: oscillatorType // Velocity-dependent: sine (soft), triangle (medium), square (loud)
+                type: 'triangle' // Use triangle (has harmonics) - filter controls brightness
             },
             envelope: {
                 attack: attackTime,
@@ -242,8 +235,7 @@
         
         // Play sound with two-stage velocity mapping (velocity curve + frequency compensation)
         // Uses settings from velocity-mapping-settings.js if available, otherwise defaults
-        // Lower default k (1.7 instead of 2.0) for more sensitive velocity response
-        const k = (window.velocityMappingSettings && window.velocityMappingSettings.velocityExponent) ? window.velocityMappingSettings.velocityExponent : 1.7;
+        const k = (window.velocityMappingSettings && window.velocityMappingSettings.velocityExponent) ? window.velocityMappingSettings.velocityExponent : 2.0;
         const targetSPL = (window.velocityMappingSettings && window.velocityMappingSettings.targetSPL) ? window.velocityMappingSettings.targetSPL : 85;
         let amplitude = velocityToAmplitudeWithCompensation(velocity, midiNote, k, targetSPL);
         

@@ -5,7 +5,7 @@
 
 // Velocity mapping settings state
 let velocityMappingSettings = {
-    velocityExponent: 1.7, // k value (1.5-2.5, default 1.7) - controls velocity curve "feel" (lower = more sensitive)
+    velocityExponent: 2.0, // k value (1.5-2.5, default 2.0) - controls velocity curve "feel"
     targetSPL: 85 // Target listening level in dB SPL (default 85) - controls frequency compensation
 };
 
@@ -45,7 +45,7 @@ function createVelocityMappingPopup() {
                         <input type="range" id="velocity-mapping-exponent" min="150" max="250" value="200" step="1">
                         <span class="velocity-mapping-value" id="velocity-mapping-exponent-value">2.00</span>
                     </label>
-                    <div class="velocity-mapping-description">Controls the "feel" of velocity response. Lower values (1.5-1.8) = more sensitive, higher values (2.2-2.5) = less sensitive. Default: 1.7</div>
+                    <div class="velocity-mapping-description">Controls the "feel" of velocity response. Lower values (1.5-1.8) = more sensitive, higher values (2.2-2.5) = less sensitive. Default: 2.0</div>
                 </div>
                 
                 <div class="velocity-mapping-setting">
@@ -306,7 +306,7 @@ function getVelocityMappingSettings() {
  */
 function resetVelocityMappingToDefaults() {
     const defaults = {
-        velocityExponent: 1.7,
+        velocityExponent: 2.0,
         targetSPL: 85
     };
 
@@ -318,8 +318,8 @@ function resetVelocityMappingToDefaults() {
     const splSlider = document.getElementById('velocity-mapping-spl');
     const splValue = document.getElementById('velocity-mapping-spl-value');
 
-    if (exponentSlider) exponentSlider.value = 170; // 1.7 * 100
-    if (exponentValue) exponentValue.textContent = '1.70';
+    if (exponentSlider) exponentSlider.value = 200; // 2.0 * 100
+    if (exponentValue) exponentValue.textContent = '2.00';
     if (splSlider) splSlider.value = 85;
     if (splValue) splValue.textContent = '85 dB';
 }
