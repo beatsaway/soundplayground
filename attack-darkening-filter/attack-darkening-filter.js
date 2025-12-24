@@ -54,10 +54,10 @@ function getInitialAttackDarkeningCutoff(velocity, frequency) {
     
     const normalCutoff = getNormalCutoff(velocity, frequency);
     
-    // Apply darkening amount multiplier (from settings, default 0.3 = 30%)
+    // Apply darkening amount multiplier (from settings, default 0.7 = 70%)
     const darkeningAmount = (window.attackDarkeningSettings && window.attackDarkeningSettings.darkeningAmount !== undefined)
         ? window.attackDarkeningSettings.darkeningAmount
-        : 0.3; // Default: 30%
+        : 0.7; // Default: 70%
     
     const initialCutoff = normalCutoff * darkeningAmount;
     
@@ -102,10 +102,10 @@ function getAttackDarkeningCutoffAtTime(initialCutoff, targetCutoff, timeSinceAt
         ? window.attackDarkeningSettings.holdDuration
         : 0.2; // Default: 200ms
     
-    // Get darkening attack time from settings (default: 0.1 seconds)
+    // Get darkening attack time from settings (default: 4.0 seconds)
     const darkeningAttackTime = (window.attackDarkeningSettings && window.attackDarkeningSettings.darkeningDuration !== undefined)
         ? window.attackDarkeningSettings.darkeningDuration
-        : 0.1; // Default: 100ms
+        : 4.0; // Default: 4 seconds
     
     // During hold duration: play normally (bright)
     if (timeSinceAttack < holdDuration) {

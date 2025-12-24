@@ -5,10 +5,10 @@
 
 // Attack darkening filter settings state
 let attackDarkeningSettings = {
-    enabled: true, // Default: ON
-    darkeningAmount: 0.3, // Cutoff multiplier (0.0-1.0): lower = darker. 0.3 means cutoff is 30% of normal (default: 0.3 = 30%)
+    enabled: true, // Always enabled (checkbox removed)
+    darkeningAmount: 0.7, // Cutoff multiplier (0.0-1.0): lower = darker. 0.7 means cutoff is 70% of normal (default: 0.7 = 70%)
     holdDuration: 0.2, // Duration in seconds before darkening starts - note plays normally during this time (default: 0.2s, min: 0.0s, max: 2.0s)
-    darkeningDuration: 0.1 // Duration in seconds for transition from bright to dark (attack time) (default: 0.1s, min: 0.01s, max: 2.0s)
+    darkeningDuration: 4.0 // Duration in seconds for transition from bright to dark (attack time) (default: 4.0s, min: 0.2s, max: 10.0s)
 };
 
 /**
@@ -42,20 +42,12 @@ function createAttackDarkeningFilterPopup() {
             </div>
             <div class="attack-darkening-filter-popup-body">
                 <div class="attack-darkening-filter-setting">
-                    <label style="display: flex; align-items: center; gap: 12px;">
-                        <input type="checkbox" id="attack-darkening-filter-enabled" style="width: 18px; height: 18px; cursor: pointer;" checked>
-                        <span>Enable Attack Darkening Filter</span>
-                    </label>
-                    <div class="attack-darkening-filter-description" style="margin-left: 30px;">When enabled, notes start darker (low-pass filtered) for a configurable duration, creating a natural attack character.</div>
-                </div>
-                
-                <div class="attack-darkening-filter-setting">
                     <label>
                         <span>Darkening Amount</span>
-                        <input type="range" id="attack-darkening-filter-amount" min="0.1" max="1.0" value="0.3" step="0.05">
-                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-amount-value">30%</span>
+                        <input type="range" id="attack-darkening-filter-amount" min="0.1" max="1.0" value="0.7" step="0.05">
+                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-amount-value">70%</span>
                     </label>
-                    <div class="attack-darkening-filter-description">Cutoff frequency multiplier (0.1 to 1.0). Lower = darker. 0.3 means cutoff is 30% of normal brightness. Default: 0.3 (30%)</div>
+                    <div class="attack-darkening-filter-description">Cutoff frequency multiplier (0.1 to 1.0). Lower = darker. 0.7 means cutoff is 70% of normal brightness. Default: 0.7 (70%)</div>
                 </div>
                 
                 <div class="attack-darkening-filter-setting">
@@ -70,15 +62,15 @@ function createAttackDarkeningFilterPopup() {
                 <div class="attack-darkening-filter-setting">
                     <label>
                         <span>Darkening Attack Time</span>
-                        <input type="range" id="attack-darkening-filter-duration" min="0.01" max="2.0" value="0.1" step="0.01">
-                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-duration-value">0.10 s</span>
+                        <input type="range" id="attack-darkening-filter-duration" min="0.2" max="10.0" value="4.0" step="0.1">
+                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-duration-value">4.0 s</span>
                     </label>
-                    <div class="attack-darkening-filter-description">Time to transition from bright to dark (0.01 to 2.0 seconds). Shorter = faster darkening. After transition completes, note stays dark. Default: 0.1 seconds (100ms)</div>
+                    <div class="attack-darkening-filter-description">Time to transition from bright to dark (0.2 to 10.0 seconds). Shorter = faster darkening. After transition completes, note stays dark. Default: 4.0 seconds</div>
                 </div>
                 
                 <div class="attack-darkening-filter-info">
                     <h3>How It Works</h3>
-                    <p>This filter applies a per-note low-pass filter with a configurable hold period and attack time. The note plays normally (bright) for the hold duration, then transitions to dark over the darkening attack time. Once dark, it stays dark for the note's duration.</p>
+                    <p>This filter applies a per-note low-pass filter with transitioning darkening. The note plays normally (bright) for the hold duration, then smoothly transitions to dark over the darkening attack time. Once dark, it stays dark for the note's duration.</p>
                     <p><strong>Key Features:</strong></p>
                     <ul>
                         <li>Per-note filtering: Each note has its own filter that keeps it dark</li>
@@ -262,15 +254,6 @@ function setupAttackDarkeningFilterControls() {
         }
     });
     
-    // Enabled checkbox
-    const enabledCheckbox = document.getElementById('attack-darkening-filter-enabled');
-    if (enabledCheckbox) {
-        enabledCheckbox.addEventListener('change', (e) => {
-            attackDarkeningSettings.enabled = e.target.checked;
-            updateAttackDarkeningFilterSettings();
-        });
-    }
-    
     // Darkening amount slider
     const amountSlider = document.getElementById('attack-darkening-filter-amount');
     const amountValue = document.getElementById('attack-darkening-filter-amount-value');
@@ -324,7 +307,6 @@ function showAttackDarkeningFilterSettings() {
     const popup = document.getElementById('attack-darkening-filter-popup');
     if (popup) {
         // Update UI to reflect current settings
-        const enabledCheckbox = document.getElementById('attack-darkening-filter-enabled');
         const amountSlider = document.getElementById('attack-darkening-filter-amount');
         const amountValue = document.getElementById('attack-darkening-filter-amount-value');
         const holdSlider = document.getElementById('attack-darkening-filter-hold');
@@ -332,9 +314,6 @@ function showAttackDarkeningFilterSettings() {
         const durationSlider = document.getElementById('attack-darkening-filter-duration');
         const durationValue = document.getElementById('attack-darkening-filter-duration-value');
         
-        if (enabledCheckbox) {
-            enabledCheckbox.checked = attackDarkeningSettings.enabled;
-        }
         if (amountSlider && amountValue) {
             amountSlider.value = attackDarkeningSettings.darkeningAmount;
             amountValue.textContent = Math.round(attackDarkeningSettings.darkeningAmount * 100) + '%';
