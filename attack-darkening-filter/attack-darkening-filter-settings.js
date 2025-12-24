@@ -6,7 +6,8 @@
 // Attack darkening filter settings state
 let attackDarkeningSettings = {
     enabled: true, // Default: ON
-    openingTime: 0.1 // Time in seconds for filter to open from dark to bright (default: 100ms, min: 0.01s, max: 1.0s)
+    darkeningAmount: 0.3, // Cutoff multiplier (0.0-1.0): lower = darker. 0.3 means cutoff is 30% of normal (default: 0.3 = 30%)
+    darkeningDuration: 4.0 // Duration in seconds that darkening persists for the note (default: 4.0s, min: 0.1s, max: 10.0s)
 };
 
 /**
@@ -44,33 +45,42 @@ function createAttackDarkeningFilterPopup() {
                         <input type="checkbox" id="attack-darkening-filter-enabled" style="width: 18px; height: 18px; cursor: pointer;" checked>
                         <span>Enable Attack Darkening Filter</span>
                     </label>
-                    <div class="attack-darkening-filter-description" style="margin-left: 30px;">When enabled, notes start darker (low-pass filtered) and gradually brighten over time, creating a natural attack character.</div>
+                    <div class="attack-darkening-filter-description" style="margin-left: 30px;">When enabled, notes start darker (low-pass filtered) for a configurable duration, creating a natural attack character.</div>
                 </div>
                 
                 <div class="attack-darkening-filter-setting">
                     <label>
-                        <span>Opening Time</span>
-                        <input type="range" id="attack-darkening-filter-opening-time" min="0.01" max="1.0" value="0.1" step="0.01">
-                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-opening-time-value">0.10 s</span>
+                        <span>Darkening Amount</span>
+                        <input type="range" id="attack-darkening-filter-amount" min="0.1" max="1.0" value="0.3" step="0.05">
+                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-amount-value">30%</span>
                     </label>
-                    <div class="attack-darkening-filter-description">Time for filter to open from dark to bright (0.01 to 1.0 seconds). Shorter = faster brightening. Default: 0.1 seconds (100ms)</div>
+                    <div class="attack-darkening-filter-description">Cutoff frequency multiplier (0.1 to 1.0). Lower = darker. 0.3 means cutoff is 30% of normal brightness. Default: 0.3 (30%)</div>
+                </div>
+                
+                <div class="attack-darkening-filter-setting">
+                    <label>
+                        <span>Darkening Duration</span>
+                        <input type="range" id="attack-darkening-filter-duration" min="0.1" max="10.0" value="4.0" step="0.1">
+                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-duration-value">4.0 s</span>
+                    </label>
+                    <div class="attack-darkening-filter-description">Minimum duration setting (0.1 to 10.0 seconds). Notes stay dark for their entire duration - this setting is kept for compatibility. Default: 4.0 seconds</div>
                 </div>
                 
                 <div class="attack-darkening-filter-info">
                     <h3>How It Works</h3>
-                    <p>This filter applies a per-note low-pass filter that starts with a low cutoff frequency (darker sound) when a note begins playing, then gradually opens up (higher cutoff, brighter sound) over time.</p>
+                    <p>This filter applies a per-note low-pass filter that starts with a reduced cutoff frequency (darker sound) when a note begins playing. Once a note gets dark, it stays dark for the entire note duration - it never returns to normal brightness.</p>
                     <p><strong>Key Features:</strong></p>
                     <ul>
-                        <li>Per-note filtering: Each note has its own filter that tracks its age</li>
-                        <li>Velocity-dependent: Louder notes start brighter than quieter notes</li>
+                        <li>Per-note filtering: Each note has its own filter that keeps it dark</li>
+                        <li>Velocity-dependent: Louder notes start brighter than quieter notes (but still darker than unfiltered)</li>
                         <li>Keytracked: Higher notes naturally have higher cutoff frequencies</li>
                         <li>Works alongside spectral balance filter and dynamic filter</li>
                     </ul>
                     <p><strong>Relationship to Other Filters:</strong></p>
                     <ul>
                         <li><strong>Spectral Balance:</strong> Global high-shelf filter for overall spectral shaping (can be weakened by sustain pedal)</li>
-                        <li><strong>Dynamic Filter:</strong> Global filter that closes as notes decay (opposite direction)</li>
-                        <li><strong>Attack Darkening:</strong> Per-note filter that opens as notes age (this filter)</li>
+                        <li><strong>Dynamic Filter:</strong> Global filter that closes as notes decay</li>
+                        <li><strong>Attack Darkening:</strong> Per-note filter that darkens notes at attack and keeps them dark for a configurable duration (this filter)</li>
                     </ul>
                 </div>
             </div>
@@ -251,14 +261,26 @@ function setupAttackDarkeningFilterControls() {
         });
     }
     
-    // Opening time slider
-    const openingTimeSlider = document.getElementById('attack-darkening-filter-opening-time');
-    const openingTimeValue = document.getElementById('attack-darkening-filter-opening-time-value');
-    if (openingTimeSlider && openingTimeValue) {
-        openingTimeSlider.addEventListener('input', (e) => {
+    // Darkening amount slider
+    const amountSlider = document.getElementById('attack-darkening-filter-amount');
+    const amountValue = document.getElementById('attack-darkening-filter-amount-value');
+    if (amountSlider && amountValue) {
+        amountSlider.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
-            attackDarkeningSettings.openingTime = value;
-            openingTimeValue.textContent = value.toFixed(2) + ' s';
+            attackDarkeningSettings.darkeningAmount = value;
+            amountValue.textContent = Math.round(value * 100) + '%';
+            updateAttackDarkeningFilterSettings();
+        });
+    }
+    
+    // Darkening duration slider
+    const durationSlider = document.getElementById('attack-darkening-filter-duration');
+    const durationValue = document.getElementById('attack-darkening-filter-duration-value');
+    if (durationSlider && durationValue) {
+        durationSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            attackDarkeningSettings.darkeningDuration = value;
+            durationValue.textContent = value.toFixed(2) + ' s';
             updateAttackDarkeningFilterSettings();
         });
     }
@@ -281,15 +303,21 @@ function showAttackDarkeningFilterSettings() {
     if (popup) {
         // Update UI to reflect current settings
         const enabledCheckbox = document.getElementById('attack-darkening-filter-enabled');
-        const openingTimeSlider = document.getElementById('attack-darkening-filter-opening-time');
-        const openingTimeValue = document.getElementById('attack-darkening-filter-opening-time-value');
+        const amountSlider = document.getElementById('attack-darkening-filter-amount');
+        const amountValue = document.getElementById('attack-darkening-filter-amount-value');
+        const durationSlider = document.getElementById('attack-darkening-filter-duration');
+        const durationValue = document.getElementById('attack-darkening-filter-duration-value');
         
         if (enabledCheckbox) {
             enabledCheckbox.checked = attackDarkeningSettings.enabled;
         }
-        if (openingTimeSlider && openingTimeValue) {
-            openingTimeSlider.value = attackDarkeningSettings.openingTime;
-            openingTimeValue.textContent = attackDarkeningSettings.openingTime.toFixed(2) + ' s';
+        if (amountSlider && amountValue) {
+            amountSlider.value = attackDarkeningSettings.darkeningAmount;
+            amountValue.textContent = Math.round(attackDarkeningSettings.darkeningAmount * 100) + '%';
+        }
+        if (durationSlider && durationValue) {
+            durationSlider.value = attackDarkeningSettings.darkeningDuration;
+            durationValue.textContent = attackDarkeningSettings.darkeningDuration.toFixed(2) + ' s';
         }
         
         popup.classList.add('active');
