@@ -66,8 +66,11 @@ const blackKeyMaterial = new THREE.MeshPhysicalMaterial({
 function createTextTexture(text, color = '#ffffff', fontSize = 100) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    canvas.width = 256;
-    canvas.height = 256;
+    // Increase canvas resolution for larger text to maintain quality
+    // Scale canvas size with fontSize to ensure text renders clearly
+    const canvasSize = Math.max(256, Math.ceil(fontSize * 2.5));
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
     
     // Transparent background
     context.clearRect(0, 0, canvas.width, canvas.height);
@@ -75,6 +78,10 @@ function createTextTexture(text, color = '#ffffff', fontSize = 100) {
     // Text color - adjust font size for labels with numbers
     context.fillStyle = color;
     context.font = `Bold ${fontSize}px Arial`;
+    // Debug: log font size for first few labels
+    if (text.includes('A0') || text.includes('B0') || text.includes('C1')) {
+        console.log(`Creating texture for "${text}" with fontSize: ${fontSize}, canvas: ${canvasSize}x${canvasSize}`);
+    }
     context.textAlign = 'center';
     
     // Handle multi-line text (split by <br> or \n)
@@ -90,13 +97,23 @@ function createTextTexture(text, color = '#ffffff', fontSize = 100) {
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
+    // Use linear filtering only for large fonts (white keys) to prevent blurring
+    // For smaller fonts (black keys), use default filtering to maintain original appearance
+    if (fontSize >= 150) {
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
+    }
     return texture;
 }
 
 // Function to create text label as a plane
-function createTextLabel(text, xPosition, keyHeight, keyDepth, color = '#ffffff', fontSize = 100, planeSize = 0.12) {
+function createTextLabel(text, xPosition, keyHeight, keyDepth, color = '#ffffff', fontSize = 100, planeSize = 0.12, planeHeight = null) {
     const texture = createTextTexture(text, color, fontSize);
-    const planeGeometry = new THREE.PlaneGeometry(planeSize, planeSize);
+    // If planeHeight is not specified, use square plane (backward compatible)
+    // Otherwise use rectangular plane to match key aspect ratio
+    const height = planeHeight !== null ? planeHeight : planeSize;
+    const planeGeometry = new THREE.PlaneGeometry(planeSize, height);
     const planeMaterial = new THREE.MeshBasicMaterial({ 
         map: texture,
         transparent: true,
@@ -191,28 +208,41 @@ const whiteKeyPositions = [];
 // Key map: MIDI note number -> { mesh, isBlack, originalMaterial, pressedMaterial, label }
 const keyMap = new Map();
 
-// Pressed state materials for visual feedback
-const whiteKeyPressedMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffff88, // Yellowish glow when pressed
-    metalness: 0.0,
-    roughness: 0.3,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.2,
-    reflectivity: 0.5,
-    emissive: 0x444422, // Subtle glow
-    emissiveIntensity: 0.3
-});
+// Initialize keyboard visual modules (if available)
+// Note: Key highlight initialization is deferred until after THREE.js is loaded
+// We'll initialize it after the scene is set up, or use a deferred initialization
 
-const blackKeyPressedMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x888844, // Lighter grey with glow when pressed
-    metalness: 0.0,
-    roughness: 0.4,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.3,
-    reflectivity: 0.3,
-    emissive: 0x222211,
-    emissiveIntensity: 0.3
-});
+// Initialize key movement module
+if (window.initKeyMovement) {
+    window.initKeyMovement();
+}
+
+// Initialize key labels module
+if (window.initKeyLabels) {
+    window.initKeyLabels();
+}
+
+// Deferred initialization of key highlight (after THREE.js is available)
+// This will be called after whiteKeyMaterial and blackKeyMaterial are created
+function initializeKeyHighlightDeferred() {
+    // Ensure THREE.js is fully loaded and available
+    if (typeof THREE === 'undefined' || !THREE.MeshPhysicalMaterial) {
+        // THREE.js not ready yet, retry after a short delay
+        setTimeout(initializeKeyHighlightDeferred, 10);
+        return;
+    }
+    
+    if (window.initKeyHighlight && whiteKeyMaterial && blackKeyMaterial) {
+        window.initKeyHighlight(whiteKeyMaterial, blackKeyMaterial);
+        
+        // Now that materials are initialized, update all existing keys with pressed materials
+        keyMap.forEach((keyData, midiNote) => {
+            if (!keyData.pressedMaterial && window.getKeyPressedMaterial) {
+                keyData.pressedMaterial = window.getKeyPressedMaterial(keyData.isBlack);
+            }
+        });
+    }
+}
 
 for (let i = 0; i < numWhiteKeys; i++) {
     const key = new THREE.Mesh(whiteKeyGeometry, whiteKeyMaterial.clone());
@@ -230,7 +260,12 @@ for (let i = 0; i < numWhiteKeys; i++) {
     const fullLabel = keyLabels[i]; // Keep full label: A0, B0, C1, D1, etc.
     // Debug: Log first few labels
     if (i < 5) console.log(`Key ${i}: Label = "${fullLabel}"`);
-    const label = createTextLabel(fullLabel, xPosition, whiteKeyHeight, whiteKeyDepth, '#ffffff', 80);
+    // Use whiteKeyWidth for planeSize so text texture matches the key width
+    // Keep plane square to prevent text stretching - the larger size will make text bigger
+    // Increased fontSize significantly to compensate for larger plane size
+    // Original: 80px font on 0.12 plane = 666.67px per unit
+    // New: 200px font on 0.15 plane = 1333.33px per unit (2x larger)
+    const label = createTextLabel(fullLabel, xPosition, whiteKeyHeight, whiteKeyDepth, '#ffffff', 200, whiteKeyWidth);
     // Move label further up (back) on the key surface to be closer to black key labels
     label.position.z = whiteKeyDepth / 2 - 0.25; // Moved further back/up to be closer to black key labels
     scene.add(label);
@@ -238,14 +273,30 @@ for (let i = 0; i < numWhiteKeys; i++) {
     // Store key reference in keyMap
     const midiNote = noteNameToMidiNote(fullLabel);
     if (midiNote !== null) {
-        const pressedMaterial = whiteKeyPressedMaterial.clone();
-        keyMap.set(midiNote, {
+        // Get pressed material from key highlight module (if available and initialized)
+        // If not initialized yet, we'll get it later when the module is initialized
+        let pressedMaterial = null;
+        if (window.getKeyPressedMaterial && window.isKeyHighlightInitialized && window.isKeyHighlightInitialized()) {
+            pressedMaterial = window.getKeyPressedMaterial(false);
+        }
+        
+        // Store original Y position at creation time (not just when pressed)
+        const keyData = {
             mesh: key,
             isBlack: false,
             originalMaterial: originalMaterial,
             pressedMaterial: pressedMaterial,
-            label: fullLabel
-        });
+            label: fullLabel,
+            originalY: whiteKeyHeight / 2, // Store original position: center of key at y = 0.05
+            isPressed: false, // Track visual press state
+            midiNote: midiNote // Store for animation tracking
+        };
+        keyMap.set(midiNote, keyData);
+        
+        // Register label with key-labels module (if available)
+        if (window.registerKeyLabel) {
+            window.registerKeyLabel(midiNote, label);
+        }
     }
 }
 
@@ -331,19 +382,39 @@ for (let i = 0; i < numWhiteKeys - 1; i++) {
         // Store black key reference in keyMap
         const midiNote = getBlackKeyMidiNote(currentNote, nextNote);
         if (midiNote !== null) {
-            const pressedMaterial = blackKeyPressedMaterial.clone();
+            // Get pressed material from key highlight module (if available and initialized)
+            // If not initialized yet, we'll get it later when the module is initialized
+            let pressedMaterial = null;
+            if (window.getKeyPressedMaterial && window.isKeyHighlightInitialized && window.isKeyHighlightInitialized()) {
+                pressedMaterial = window.getKeyPressedMaterial(true);
+            }
+            
             // Get the sharp note name for the black key
             const sharpNoteName = midiNoteToNoteName(midiNote);
-            keyMap.set(midiNote, {
+            // Store original Y position at creation time (not just when pressed)
+            const blackKeyY = whiteKeyHeight + blackKeyHeight / 2;
+            const keyData = {
                 mesh: blackKey,
                 isBlack: true,
                 originalMaterial: originalMaterial,
                 pressedMaterial: pressedMaterial,
-                label: sharpNoteName
-            });
+                label: sharpNoteName,
+                originalY: blackKeyY, // Store original position
+                isPressed: false, // Track visual press state
+                midiNote: midiNote // Store for animation tracking
+            };
+            keyMap.set(midiNote, keyData);
+            
+            // Register label with key-labels module (if available)
+            if (window.registerKeyLabel) {
+                window.registerKeyLabel(midiNote, label);
+            }
         }
     }
 }
+
+// Initialize key highlight module now that THREE.js is available
+initializeKeyHighlightDeferred();
 
 // Improved lighting setup
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
@@ -421,6 +492,13 @@ let filterUpdateFrameCounter = 0;
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
+    
+    // Update key animations (for animated movement style)
+    if (window.updateKeyAnimations) {
+        const currentTime = performance.now() / 1000; // Convert to seconds
+        window.updateKeyAnimations(currentTime);
+    }
+    
     renderer.render(scene, camera);
     
     // Update dynamic filter based on active notes (if enabled)
@@ -661,6 +739,40 @@ if (typeof window !== 'undefined' && window.VelocityTimbreManager && Tone.contex
 // Set master volume
 Tone.getDestination().volume.value = -6; // Slightly reduce volume
 
+// ========== MIDI Mapping Module ==========
+// Initialize MIDI mapping module (must be after synth and state variables are created)
+function initializeMidiMapping() {
+    if (window.initMidiMapping) {
+        // Create a reference object for sustainPedalActive so the module can modify it
+        const sustainPedalActiveRef = { 
+            get value() { return sustainPedalActive; },
+            set value(v) { sustainPedalActive = v; }
+        };
+        
+        window.initMidiMapping({
+            synth: synth,
+            keyMap: keyMap,
+            dynamicFilter: filter,
+            sustainPedalActiveRef: sustainPedalActiveRef,
+            pressKey: pressKey,
+            releaseKey: releaseKey,
+            midiNoteToNoteName: midiNoteToNoteName,
+            activeNotes: activeNotes,
+            physicallyHeldNotes: physicallyHeldNotes,
+            sustainedNotes: sustainedNotes,
+            noteAttackTimes: noteAttackTimes,
+            frequencyModulations: frequencyModulations,
+            attackNoiseNodes: attackNoiseNodes,
+            releaseTransientNodes: releaseTransientNodes,
+            unisonVoices: unisonVoices,
+            sustainDecayAutomations: sustainDecayAutomations,
+            noteVolumeNodes: noteVolumeNodes
+        });
+    }
+}
+
+// Initialize MIDI mapping will be called after all state variables are declared
+
 // ========== Physics Settings ==========
 // Physics settings are managed by physics-settings.js module
 // Initialize settings UI when DOM is ready
@@ -709,96 +821,111 @@ const sustainDecayAutomations = new Map(); // midiNote -> { volumeNode, cancel }
 // Map of note names to their volume nodes for sustain decay
 const noteVolumeNodes = new Map(); // noteName -> Tone.Volume
 
+// Initialize MIDI mapping after all state variables are declared
+initializeMidiMapping();
+
 // Function to press a key visually
+// This ensures visual state matches audio state - key should be at y = -0.02 when pressed
 function pressKey(midiNote) {
     const keyData = keyMap.get(midiNote);
     if (keyData) {
-        keyData.mesh.material = keyData.pressedMaterial;
-        // Move key down 70% of its height for realistic effect
-        const originalY = keyData.mesh.position.y;
+        // If key is already pressed, reset it first to prevent cumulative movement
+        if (keyData.isPressed) {
+            // Reset to original position before pressing again
+            keyData.mesh.position.y = keyData.originalY;
+        }
+        
+        // Ensure we have a valid originalY (fallback to current position if missing)
+        if (keyData.originalY === undefined) {
+            keyData.originalY = keyData.mesh.position.y;
+        }
+        
+        // Apply highlight (yellow tint) if enabled
+        if (window.applyKeyHighlight) {
+            window.applyKeyHighlight(keyData);
+        }
+        
+        // Apply movement (up/down effect) if enabled
         const keyHeight = keyData.isBlack ? blackKeyHeight : whiteKeyHeight;
-        const pressDepth = keyHeight * 0.7; // 70% of key height
-        keyData.mesh.position.y = originalY - pressDepth;
-        keyData.originalY = originalY;
+        if (window.pressKeyMovement) {
+            window.pressKeyMovement(keyData, keyHeight);
+        }
+        
+        // Show label if enabled
+        if (window.showKeyLabel) {
+            window.showKeyLabel(midiNote);
+        }
+        
+        keyData.isPressed = true; // Mark as pressed
     }
 }
 
 // Function to release a key visually
+// This ensures visual state matches audio state - key should be at y = 0.05 when released
 function releaseKey(midiNote) {
     const keyData = keyMap.get(midiNote);
     if (keyData) {
-        keyData.mesh.material = keyData.originalMaterial;
-        // Restore original position
-        if (keyData.originalY !== undefined) {
-            keyData.mesh.position.y = keyData.originalY;
+        // Remove highlight (restore original material)
+        if (window.removeKeyHighlight) {
+            window.removeKeyHighlight(keyData);
         }
+        
+        // Apply movement (restore position) if enabled
+        const keyHeight = keyData.isBlack ? blackKeyHeight : whiteKeyHeight;
+        if (window.releaseKeyMovement) {
+            window.releaseKeyMovement(keyData, keyHeight);
+        } else {
+            // Fallback: restore position manually if module not available
+            if (keyData.originalY !== undefined) {
+                keyData.mesh.position.y = keyData.originalY;
+            } else {
+                // Fallback: calculate original position if not stored
+                if (keyData.isBlack) {
+                    keyData.mesh.position.y = whiteKeyHeight + blackKeyHeight / 2;
+                } else {
+                    keyData.mesh.position.y = whiteKeyHeight / 2; // 0.05
+                }
+            }
+        }
+        
+        // Hide label if enabled
+        if (window.hideKeyLabel) {
+            window.hideKeyLabel(midiNote);
+        }
+        
+        keyData.isPressed = false; // Mark as released
     }
 }
 
-// ========== Two-Stage Velocity Mapping System ==========
-// Based on research findings for perceptually correct MIDI velocity mapping
-// Stage 1: Velocity → Amplitude (frequency-independent, perceptual mapping)
-// Stage 2: Amplitude → SPL with Frequency Compensation (equal-loudness contours)
+// ========== MIDI Mapping Module ==========
+// Velocity mapping and ADSR envelope handling is now in midi-mapping.js module
 
-/**
- * Convert MIDI note number to frequency in Hz
- * Formula: f = 440 * 2^((n - 69) / 12) where n is MIDI note number
- * @param {number} midiNote - MIDI note number (0-127)
- * @returns {number} - Frequency in Hz
- */
-function midiNoteToFrequency(midiNote) {
-    return 440 * Math.pow(2, (midiNote - 69) / 12);
-}
-
-/**
- * Stage 1: Velocity to Amplitude Mapping
- * Uses constant k value (recommended: 1.8-2.2, default 2.0)
- * This controls the "feel" of the velocity response
- * 
- * @param {number} velocity - MIDI velocity (0-127)
- * @param {number} k - Exponent (default 2.0, range 1.5-2.5)
- * @returns {number} - Amplitude (0-1)
- */
-function velocityToAmplitude(velocity, k = 2.0) {
-    const normalized = Math.max(0, Math.min(127, velocity)) / 127.0;
-    return Math.pow(normalized, k);
-}
-
-/**
- * Complete Two-Stage Mapping: Velocity → Final Amplitude
- * Uses frequency-compensation.js module for Stage 2 if enabled
- * 
- * @param {number} velocity - MIDI velocity (0-127)
- * @param {number} midiNote - MIDI note number (for frequency calculation)
- * @param {number} k - Velocity exponent (default 2.0)
- * @param {number} targetSPL - Target listening level (default 85)
- * @returns {number} - Final amplitude (0-1) with optional frequency compensation applied
- */
-function velocityToAmplitudeWithCompensation(velocity, midiNote, k = 2.0, targetSPL = 85) {
-    // Stage 1: Velocity → Base Amplitude
-    const baseAmplitude = velocityToAmplitude(velocity, k);
-    
-    // Stage 2: Apply frequency compensation (if enabled and module available)
-    if (window.applyFrequencyCompensation) {
-        const frequency = midiNoteToFrequency(midiNote);
-        // Use frequency compensation settings if available, otherwise use provided targetSPL
-        const compensationSPL = (window.frequencyCompensationSettings && window.frequencyCompensationSettings.targetSPL) 
-            ? window.frequencyCompensationSettings.targetSPL 
-            : targetSPL;
-        return window.applyFrequencyCompensation(baseAmplitude, frequency, compensationSPL);
-    }
-    
-    // Fallback: no compensation
-    return baseAmplitude;
-}
-
-// Function to handle MIDI note on
+// Function to handle MIDI note on (wrapper for midi-mapping module)
 function handleNoteOn(midiNote, velocity) {
+    if (window.handleMidiNoteOn) {
+        window.handleMidiNoteOn(midiNote, velocity);
+    }
+}
+
+// Function to handle MIDI note off (wrapper for midi-mapping module)
+function handleNoteOff(midiNote) {
+    if (window.handleMidiNoteOff) {
+        window.handleMidiNoteOff(midiNote);
+    }
+}
+
+
+// Legacy function - now handled by midi-mapping module (kept for reference, can be removed)
+function handleNoteOn_OLD(midiNote, velocity) {
     const noteName = midiNoteToNoteName(midiNote);
     if (noteName) {
         // If this note is already active, release it first to prevent multiple voices
         // This is especially important when pressing the same note multiple times while sustain is active
         if (activeNotes.has(midiNote)) {
+            // CRITICAL: Release visual key first to prevent cumulative movement
+            // This ensures visual state matches audio state
+            releaseKey(midiNote);
+            
             // Release all voices for this note (including unison voices if any)
             const voicesToRelease = unisonVoices.get(midiNote);
             if (voicesToRelease && voicesToRelease.length > 0) {
@@ -946,8 +1073,8 @@ function handleNoteOn(midiNote, velocity) {
 
 // startSustainDecay is now provided by sustain-decay.js module
 
-// Function to handle MIDI note off
-function handleNoteOff(midiNote) {
+// Legacy function - now handled by midi-mapping module (kept for reference, can be removed)
+function handleNoteOff_OLD(midiNote) {
     const noteName = midiNoteToNoteName(midiNote);
     if (noteName) {
         // Remove from physically held notes
@@ -1107,169 +1234,112 @@ function releaseAllNotes() {
     noteAttackTimes.clear(); // Clean up filter tracking
     frequencyModulations.clear(); // Clean up frequency modulation tracking
     unisonVoices.clear(); // Clean up unison voice tracking
+    
+    // CRITICAL: Release all visual keys to ensure visual state matches audio state
+    keyMap.forEach((keyData, midiNote) => {
+        if (keyData.isPressed) {
+            releaseKey(midiNote);
+        }
+    });
+    
     console.log('All notes released');
 }
 
-// MIDI device detection and connection
-let midiAccess = null;
-let midiInputs = [];
-
-async function initMIDI() {
-    try {
-        // Request MIDI access
-        midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+// MIDI Input Module Integration
+// Handle sustain pedal control change
+function handleControlChange(controller, value) {
+    // Sustain pedal is controller 64
+    if (controller === 64) {
+        const wasActive = sustainPedalActive;
+        sustainPedalActive = value >= 64; // >= 64 means pedal down
+        console.log('Sustain pedal:', sustainPedalActive ? 'ON' : 'OFF');
         
-        console.log('MIDI access granted');
-        
-        // Function to handle MIDI input
-        function onMIDIMessage(event) {
-            const [status, data1, data2] = event.data;
-            const command = status & 0xf0; // Upper nibble is command
-            const channel = status & 0x0f; // Lower nibble is channel
-            
-            // Note On (0x90) or Note Off (0x80)
-            if (command === 0x90) {
-                // Note On
-                if (data2 > 0) {
-                    handleNoteOn(data1, data2);
-                } else {
-                    // Note Off (velocity 0 is sometimes used for note off)
-                    handleNoteOff(data1);
+        // If sustain pedal is released, release only the sustained notes
+        if (wasActive && !sustainPedalActive) {
+            // Create a copy to avoid modification during iteration
+            const notesToRelease = Array.from(sustainedNotes);
+            notesToRelease.forEach((midiNote) => {
+                // Stop attack noise if it exists
+                if (attackNoiseNodes.has(midiNote)) {
+                    const noiseNode = attackNoiseNodes.get(midiNote);
+                    if (noiseNode && noiseNode.stop) {
+                        noiseNode.stop();
+                    }
+                    attackNoiseNodes.delete(midiNote);
                 }
-            } else if (command === 0x80) {
-                // Note Off
-                handleNoteOff(data1);
-            } else if (command === 0xB0) {
-                // Control Change (0xB0-0xBF)
-                const controller = data1;
-                const value = data2;
                 
-                // Sustain pedal is controller 64
-                if (controller === 64) {
-                    const wasActive = sustainPedalActive;
-                    sustainPedalActive = value >= 64; // >= 64 means pedal down
-                    console.log('Sustain pedal:', sustainPedalActive ? 'ON' : 'OFF');
-                    
-                    // If sustain pedal is released, release only the sustained notes
-                    if (wasActive && !sustainPedalActive) {
-                        // Create a copy to avoid modification during iteration
-                        const notesToRelease = Array.from(sustainedNotes);
-                        notesToRelease.forEach((midiNote) => {
-                            // Stop attack noise if it exists
-                            if (attackNoiseNodes.has(midiNote)) {
-                                const noiseNode = attackNoiseNodes.get(midiNote);
-                                if (noiseNode && noiseNode.stop) {
-                                    noiseNode.stop();
-                                }
-                                attackNoiseNodes.delete(midiNote);
-                            }
-                            
-                            // Stop release transient if it exists
-                            if (releaseTransientNodes.has(midiNote)) {
-                                const transientNode = releaseTransientNodes.get(midiNote);
-                                if (transientNode && transientNode.stop) {
-                                    transientNode.stop();
-                                }
-                                releaseTransientNodes.delete(midiNote);
-                            }
-                            
-                            // Cancel any sustain decay automation
-                            if (sustainDecayAutomations.has(midiNote)) {
-                                const automation = sustainDecayAutomations.get(midiNote);
-                                if (automation && automation.cancel) {
-                                    automation.cancel();
-                                }
-                                sustainDecayAutomations.delete(midiNote);
-                            }
-                            
-                            // Release all voices for this note (including unison voices if any)
-                            const voicesToRelease = unisonVoices.get(midiNote);
-                            if (voicesToRelease && voicesToRelease.length > 0) {
-                                // Release all tracked voices (including duplicates - each triggerAttack needs a triggerRelease)
-                                // Important: Even if multiple strings round to the same note name, we must release each one
-                                voicesToRelease.forEach(voiceNoteName => {
-                                    try {
-                                        synth.triggerRelease(voiceNoteName);
-                                    } catch (e) {
-                                        // Ignore errors
-                                    }
-                                });
-                                // Clean up tracking
-                                unisonVoices.delete(midiNote);
-                            } else {
-                                // Fallback: release main note name
-                                const noteName = activeNotes.get(midiNote);
-                                if (noteName) {
-                                    try {
-                                        synth.triggerRelease(noteName);
-                                    } catch (e) {
-                                        // Ignore errors
-                                    }
-                                }
-                            }
-                            activeNotes.delete(midiNote);
-                            sustainedNotes.delete(midiNote);
-                            noteAttackTimes.delete(midiNote); // Clean up attack time tracking
-                            frequencyModulations.delete(midiNote); // Clean up frequency modulation
-                        });
+                // Stop release transient if it exists
+                if (releaseTransientNodes.has(midiNote)) {
+                    const transientNode = releaseTransientNodes.get(midiNote);
+                    if (transientNode && transientNode.stop) {
+                        transientNode.stop();
+                    }
+                    releaseTransientNodes.delete(midiNote);
+                }
+                
+                // Cancel any sustain decay automation
+                if (sustainDecayAutomations.has(midiNote)) {
+                    const automation = sustainDecayAutomations.get(midiNote);
+                    if (automation && automation.cancel) {
+                        automation.cancel();
+                    }
+                    sustainDecayAutomations.delete(midiNote);
+                }
+                
+                // Release all voices for this note (including unison voices if any)
+                const voicesToRelease = unisonVoices.get(midiNote);
+                if (voicesToRelease && voicesToRelease.length > 0) {
+                    // Release all tracked voices (including duplicates - each triggerAttack needs a triggerRelease)
+                    // Important: Even if multiple strings round to the same note name, we must release each one
+                    voicesToRelease.forEach(voiceNoteName => {
+                        try {
+                            synth.triggerRelease(voiceNoteName);
+                        } catch (e) {
+                            // Ignore errors
+                        }
+                    });
+                    // Clean up tracking
+                    unisonVoices.delete(midiNote);
+                } else {
+                    // Fallback: release main note name
+                    const noteName = activeNotes.get(midiNote);
+                    if (noteName) {
+                        try {
+                            synth.triggerRelease(noteName);
+                        } catch (e) {
+                            // Ignore errors
+                        }
                     }
                 }
-            }
+                activeNotes.delete(midiNote);
+                sustainedNotes.delete(midiNote);
+                noteAttackTimes.delete(midiNote); // Clean up attack time tracking
+                frequencyModulations.delete(midiNote); // Clean up frequency modulation
+            });
         }
-        
-        // Function to setup MIDI inputs
-        function setupMIDIInputs() {
-            midiInputs = [];
-            const inputs = midiAccess.inputs.values();
-            
-            for (let input of inputs) {
-                input.onmidimessage = onMIDIMessage;
-                midiInputs.push(input);
-                console.log('MIDI input connected:', input.name);
-            }
-            
-            if (midiInputs.length === 0) {
-                console.log('No MIDI input devices found. Connect a MIDI device and refresh.');
-            }
-        }
-        
-        // Setup initial inputs
-        setupMIDIInputs();
-        
-        // Listen for new MIDI devices
-        midiAccess.onstatechange = (event) => {
-            console.log('MIDI device state changed:', event.port.name, event.port.state);
-            if (event.port.state === 'connected' && event.port.type === 'input') {
-                event.port.onmidimessage = onMIDIMessage;
-                midiInputs.push(event.port);
-                console.log('New MIDI input connected:', event.port.name);
-            } else if (event.port.state === 'disconnected' && event.port.type === 'input') {
-                const index = midiInputs.indexOf(event.port);
-                if (index > -1) {
-                    midiInputs.splice(index, 1);
-                }
-                console.log('MIDI input disconnected:', event.port.name);
-            }
-        };
-        
-    } catch (error) {
-        console.error('MIDI access denied or not available:', error);
-        console.log('Please allow MIDI access when prompted, or check if your browser supports Web MIDI API.');
     }
 }
 
-// Initialize MIDI when page loads
+// Initialize MIDI input module when page loads
 // Note: Tone.js requires user interaction to start audio context
+function initializeMidiInput() {
+    if (window.initMidiInput) {
+        window.initMidiInput(handleNoteOn, handleNoteOff, handleControlChange);
+    } else {
+        console.warn('MIDI input module not loaded');
+    }
+}
+
 document.addEventListener('click', () => {
     if (Tone.context.state !== 'running') {
         Tone.start();
     }
-    initMIDI();
+    initializeMidiInput();
 }, { once: true });
 
 // Also try to initialize MIDI immediately (may require user interaction for audio)
 if (Tone.context.state === 'running') {
-    initMIDI();
+    initializeMidiInput();
 } else {
     console.log('Click anywhere to enable MIDI and audio');
 }

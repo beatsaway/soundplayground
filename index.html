@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MememePiano</title>
+    <!-- Suppress favicon request to prevent 404 error -->
+    <link rel="icon" href="data:,">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
@@ -41,9 +43,119 @@
             cursor: pointer;
             display: inline-block;
             transition: transform 0.2s;
+            margin-left: 8px;
         }
         #settings-icon:hover {
             transform: rotate(90deg);
+        }
+        #keyboard-visual-icon {
+            cursor: pointer;
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-left: 8px;
+        }
+        #keyboard-visual-icon:hover {
+            transform: scale(1.2);
+        }
+        .keyboard-visual-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2001;
+            align-items: center;
+            justify-content: center;
+        }
+        .keyboard-visual-modal.active {
+            display: flex;
+        }
+        .keyboard-visual-panel {
+            background: rgba(30, 30, 45, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        .keyboard-visual-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .keyboard-visual-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .keyboard-visual-panel h2 {
+            margin: 0 0 20px 0;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #fff;
+        }
+        .keyboard-visual-setting-item {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .keyboard-visual-setting-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .keyboard-visual-setting-item label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .keyboard-visual-setting-item input[type="checkbox"] {
+            margin-right: 10px;
+            margin-top: 2px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .keyboard-visual-settings-btn {
+            background: none;
+            border: none;
+            color: #4a9eff;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            margin-left: 8px;
+        }
+        .keyboard-visual-settings-btn:hover {
+            background: rgba(74, 158, 255, 0.1);
+        }
+        .keyboard-visual-setting-item .setting-description {
+            margin-top: 4px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.4;
         }
         #settings-modal {
             display: none;
@@ -276,7 +388,7 @@
 </head>
 <body>
     <div id="header">
-        <h1>MememePiano<span id="settings-icon">⚙️</span></h1>
+        <h1>MememePiano<span id="keyboard-visual-icon">🎹</span><span id="settings-icon">🎧</span></h1>
     </div>
     <div id="settings-modal">
         <div id="settings-panel">
@@ -682,7 +794,32 @@
     <script src="inharmonicity/inharmonicity-settings.js"></script>
     <!-- Pitch harmonic rolloff settings module -->
     <script src="pitch-harmonic-rolloff/pitch-harmonic-rolloff-settings.js"></script>
+    <!-- Keyboard visual modules -->
+    <script src="key-highlight/key-highlight.js"></script>
+    <script src="key-movement/key-movement.js"></script>
+    <script src="key-labels/key-labels.js"></script>
+    <!-- MIDI modules -->
+    <script src="midi-input/midi-input.js"></script>
+    <script src="midi-mapping/midi-mapping.js"></script>
+    <script src="keyboard-visual-settings/keyboard-visual-settings.js"></script>
     <script type="module" src="main.js"></script>
+    <script>
+        // Initialize keyboard visual settings when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize keyboard visual settings module
+            if (window.initKeyboardVisualSettings) {
+                window.initKeyboardVisualSettings();
+            }
+            
+            // Set up click handler for 🎹 emoji
+            const keyboardVisualIcon = document.getElementById('keyboard-visual-icon');
+            if (keyboardVisualIcon && window.showKeyboardVisualSettings) {
+                keyboardVisualIcon.addEventListener('click', () => {
+                    window.showKeyboardVisualSettings();
+                });
+            }
+        });
+    </script>
 </body>
 </html>
 
