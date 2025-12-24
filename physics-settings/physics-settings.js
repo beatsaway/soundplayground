@@ -183,6 +183,168 @@ const settingsPresets = {
         pitchHarmonicRolloff: false,
         perPartialDecay: false,
         releaseTransient: false
+    },
+    // Sound Design Presets - Each with distinct character
+    bright: {
+        // Bright, sparkly, crystal-clear sound - emphasizes high frequencies
+        // CPU: Medium (no binaural reverb, but keeps brightness features)
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: true,
+        sustainDecay: true,
+        advancedTimbre: true, // Custom waveforms for brightness
+        velocityAttack: true,
+        timeVaryingBrightness: true, // Key for brightness evolution
+        dynamicFilter: true, // Allows brightness to shine through
+        frequencyCompensation: true, // Equal loudness helps brightness
+        frequencyEnvelope: false, // Skip vibrato for cleaner sound
+        binauralReverb: false, // CPU savings, use fake binaural instead
+        fakeBinaural: true, // Stereo width without CPU cost
+        spectralBalance: false, // No darkening - keep it bright!
+        inharmonicity: true, // Essential for realism
+        attackNoise: false, // Clean attack
+        oddEvenHarmonicBalance: true, // Bright harmonic content
+        pitchHarmonicRolloff: true, // More harmonics = brighter
+        perPartialDecay: true, // Natural decay keeps brightness
+        releaseTransient: false // Clean release
+    },
+    warm: {
+        // Warm, dark, intimate sound - emphasizes low-mid frequencies
+        // CPU: Low-Medium (minimal processing, warm character)
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: true,
+        sustainDecay: true,
+        advancedTimbre: false, // Skip CPU-intensive waveforms
+        velocityAttack: true,
+        timeVaryingBrightness: false, // Less brightness variation
+        dynamicFilter: true, // Natural decay
+        frequencyCompensation: false, // Skip for warmer feel
+        frequencyEnvelope: false, // No vibrato
+        binauralReverb: false, // CPU savings
+        fakeBinaural: false, // Mono-like warmth
+        spectralBalance: true, // Darkening filter for warmth
+        inharmonicity: true, // Essential
+        attackNoise: false, // Soft attack
+        oddEvenHarmonicBalance: true, // Balanced harmonics
+        pitchHarmonicRolloff: true, // Natural rolloff
+        perPartialDecay: true, // Natural decay
+        releaseTransient: false // Soft release
+    },
+    concertHall: {
+        // Spacious, immersive concert hall sound - maximum spatial effects
+        // CPU: High (binaural reverb, all spatial features)
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: true,
+        sustainDecay: true,
+        advancedTimbre: false, // CPU savings for reverb
+        velocityAttack: true,
+        timeVaryingBrightness: true,
+        dynamicFilter: true,
+        frequencyCompensation: true,
+        frequencyEnvelope: true, // Adds character in space
+        binauralReverb: true, // KEY: Full 3D spatial reverb
+        fakeBinaural: true, // Additional stereo width
+        spectralBalance: true, // Natural room response
+        inharmonicity: true,
+        attackNoise: false, // Clean in hall
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: false // Reverb handles release
+    },
+    vintage: {
+        // Vintage character - emphasizes mechanical character and imperfections
+        // CPU: Medium (character features, no expensive reverb)
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: true,
+        sustainDecay: true,
+        advancedTimbre: true, // Character waveforms
+        velocityAttack: true,
+        timeVaryingBrightness: true, // Age-related brightness changes
+        dynamicFilter: true,
+        frequencyCompensation: false, // Vintage doesn't compensate
+        frequencyEnvelope: true, // Pitch drift = character
+        binauralReverb: false, // CPU savings
+        fakeBinaural: true, // Some width
+        spectralBalance: true, // Aged sound
+        inharmonicity: true,
+        attackNoise: true, // KEY: Mechanical noise
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: true // KEY: Damper noise
+    },
+    modern: {
+        // Modern, clean, precise sound - minimal character, maximum clarity
+        // CPU: Medium-Low (clean features, efficient processing)
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: false, // Cleaner pedal response
+        sustainDecay: true,
+        advancedTimbre: false, // Standard waveforms
+        velocityAttack: true,
+        timeVaryingBrightness: false, // Consistent brightness
+        dynamicFilter: true, // Natural decay
+        frequencyCompensation: true, // Precise frequency response
+        frequencyEnvelope: false, // No pitch drift
+        binauralReverb: false, // CPU savings
+        fakeBinaural: true, // Clean stereo
+        spectralBalance: false, // No darkening
+        inharmonicity: true, // Essential
+        attackNoise: false, // Clean attack
+        oddEvenHarmonicBalance: true, // Precise harmonics
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: false // Clean release
+    },
+    expressive: {
+        // Expressive, dynamic sound - emphasizes velocity and dynamics
+        // CPU: Medium (dynamic features, no expensive reverb)
+        velocityTimbre: true, // KEY: Velocity-dependent timbre
+        twoStageDecay: true,
+        pedalCoupling: true,
+        sustainDecay: true,
+        advancedTimbre: true, // Dynamic waveforms
+        velocityAttack: true, // KEY: Velocity-dependent attack
+        timeVaryingBrightness: true, // Dynamic brightness
+        dynamicFilter: true, // KEY: Dynamic filtering
+        frequencyCompensation: true,
+        frequencyEnvelope: true, // Expressive pitch modulation
+        binauralReverb: false, // CPU savings
+        fakeBinaural: true, // Some width
+        spectralBalance: true, // Natural response
+        inharmonicity: true,
+        attackNoise: false,
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: false
+    },
+    ambient: {
+        // Ambient, dreamy, atmospheric sound - heavy spatial effects
+        // CPU: High (maximum spatial processing)
+        velocityTimbre: true,
+        twoStageDecay: true,
+        pedalCoupling: true,
+        sustainDecay: true,
+        advancedTimbre: false, // CPU for reverb
+        velocityAttack: true,
+        timeVaryingBrightness: true, // Evolving brightness
+        dynamicFilter: true,
+        frequencyCompensation: true,
+        frequencyEnvelope: true, // Pitch modulation adds atmosphere
+        binauralReverb: true, // KEY: Full spatial reverb
+        fakeBinaural: true, // Maximum width
+        spectralBalance: true, // Natural room response
+        inharmonicity: true,
+        attackNoise: false, // Soft in ambient space
+        oddEvenHarmonicBalance: true,
+        pitchHarmonicRolloff: true,
+        perPartialDecay: true,
+        releaseTransient: false // Reverb handles release
     }
 };
 
