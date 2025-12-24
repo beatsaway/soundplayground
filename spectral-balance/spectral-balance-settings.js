@@ -10,7 +10,8 @@ let spectralBalanceSettings = {
     gain: -20, // Gain reduction in dB (default: -20dB)
     Q: 0.7, // Filter Q (default: 0.7 for gentle slope)
     sustainPedalGainReduction: true, // Default: ON - Reduce gain to 0dB when sustain pedal is pressed
-    gainReductionDuration: 16.0 // Duration to reach 0dB when pedal pressed (default 16s, min 1s, max 32s)
+    gainReductionDuration: 16.0, // Duration to reach 0dB when pedal pressed (default 16s, min 1s, max 32s)
+    gainRestoreDuration: 0.2 // Duration to restore gain when pedal released (default 0.2s, min 0.1s, max 5s)
 };
 
 /**
@@ -85,6 +86,15 @@ function createSpectralBalancePopup() {
                         <span class="spectral-balance-value" id="spectral-balance-gain-reduction-duration-value">16.0 s</span>
                     </label>
                     <div class="spectral-balance-description">Time for gain to reach 0dB when sustain pedal is pressed. Range: 1-32 seconds. Default: 16 seconds</div>
+                </div>
+                
+                <div class="spectral-balance-setting" id="spectral-balance-gain-restore-duration-container" style="margin-left: 30px;">
+                    <label>
+                        <span>Gain Restore Duration</span>
+                        <input type="range" id="spectral-balance-gain-restore-duration" min="0.1" max="5" value="0.2" step="0.1">
+                        <span class="spectral-balance-value" id="spectral-balance-gain-restore-duration-value">0.2 s</span>
+                    </label>
+                    <div class="spectral-balance-description">Time for gain to restore to set value when sustain pedal is released. Range: 0.1-5 seconds. Default: 0.2 seconds</div>
                 </div>
                 
                 <div class="spectral-balance-info">
@@ -388,6 +398,21 @@ function setupSpectralBalanceControls() {
             setSpectralBalanceSettings({ gainReductionDuration: value });
         });
     }
+
+    // Gain Restore Duration slider
+    const gainRestoreDurationSlider = document.getElementById('spectral-balance-gain-restore-duration');
+    const gainRestoreDurationValue = document.getElementById('spectral-balance-gain-restore-duration-value');
+    if (gainRestoreDurationSlider && gainRestoreDurationValue) {
+        const currentDuration = spectralBalanceSettings.gainRestoreDuration !== undefined ? spectralBalanceSettings.gainRestoreDuration : 0.2;
+        gainRestoreDurationSlider.value = currentDuration;
+        gainRestoreDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        
+        gainRestoreDurationSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            gainRestoreDurationValue.textContent = value.toFixed(1) + ' s';
+            setSpectralBalanceSettings({ gainRestoreDuration: value });
+        });
+    }
 }
 
 /**
@@ -426,7 +451,8 @@ function resetSpectralBalanceToDefaults() {
         gain: -20,
         Q: 0.7,
         sustainPedalGainReduction: true,
-        gainReductionDuration: 16.0 // 16 seconds
+        gainReductionDuration: 16.0, // 16 seconds
+        gainRestoreDuration: 0.2 // 0.2 seconds
     };
 
     setSpectralBalanceSettings(defaults);
@@ -490,6 +516,14 @@ function openSpectralBalanceSettings() {
             const currentDuration = spectralBalanceSettings.gainReductionDuration !== undefined ? spectralBalanceSettings.gainReductionDuration : 16.0;
             gainReductionDurationSlider.value = currentDuration;
             gainReductionDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        }
+        
+        const gainRestoreDurationSlider = document.getElementById('spectral-balance-gain-restore-duration');
+        const gainRestoreDurationValue = document.getElementById('spectral-balance-gain-restore-duration-value');
+        if (gainRestoreDurationSlider && gainRestoreDurationValue) {
+            const currentDuration = spectralBalanceSettings.gainRestoreDuration !== undefined ? spectralBalanceSettings.gainRestoreDuration : 0.2;
+            gainRestoreDurationSlider.value = currentDuration;
+            gainRestoreDurationValue.textContent = currentDuration.toFixed(1) + ' s';
         }
         
         popup.classList.add('active');

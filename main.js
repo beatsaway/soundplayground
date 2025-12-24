@@ -1025,8 +1025,18 @@ function handleNoteOn_OLD(midiNote, velocity) {
             envelope: {
                 attack: attackTime,
                 decay: adjustedDecayTime,
-                sustain: (window.physicsSettings && window.physicsSettings.twoStageDecay) ? 
-                    (baseEnvelope.sustain * twoStageDecay.amplitudeRatio) : baseEnvelope.sustain,
+                sustain: (() => {
+                    if (window.physicsSettings && window.physicsSettings.twoStageDecay) {
+                        // If target sustain level is set, use it directly (overrides amplitudeRatio)
+                        const settings = (window.twoStageDecaySettings) ? window.twoStageDecaySettings : {};
+                        if (settings.targetSustainLevel !== undefined) {
+                            return settings.targetSustainLevel;
+                        }
+                        // Otherwise use amplitudeRatio calculation
+                        return baseEnvelope.sustain * twoStageDecay.amplitudeRatio;
+                    }
+                    return baseEnvelope.sustain;
+                })(),
                 release: releaseTime
             }
         });

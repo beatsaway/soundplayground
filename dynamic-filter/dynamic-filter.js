@@ -21,15 +21,21 @@ function getInitialFilterCutoff(velocity, frequency) {
         return 20000; // No filtering when disabled
     }
     
+    // Use settings if available, otherwise use defaults
+    const settings = (typeof window !== 'undefined' && window.dynamicFilterSettings) ? window.dynamicFilterSettings : {};
+    const keytrackedMult = settings.keytrackedMultiplier !== undefined ? settings.keytrackedMultiplier : 20;
+    const velocityMin = settings.velocityMinMultiplier !== undefined ? settings.velocityMinMultiplier : 0.3;
+    const velocityMax = settings.velocityMaxMultiplier !== undefined ? settings.velocityMaxMultiplier : 1.0;
+    
     const vNorm = Math.max(0, Math.min(127, velocity)) / 127.0;
     
     // Base cutoff: keytracked (higher notes = higher base cutoff)
     // This accounts for natural frequency-dependent harmonic content
-    const keytrackedBase = Math.min(20000, frequency * 20); // Higher notes naturally brighter
+    const keytrackedBase = Math.min(20000, frequency * keytrackedMult); // Higher notes naturally brighter
     
     // Velocity effect: louder = brighter = higher cutoff
-    // Range: 0.3x to 1.0x of keytracked base
-    const velocityMultiplier = 0.3 + 0.7 * vNorm;
+    // Range: velocityMin to velocityMax of keytracked base
+    const velocityMultiplier = velocityMin + (velocityMax - velocityMin) * vNorm;
     
     // Final cutoff: combine keytracking and velocity
     const initialCutoff = keytrackedBase * velocityMultiplier;
@@ -52,16 +58,20 @@ function getFilterCutoffAtTime(initialCutoff, timeSinceAttack, frequency) {
         return initialCutoff; // No filtering when disabled
     }
     
+    // Use settings if available, otherwise use defaults
+    const settings = (typeof window !== 'undefined' && window.dynamicFilterSettings) ? window.dynamicFilterSettings : {};
+    const baseDecayTime = settings.baseDecayTime !== undefined ? settings.baseDecayTime : 0.5;
+    const targetCutoffMult = settings.targetCutoffMultiplier !== undefined ? settings.targetCutoffMultiplier : 2.0;
+    
     // Decay rate: higher notes decay faster (lose harmonics faster)
     // Lower notes maintain harmonics longer
     // Formula: decay time scales inversely with frequency
-    const baseDecayTime = 0.5; // Base decay time in seconds
     const freqRatio = frequency / 440; // Relative to A4
     const decayTime = baseDecayTime / Math.sqrt(freqRatio); // Faster decay for higher notes
     
     // Exponential decay of cutoff frequency
-    // Cutoff closes from initialCutoff down to ~2x fundamental frequency
-    const targetCutoff = Math.max(200, frequency * 2); // Don't go below 2x fundamental
+    // Cutoff closes from initialCutoff down to targetCutoffMult x fundamental frequency
+    const targetCutoff = Math.max(200, frequency * targetCutoffMult); // Don't go below targetCutoffMult x fundamental
     const cutoffRange = initialCutoff - targetCutoff;
     
     // Exponential decay: cutoff = target + range * exp(-t/decayTime)
@@ -83,10 +93,14 @@ function getDynamicFilterSettings(velocity, frequency, timeSinceAttack) {
     const initialCutoff = getInitialFilterCutoff(velocity, frequency);
     const currentCutoff = getFilterCutoffAtTime(initialCutoff, timeSinceAttack, frequency);
     
+    // Use settings if available, otherwise use defaults
+    const settings = (typeof window !== 'undefined' && window.dynamicFilterSettings) ? window.dynamicFilterSettings : {};
+    const Q = settings.Q !== undefined ? settings.Q : 1.0;
+    
     return {
         type: 'lowpass',
         frequency: currentCutoff,
-        Q: 1.0, // Moderate resonance
+        Q: Q, // Filter resonance from settings
         gain: 0
     };
 }

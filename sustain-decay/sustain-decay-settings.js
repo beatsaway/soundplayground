@@ -7,7 +7,8 @@
 let sustainDecaySettings = {
     baseTime: 12.0, // Base sustain decay time in seconds for A0 (default: 12.0s)
     decayFactor: 2.5, // Decay factor k (default: 2.5) - halving roughly every 5 semitones
-    pedalMultiplier: 2.5 // Pedal extension multiplier (default: 2.5x) - extends sustain time with pedal
+    pedalMultiplier: 2.5, // Pedal extension multiplier (default: 2.5x) - extends sustain time with pedal
+    targetVolumeLevel: 0.05 // Target volume level to decay to during sustain (0.01 to 1.0, default: 0.05 = 5% = -26 dB). Lower = more obvious decay
 };
 
 /**
@@ -67,10 +68,20 @@ function createSustainDecayPopup() {
                     <div class="sustain-decay-description">Multiplier for sustain time when pedal is active (1.0 to 5.0x). Higher = longer sustain with pedal. Default: 2.5x</div>
                 </div>
                 
+                <div class="sustain-decay-setting">
+                    <label>
+                        <span>Target Volume Level</span>
+                        <input type="range" id="sustain-decay-target-volume" min="0.01" max="1.0" value="0.05" step="0.01">
+                        <span class="sustain-decay-value" id="sustain-decay-target-volume-value">5% (-26.0 dB)</span>
+                    </label>
+                    <div class="sustain-decay-description">Target volume level to decay to during sustain (1% to 100%). This setting is available for future implementation. Currently, notes release after the decay time rather than gradually fading to this level, due to Tone.js PolySynth limitations with per-voice volume control. Default: 5% (-26 dB).</div>
+                </div>
+                
                 <div class="sustain-decay-info">
                     <h3>How It Works</h3>
-                    <p>Real pianos have slow decay even with sustain pedal active - notes don't sustain forever. This module implements pitch-dependent gradual decay for sustained notes.</p>
-                    <p>Lower notes (bass) decay slower (longer sustain), higher notes (treble) decay faster (shorter sustain). The sustain pedal extends the decay time but notes still gradually fade away.</p>
+                    <p>Real pianos have slow decay even with sustain pedal active - notes don't sustain forever. This module implements pitch-dependent time-based release for sustained notes.</p>
+                    <p><strong>Current Implementation:</strong> Notes stay at sustain level, then release after a pitch-dependent decay time and fade out via the release envelope. Lower notes (bass) sustain longer, higher notes (treble) sustain shorter.</p>
+                    <p><strong>Note:</strong> The module is named "Sustain Decay" to reflect the intended behavior (gradual volume decay during sustain), but due to Tone.js PolySynth limitations with per-voice volume control, it currently implements time-based release rather than gradual volume decay. The "Target Volume Level" setting exists for future implementation.</p>
                 </div>
                 
                 <div class="sustain-decay-popup-footer">
@@ -330,6 +341,25 @@ function setupSustainDecayControls() {
             setSustainDecaySettings({ pedalMultiplier: value });
         });
     }
+
+    // Target Volume Level
+    const targetVolumeSlider = document.getElementById('sustain-decay-target-volume');
+    const targetVolumeValue = document.getElementById('sustain-decay-target-volume-value');
+    if (targetVolumeSlider && targetVolumeValue) {
+        const currentTargetVolume = sustainDecaySettings.targetVolumeLevel !== undefined ? sustainDecaySettings.targetVolumeLevel : 0.05;
+        targetVolumeSlider.value = currentTargetVolume;
+        const percentValue = Math.round(currentTargetVolume * 100);
+        const dbValue = 20 * Math.log10(currentTargetVolume);
+        targetVolumeValue.textContent = percentValue + '% (' + dbValue.toFixed(1) + ' dB)';
+        
+        targetVolumeSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            const percentValue = Math.round(value * 100);
+            const dbValue = 20 * Math.log10(value);
+            targetVolumeValue.textContent = percentValue + '% (' + dbValue.toFixed(1) + ' dB)';
+            setSustainDecaySettings({ targetVolumeLevel: value });
+        });
+    }
 }
 
 /**
@@ -360,7 +390,8 @@ function resetSustainDecayToDefaults() {
     const defaults = {
         baseTime: 12.0,
         decayFactor: 2.5,
-        pedalMultiplier: 2.5
+        pedalMultiplier: 2.5,
+        targetVolumeLevel: 0.05
     };
 
     setSustainDecaySettings(defaults);
@@ -372,6 +403,8 @@ function resetSustainDecayToDefaults() {
     const factorValue = document.getElementById('sustain-decay-factor-value');
     const pedalMultSlider = document.getElementById('sustain-decay-pedal-mult');
     const pedalMultValue = document.getElementById('sustain-decay-pedal-mult-value');
+    const targetVolumeSlider = document.getElementById('sustain-decay-target-volume');
+    const targetVolumeValue = document.getElementById('sustain-decay-target-volume-value');
 
     if (baseTimeSlider) baseTimeSlider.value = 12;
     if (baseTimeValue) baseTimeValue.textContent = '12.0 s';
@@ -379,6 +412,8 @@ function resetSustainDecayToDefaults() {
     if (factorValue) factorValue.textContent = '2.5';
     if (pedalMultSlider) pedalMultSlider.value = 2.5;
     if (pedalMultValue) pedalMultValue.textContent = '2.5x';
+    if (targetVolumeSlider) targetVolumeSlider.value = 0.05;
+    if (targetVolumeValue) targetVolumeValue.textContent = '5% (-26.0 dB)';
 }
 
 /**
@@ -411,6 +446,16 @@ function openSustainDecaySettings() {
             const currentPedalMult = sustainDecaySettings.pedalMultiplier;
             pedalMultSlider.value = Math.round(currentPedalMult * 10) / 10;
             pedalMultValue.textContent = currentPedalMult.toFixed(1) + 'x';
+        }
+        
+        const targetVolumeSlider = document.getElementById('sustain-decay-target-volume');
+        const targetVolumeValue = document.getElementById('sustain-decay-target-volume-value');
+        if (targetVolumeSlider && targetVolumeValue) {
+            const currentTargetVolume = sustainDecaySettings.targetVolumeLevel !== undefined ? sustainDecaySettings.targetVolumeLevel : 0.05;
+            targetVolumeSlider.value = currentTargetVolume;
+            const percentValue = Math.round(currentTargetVolume * 100);
+            const dbValue = 20 * Math.log10(currentTargetVolume);
+            targetVolumeValue.textContent = percentValue + '% (' + dbValue.toFixed(1) + ' dB)';
         }
         
         popup.classList.add('active');

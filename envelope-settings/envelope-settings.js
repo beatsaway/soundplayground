@@ -11,7 +11,8 @@ let envelopeSettings = {
     sustain: 0.3,      // Sustain level (0-1, default 0.3)
     release: 0.5,      // Release time in seconds (default 500ms)
     sustainPedalSustainBoost: true, // Default: ON - Boost sustain to 1.0 when sustain pedal is pressed
-    sustainBoostDuration: 8.0 // Duration to reach 1.0 when pedal pressed (default 8s, min 1s, max 16s)
+    sustainBoostDuration: 8.0, // Duration to reach 1.0 when pedal pressed (default 8s, min 1s, max 16s)
+    sustainRestoreDuration: 0.2 // Duration to restore sustain when pedal released (default 0.2s, min 0.1s, max 5s)
 };
 
 // Track effective sustain level (user sustain + sustain pedal boost)
@@ -105,6 +106,15 @@ function createEnvelopeSettingsPopup() {
                         <span class="envelope-settings-value" id="envelope-sustain-boost-duration-value">8.0 s</span>
                     </label>
                     <div class="envelope-settings-description">Time for sustain level to reach 1.0 when sustain pedal is pressed. Range: 1-16 seconds. Default: 8 seconds</div>
+                </div>
+                
+                <div class="envelope-settings-setting" id="envelope-sustain-restore-duration-container" style="margin-left: 30px;">
+                    <label>
+                        <span>Sustain Restore Duration</span>
+                        <input type="range" id="envelope-sustain-restore-duration" min="0.1" max="5" value="0.2" step="0.1">
+                        <span class="envelope-settings-value" id="envelope-sustain-restore-duration-value">0.2 s</span>
+                    </label>
+                    <div class="envelope-settings-description">Time for sustain level to restore to set value when sustain pedal is released. Range: 0.1-5 seconds. Default: 0.2 seconds</div>
                 </div>
                 
                 <div class="envelope-settings-popup-footer">
@@ -391,6 +401,21 @@ function setupEnvelopeSettingsControls() {
             setEnvelopeSettings({ sustainBoostDuration: value });
         });
     }
+
+    // Sustain Restore Duration slider
+    const sustainRestoreDurationSlider = document.getElementById('envelope-sustain-restore-duration');
+    const sustainRestoreDurationValue = document.getElementById('envelope-sustain-restore-duration-value');
+    if (sustainRestoreDurationSlider && sustainRestoreDurationValue) {
+        const currentDuration = envelopeSettings.sustainRestoreDuration !== undefined ? envelopeSettings.sustainRestoreDuration : 0.2;
+        sustainRestoreDurationSlider.value = currentDuration;
+        sustainRestoreDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        
+        sustainRestoreDurationSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            sustainRestoreDurationValue.textContent = value.toFixed(1) + ' s';
+            setEnvelopeSettings({ sustainRestoreDuration: value });
+        });
+    }
 }
 
 /**
@@ -448,7 +473,8 @@ function resetEnvelopeSettingsToDefaults() {
         sustain: 0.3,   // 0.3
         release: 0.5,   // 500ms
         sustainPedalSustainBoost: true,
-        sustainBoostDuration: 8.0 // 8 seconds
+        sustainBoostDuration: 8.0, // 8 seconds
+        sustainRestoreDuration: 0.2 // 0.2 seconds
     };
 
     setEnvelopeSettings(defaults);
@@ -526,6 +552,14 @@ function openEnvelopeSettings() {
             sustainBoostDurationValue.textContent = currentDuration.toFixed(1) + ' s';
         }
         
+        const sustainRestoreDurationSlider = document.getElementById('envelope-sustain-restore-duration');
+        const sustainRestoreDurationValue = document.getElementById('envelope-sustain-restore-duration-value');
+        if (sustainRestoreDurationSlider && sustainRestoreDurationValue) {
+            const currentDuration = envelopeSettings.sustainRestoreDuration !== undefined ? envelopeSettings.sustainRestoreDuration : 0.2;
+            sustainRestoreDurationSlider.value = currentDuration;
+            sustainRestoreDurationValue.textContent = currentDuration.toFixed(1) + ' s';
+        }
+        
         popup.classList.add('active');
     }
 }
@@ -568,9 +602,10 @@ function handleSustainPedalChangeEnvelope(pedalActive) {
     
     const currentSustain = effectiveSustain;
     const targetSustain = pedalActive ? 1.0 : userSustain; // 1.0 when pedal active, user sustain when released
-    // Get duration from settings (default 8s for boost, 2s for release)
+    // Get duration from settings (default 8s for boost, 0.2s for restore)
     const boostDuration = envelopeSettings.sustainBoostDuration !== undefined ? envelopeSettings.sustainBoostDuration : 8.0;
-    const transitionDuration = pedalActive ? boostDuration : 2.0; // Configurable when pressing, 2s when releasing
+    const restoreDuration = envelopeSettings.sustainRestoreDuration !== undefined ? envelopeSettings.sustainRestoreDuration : 0.2;
+    const transitionDuration = pedalActive ? boostDuration : restoreDuration; // Configurable durations for both directions
     
     // We need to smoothly transition the sustain level
     // Since Tone.js synth.set() affects all voices immediately, we'll use a gradual update approach

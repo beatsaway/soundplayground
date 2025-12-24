@@ -21,6 +21,13 @@ function getTimeVaryingBrightness(velocity, timeSinceAttack) {
         return 1.0; // No brightness variation when disabled
     }
     
+    // Use settings if available, otherwise use defaults
+    const settings = (typeof window !== 'undefined' && window.timeVaryingBrightnessSettings) ? window.timeVaryingBrightnessSettings : {};
+    const attackBrightnessPeak = settings.attackBrightnessPeak !== undefined ? settings.attackBrightnessPeak : 0.3;
+    const decayBrightness = settings.decayBrightness !== undefined ? settings.decayBrightness : 0.2;
+    const baseDecayTime = settings.baseDecayTime !== undefined ? settings.baseDecayTime : 0.5;
+    const decayTimeRange = settings.decayTimeRange !== undefined ? settings.decayTimeRange : 2.0;
+    
     const vNorm = Math.max(0, Math.min(127, velocity)) / 127.0;
     
     // Get attack time (velocity-dependent)
@@ -30,12 +37,12 @@ function getTimeVaryingBrightness(velocity, timeSinceAttack) {
     if (timeSinceAttack < attackTime) {
         // During attack: brightness peaks
         const attackProgress = timeSinceAttack / attackTime;
-        return 1.0 + 0.3 * Math.sin(attackProgress * Math.PI) * vNorm;
+        return 1.0 + attackBrightnessPeak * Math.sin(attackProgress * Math.PI) * vNorm;
     } else {
         // After attack: gradual decay of brightness
-        const decayTime = 0.5 + (1.0 - vNorm) * 2.0; // Louder = longer decay
+        const decayTime = baseDecayTime + (1.0 - vNorm) * decayTimeRange; // Louder = longer decay
         const decayProgress = Math.min(1.0, (timeSinceAttack - attackTime) / decayTime);
-        return 1.0 + 0.2 * (1.0 - decayProgress) * vNorm;
+        return 1.0 + decayBrightness * (1.0 - decayProgress) * vNorm;
     }
 }
 

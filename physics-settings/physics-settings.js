@@ -666,6 +666,69 @@ function initPhysicsSettings() {
     if (window.initEnvelopeSettings) {
         window.initEnvelopeSettings();
     }
+
+    // Setup two-stage decay settings button
+    const twoStageDecaySettingsBtn = document.getElementById('two-stage-decay-settings-btn');
+    if (twoStageDecaySettingsBtn) {
+        twoStageDecaySettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (window.openTwoStageDecaySettings) {
+                window.openTwoStageDecaySettings();
+            } else {
+                console.error('openTwoStageDecaySettings function not found. Make sure two-stage-decay-settings.js is loaded.');
+            }
+        });
+    } else {
+        console.warn('Two-stage decay settings button not found.');
+    }
+
+    // Initialize two-stage decay settings popup
+    if (window.initTwoStageDecaySettings) {
+        window.initTwoStageDecaySettings();
+    }
+
+    // Setup dynamic filter settings button
+    const dynamicFilterSettingsBtn = document.getElementById('dynamic-filter-settings-btn');
+    if (dynamicFilterSettingsBtn) {
+        dynamicFilterSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (window.openDynamicFilterSettings) {
+                window.openDynamicFilterSettings();
+            } else {
+                console.error('openDynamicFilterSettings function not found. Make sure dynamic-filter-settings.js is loaded.');
+            }
+        });
+    } else {
+        console.warn('Dynamic filter settings button not found.');
+    }
+
+    // Initialize dynamic filter settings popup
+    if (window.initDynamicFilterSettings) {
+        window.initDynamicFilterSettings();
+    }
+
+    // Setup time-varying brightness settings button
+    const timeVaryingBrightnessSettingsBtn = document.getElementById('time-varying-brightness-settings-btn');
+    if (timeVaryingBrightnessSettingsBtn) {
+        timeVaryingBrightnessSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (window.openTimeVaryingBrightnessSettings) {
+                window.openTimeVaryingBrightnessSettings();
+            } else {
+                console.error('openTimeVaryingBrightnessSettings function not found. Make sure time-varying-brightness-settings.js is loaded.');
+            }
+        });
+    } else {
+        console.warn('Time-varying brightness settings button not found.');
+    }
+
+    // Initialize time-varying brightness settings popup
+    if (window.initTimeVaryingBrightnessSettings) {
+        window.initTimeVaryingBrightnessSettings();
+    }
 }
 
 // Export for use in other modules

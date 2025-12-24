@@ -2,8 +2,13 @@
  * Sustain Decay Module
  * Based on research4: The "Sustain" Illusion - Pedal Physics
  * 
- * Implements pitch-dependent gradual decay for sustained notes when sustain pedal is active.
+ * Implements pitch-dependent time-based release for sustained notes when sustain pedal is active.
  * Real pianos have slow decay even with sustain pedal - notes don't sustain forever.
+ * 
+ * NOTE: This module currently implements time-based release (releases after decay time) rather than
+ * gradual volume decay during sustain, due to Tone.js PolySynth limitations with per-voice volume control.
+ * The name "Sustain Decay" reflects the intended behavior, but the current implementation schedules
+ * a release after the calculated decay time, then uses the release envelope for fade-out.
  * 
  * Research indicates: τ_life ≈ 1-10 seconds depending on note (research4, line 132)
  * With pedal: τ_pedal = τ_natural * (1 + 2.5*pedal_position)
@@ -34,9 +39,12 @@ function calculateSustainDecayTime(midiNote) {
 }
 
 /**
- * Start gradual decay for a sustained note
+ * Start time-based release for a sustained note
  * Real pianos have slow decay even with sustain pedal active
  * Uses Tone.js Transport scheduling to release notes after decay time
+ * 
+ * NOTE: Currently implements time-based release rather than gradual volume decay during sustain.
+ * The note stays at sustain level, then releases after the decay time and fades out via release envelope.
  * 
  * @param {number} midiNote - MIDI note number
  * @param {string} noteName - Note name (e.g., "C4")
@@ -83,25 +91,29 @@ function startSustainDecay(midiNote, noteName, dependencies) {
         Tone.Transport.start();
     }
     
+    // Get target volume level from settings (default: 0.05 = 5%)
+    const targetVolumeLevel = (window.sustainDecaySettings && window.sustainDecaySettings.targetVolumeLevel !== undefined) 
+        ? window.sustainDecaySettings.targetVolumeLevel 
+        : 0.05;
+    
     // Calculate exponential decay parameters
     const startTime = Tone.now();
-    const timeConstant = sustainDecayTime / 3; // Time to decay to ~37% (1/e)
+    const endTime = startTime + sustainDecayTime;
     
     // Store the automation info
     const automation = {
         startTime: startTime,
         decayTime: sustainDecayTime,
-        timeConstant: timeConstant,
+        endTime: endTime,
+        targetVolumeLevel: targetVolumeLevel,
         volumeNode: null,
         cancel: null
     };
     
     // Set a longer release time for this sustained note when it eventually releases
-    // This ensures a smooth, gradual fade-out that matches the sustain decay time
     const longReleaseTime = Math.min(8.0, Math.max(1.0, sustainDecayTime * 0.5)); // Release phase is 50% of total decay, min 1s, max 8s
     
     // Update the synth's release time for sustained notes
-    // Note: This affects all voices, but it's the best we can do with PolySynth
     synth.set({
         envelope: {
             release: longReleaseTime
@@ -109,7 +121,13 @@ function startSustainDecay(midiNote, noteName, dependencies) {
     });
     
     // Schedule the release after the sustain decay time
-    // The long release envelope will handle a smooth fade-out
+    // The note will stay at sustain level until release, then fade out smoothly via release envelope
+    // 
+    // LIMITATION: Per-note gradual volume decay during sustain is not easily achievable with Tone.js PolySynth
+    // as it doesn't support per-voice volume control. The target volume level setting exists but is not
+    // currently used. The note releases after the decay time, and the release envelope fades from
+    // current sustain level to 0. This is why the module is named "Sustain Decay" (intended behavior)
+    // but currently only implements time-based release (actual behavior).
     const releaseSchedule = Tone.Transport.scheduleOnce(() => {
         if (sustainedNotes.has(midiNote) && !physicallyHeldNotes.has(midiNote)) {
             // Only release if still sustained and not physically held
@@ -128,7 +146,7 @@ function startSustainDecay(midiNote, noteName, dependencies) {
                 noteVolumeNodes.delete(noteName);
             }
         }
-    }, startTime + sustainDecayTime);
+    }, endTime);
     
     automation.cancel = () => {
         Tone.Transport.clear(releaseSchedule);
@@ -140,11 +158,12 @@ function startSustainDecay(midiNote, noteName, dependencies) {
     
     sustainDecayAutomations.set(midiNote, automation);
     
-    // Note: Since Tone.js PolySynth doesn't allow per-voice volume control,
-    // we schedule the release after the decay time. The note will stay at sustain level
-    // until release, then fade out smoothly with the long release envelope.
-    // This approximates real piano behavior where notes sustain for a long time
-    // before gradually fading away.
+    // Note: The target volume level setting is stored but not yet used for gradual decay
+    // due to Tone.js PolySynth limitations with per-voice volume control.
+    // The note will release after the decay time, and the release envelope handles the fade-out.
+    // 
+    // The module name "Sustain Decay" reflects the intended behavior (gradual decay during sustain),
+    // but the current implementation is time-based release (releases after decay time, then fades out).
 }
 
 // Export for use in other modules

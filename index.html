@@ -442,6 +442,7 @@
                         <input type="checkbox" id="enable-two-stage-decay" checked>
                         <div>
                             <strong>Two-Stage Decay</strong>
+                            <button class="binaural-reverb-button" id="two-stage-decay-settings-btn">[...]</button>
                             <div class="setting-description">
                                 Realistic piano decay: fast initial decay followed by slower long decay. Velocity affects decay rates.
                                 <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 50ms (fast) → seconds (slow decay)</span>
@@ -489,6 +490,7 @@
                         <input type="checkbox" id="enable-dynamic-filter" checked>
                         <div>
                             <strong>Dynamic Low-Pass Filter</strong>
+                            <button class="binaural-reverb-button" id="dynamic-filter-settings-btn">[...]</button>
                             <div class="setting-description">
                                 Keytracked low-pass filter that closes as notes decay, mimicking harmonic damping in real piano strings.
                                 <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Continuous (0.5-2s decay, note-dependent)</span>
@@ -503,6 +505,7 @@
                         <input type="checkbox" id="enable-time-varying-brightness">
                         <div>
                             <strong>Time-Varying Brightness</strong>
+                            <button class="binaural-reverb-button" id="time-varying-brightness-settings-btn">[...]</button>
                             <div class="setting-description">
                                 Harmonic content evolves during the note - brightness peaks during attack, then gradually decays.
                                 <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Attack phase → 0.5-2.5s decay</span>
@@ -657,7 +660,7 @@
                             <strong>Sustain Pedal Gradual Decay</strong>
                             <button class="binaural-reverb-button" id="sustain-decay-settings-btn">[...]</button>
                             <div class="setting-description">
-                                Sustained notes gradually fade over time (pitch-dependent). Lower notes decay slower, higher notes decay faster.
+                                Sustained notes release after a pitch-dependent decay time (time-based, not gradual volume decay). Lower notes sustain longer, higher notes sustain shorter. Currently implements time-based release rather than gradual volume decay during sustain due to technical limitations.
                                 <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Seconds to minutes (while pedal held, note-dependent)</span>
                             </div>
                             <div class="setting-cpu-warning">CPU: Low impact</div>
@@ -758,12 +761,15 @@
     <script src="velocity-timbre/velocity-timbre.js"></script>
     <script src="velocity-attack/velocity-attack.js"></script>
     <script src="time-varying-brightness/time-varying-brightness.js"></script>
+    <script src="time-varying-brightness/time-varying-brightness-settings.js"></script>
     <script src="dynamic-filter/dynamic-filter.js"></script>
+    <script src="dynamic-filter/dynamic-filter-settings.js"></script>
     <script src="frequency-compensation/frequency-compensation.js"></script>
     <script src="frequency-compensation/frequency-compensation-settings.js"></script>
     <script src="frequency-envelope/frequency-envelope.js"></script>
     <script src="advanced-timbre/advanced-timbre.js"></script>
     <script src="two-stage-decay/two-stage-decay.js"></script>
+    <script src="two-stage-decay/two-stage-decay-settings.js"></script>
     <script src="pedal-coupling/pedal-coupling.js"></script>
     <script src="sustain-decay/sustain-decay.js"></script>
     <script src="sustain-decay/sustain-decay-settings.js"></script>
