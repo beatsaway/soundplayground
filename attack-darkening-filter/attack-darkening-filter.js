@@ -84,10 +84,10 @@ function getTargetAttackDarkeningCutoff(velocity, frequency) {
 
 /**
  * Calculate filter cutoff at a given time after note attack
- * Filter starts dark and stays dark for the note's entire duration (never returns to normal)
+ * Filter plays normally (bright) during hold duration, then transitions to dark over attack time, then stays dark
  * 
  * @param {number} initialCutoff - Initial cutoff frequency in Hz (dark)
- * @param {number} targetCutoff - Target cutoff frequency in Hz (bright/normal) - not used, kept for compatibility
+ * @param {number} targetCutoff - Target cutoff frequency in Hz (bright/normal)
  * @param {number} timeSinceAttack - Time since note attack in seconds
  * @param {number} frequency - Note frequency in Hz (not used, kept for compatibility)
  * @returns {number} - Current cutoff frequency in Hz
@@ -97,8 +97,35 @@ function getAttackDarkeningCutoffAtTime(initialCutoff, targetCutoff, timeSinceAt
         return 20000; // No filtering when disabled
     }
     
-    // Stay dark for the note's entire lifetime - never return to normal brightness
-    // The darkening persists as long as the note is active
+    // Get hold duration from settings (default: 0.2 seconds)
+    const holdDuration = (window.attackDarkeningSettings && window.attackDarkeningSettings.holdDuration !== undefined)
+        ? window.attackDarkeningSettings.holdDuration
+        : 0.2; // Default: 200ms
+    
+    // Get darkening attack time from settings (default: 0.1 seconds)
+    const darkeningAttackTime = (window.attackDarkeningSettings && window.attackDarkeningSettings.darkeningDuration !== undefined)
+        ? window.attackDarkeningSettings.darkeningDuration
+        : 0.1; // Default: 100ms
+    
+    // During hold duration: play normally (bright)
+    if (timeSinceAttack < holdDuration) {
+        return targetCutoff;
+    }
+    
+    // After hold duration: transition from bright to dark over attack time
+    const timeSinceDarkeningStarted = timeSinceAttack - holdDuration;
+    
+    if (timeSinceDarkeningStarted < darkeningAttackTime) {
+        // During transition: interpolate from bright to dark
+        const transitionProgress = timeSinceDarkeningStarted / darkeningAttackTime;
+        // Exponential transition for smooth fade
+        const easedProgress = 1 - Math.exp(-transitionProgress * 5);
+        const cutoffRange = targetCutoff - initialCutoff;
+        const currentCutoff = targetCutoff - (cutoffRange * easedProgress);
+        return Math.max(initialCutoff, Math.min(targetCutoff, currentCutoff));
+    }
+    
+    // After transition completes: stay dark
     return initialCutoff;
 }
 

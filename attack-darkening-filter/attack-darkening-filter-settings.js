@@ -7,7 +7,8 @@
 let attackDarkeningSettings = {
     enabled: true, // Default: ON
     darkeningAmount: 0.3, // Cutoff multiplier (0.0-1.0): lower = darker. 0.3 means cutoff is 30% of normal (default: 0.3 = 30%)
-    darkeningDuration: 4.0 // Duration in seconds that darkening persists for the note (default: 4.0s, min: 0.1s, max: 10.0s)
+    holdDuration: 0.2, // Duration in seconds before darkening starts - note plays normally during this time (default: 0.2s, min: 0.0s, max: 2.0s)
+    darkeningDuration: 0.1 // Duration in seconds for transition from bright to dark (attack time) (default: 0.1s, min: 0.01s, max: 2.0s)
 };
 
 /**
@@ -59,16 +60,25 @@ function createAttackDarkeningFilterPopup() {
                 
                 <div class="attack-darkening-filter-setting">
                     <label>
-                        <span>Darkening Duration</span>
-                        <input type="range" id="attack-darkening-filter-duration" min="0.1" max="10.0" value="4.0" step="0.1">
-                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-duration-value">4.0 s</span>
+                        <span>Hold Duration</span>
+                        <input type="range" id="attack-darkening-filter-hold" min="0.0" max="2.0" value="0.2" step="0.01">
+                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-hold-value">0.20 s</span>
                     </label>
-                    <div class="attack-darkening-filter-description">Minimum duration setting (0.1 to 10.0 seconds). Notes stay dark for their entire duration - this setting is kept for compatibility. Default: 4.0 seconds</div>
+                    <div class="attack-darkening-filter-description">Time before darkening starts (0.0 to 2.0 seconds). Note plays normally (bright) during this time, then darkens. Default: 0.2 seconds (200ms)</div>
+                </div>
+                
+                <div class="attack-darkening-filter-setting">
+                    <label>
+                        <span>Darkening Attack Time</span>
+                        <input type="range" id="attack-darkening-filter-duration" min="0.01" max="2.0" value="0.1" step="0.01">
+                        <span class="attack-darkening-filter-value" id="attack-darkening-filter-duration-value">0.10 s</span>
+                    </label>
+                    <div class="attack-darkening-filter-description">Time to transition from bright to dark (0.01 to 2.0 seconds). Shorter = faster darkening. After transition completes, note stays dark. Default: 0.1 seconds (100ms)</div>
                 </div>
                 
                 <div class="attack-darkening-filter-info">
                     <h3>How It Works</h3>
-                    <p>This filter applies a per-note low-pass filter that starts with a reduced cutoff frequency (darker sound) when a note begins playing. Once a note gets dark, it stays dark for the entire note duration - it never returns to normal brightness.</p>
+                    <p>This filter applies a per-note low-pass filter with a configurable hold period and attack time. The note plays normally (bright) for the hold duration, then transitions to dark over the darkening attack time. Once dark, it stays dark for the note's duration.</p>
                     <p><strong>Key Features:</strong></p>
                     <ul>
                         <li>Per-note filtering: Each note has its own filter that keeps it dark</li>
@@ -273,6 +283,18 @@ function setupAttackDarkeningFilterControls() {
         });
     }
     
+    // Hold duration slider
+    const holdSlider = document.getElementById('attack-darkening-filter-hold');
+    const holdValue = document.getElementById('attack-darkening-filter-hold-value');
+    if (holdSlider && holdValue) {
+        holdSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            attackDarkeningSettings.holdDuration = value;
+            holdValue.textContent = value.toFixed(2) + ' s';
+            updateAttackDarkeningFilterSettings();
+        });
+    }
+    
     // Darkening duration slider
     const durationSlider = document.getElementById('attack-darkening-filter-duration');
     const durationValue = document.getElementById('attack-darkening-filter-duration-value');
@@ -305,6 +327,8 @@ function showAttackDarkeningFilterSettings() {
         const enabledCheckbox = document.getElementById('attack-darkening-filter-enabled');
         const amountSlider = document.getElementById('attack-darkening-filter-amount');
         const amountValue = document.getElementById('attack-darkening-filter-amount-value');
+        const holdSlider = document.getElementById('attack-darkening-filter-hold');
+        const holdValue = document.getElementById('attack-darkening-filter-hold-value');
         const durationSlider = document.getElementById('attack-darkening-filter-duration');
         const durationValue = document.getElementById('attack-darkening-filter-duration-value');
         
@@ -314,6 +338,10 @@ function showAttackDarkeningFilterSettings() {
         if (amountSlider && amountValue) {
             amountSlider.value = attackDarkeningSettings.darkeningAmount;
             amountValue.textContent = Math.round(attackDarkeningSettings.darkeningAmount * 100) + '%';
+        }
+        if (holdSlider && holdValue) {
+            holdSlider.value = attackDarkeningSettings.holdDuration;
+            holdValue.textContent = attackDarkeningSettings.holdDuration.toFixed(2) + ' s';
         }
         if (durationSlider && durationValue) {
             durationSlider.value = attackDarkeningSettings.darkeningDuration;
