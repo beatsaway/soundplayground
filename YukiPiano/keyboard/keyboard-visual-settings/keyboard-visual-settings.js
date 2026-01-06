@@ -49,9 +49,9 @@
                 <label>
                     <input type="checkbox" id="enable-key-highlight">
                     <div>
-                        <strong>Yellow Highlight on Press</strong>
+                        <strong>Highlight on Press</strong>
                         <div class="setting-description">
-                            Tint keys yellow when pressed for visual feedback.
+                            Highlight keys when pressed for visual feedback.
                         </div>
                     </div>
                 </label>
@@ -248,8 +248,8 @@
                             <span>Animation Style</span>
                             <select id="key-movement-style">
                                 <option value="none">No Movement</option>
-                                <option value="instant" selected>Instant Position Change</option>
-                                <option value="animated">Animated Movement</option>
+                                <option value="instant">Instant Position Change</option>
+                                <option value="animated" selected>Animated Movement</option>
                             </select>
                         </label>
                         <div class="key-movement-description">Choose how keys move when pressed/released. Instant = immediate movement, Animated = smooth transition.</div>
@@ -376,6 +376,16 @@
                     font-family: 'Inter', sans-serif;
                     font-size: 13px;
                     cursor: pointer;
+                }
+                .key-movement-setting select option {
+                    background: rgba(40, 40, 55, 0.98);
+                    color: #fff;
+                    padding: 8px 12px;
+                }
+                .key-movement-setting select:focus {
+                    outline: none;
+                    border-color: #4a9eff;
+                    background: rgba(255, 255, 255, 0.15);
                 }
                 .key-movement-setting input[type="range"] {
                     flex: 1;
@@ -533,7 +543,7 @@
             const durationContainer = document.getElementById('key-movement-animation-duration-container');
             
             if (styleSelect) {
-                styleSelect.value = window.keyMovementSettings.animationStyle || 'instant';
+                styleSelect.value = window.keyMovementSettings.animationStyle || 'animated';
                 if (durationContainer) {
                     durationContainer.style.display = styleSelect.value === 'animated' ? 'flex' : 'none';
                 }
@@ -559,7 +569,7 @@
      * Reset key movement to defaults
      */
     function resetKeyMovementToDefaults() {
-        window.keyMovementSettings.animationStyle = 'instant';
+        window.keyMovementSettings.animationStyle = 'animated';
         window.keyMovementSettings.pressDepth = 0.7;
         window.keyMovementSettings.animationDuration = 0.1;
         
@@ -571,7 +581,7 @@
         const durationValue = document.getElementById('key-movement-duration-value');
         const durationContainer = document.getElementById('key-movement-animation-duration-container');
         
-        if (styleSelect) styleSelect.value = 'instant';
+        if (styleSelect) styleSelect.value = 'animated';
         if (depthSlider) depthSlider.value = 70;
         if (depthValue) depthValue.textContent = '70%';
         if (durationSlider) durationSlider.value = 100;
@@ -614,6 +624,18 @@
                             </select>
                         </label>
                         <div class="key-labels-description">Choose when labels are visible. "Show Only When Pressed" = labels appear when keys are pressed (default). "Always Visible" = labels always shown.</div>
+                    </div>
+                    
+                    <div class="key-labels-setting">
+                        <label>
+                            <span>Black Key Labels</span>
+                            <select id="key-labels-black-key-mode">
+                                <option value="both" selected>Show Both (Sharp/Flat)</option>
+                                <option value="sharp">Show Sharp Only</option>
+                                <option value="flat">Show Flat Only</option>
+                            </select>
+                        </label>
+                        <div class="key-labels-description">Choose how black keys are labeled. "Show Both" displays both sharp and flat notation (e.g., C#/D♭). "Show Sharp Only" displays only sharp notation (e.g., C#). "Show Flat Only" displays only flat notation (e.g., D♭).</div>
                     </div>
                     
                     <div class="key-labels-popup-footer">
@@ -720,6 +742,16 @@
                     font-size: 13px;
                     cursor: pointer;
                 }
+                .key-labels-setting select option {
+                    background: rgba(40, 40, 55, 0.98);
+                    color: #fff;
+                    padding: 8px 12px;
+                }
+                .key-labels-setting select:focus {
+                    outline: none;
+                    border-color: #4a9eff;
+                    background: rgba(255, 255, 255, 0.15);
+                }
                 .key-labels-description {
                     font-size: 11px;
                     color: rgba(255, 255, 255, 0.6);
@@ -763,6 +795,7 @@
         const closeBtn = popup.querySelector('.key-labels-popup-close');
         const resetBtn = popup.querySelector('.key-labels-reset');
         const visibilitySelect = document.getElementById('key-labels-visibility');
+        const blackKeyModeSelect = document.getElementById('key-labels-black-key-mode');
         
         // Close popup
         if (closeBtn) {
@@ -797,6 +830,19 @@
                 }
             });
         }
+        
+        // Black key label mode select
+        if (blackKeyModeSelect) {
+            blackKeyModeSelect.addEventListener('change', (e) => {
+                const mode = e.target.value;
+                window.keyLabelSettings.blackKeyLabelMode = mode;
+                
+                // Update all black key labels
+                if (window.updateBlackKeyLabels) {
+                    window.updateBlackKeyLabels();
+                }
+            });
+        }
     }
     
     /**
@@ -807,10 +853,16 @@
         if (popup) {
             // Sync UI with current settings
             const visibilitySelect = document.getElementById('key-labels-visibility');
+            const blackKeyModeSelect = document.getElementById('key-labels-black-key-mode');
             
             if (visibilitySelect) {
                 const mode = window.keyLabelSettings.showOnlyWhenPressed ? 'pressed' : 'always';
                 visibilitySelect.value = mode;
+            }
+            
+            if (blackKeyModeSelect) {
+                const mode = window.keyLabelSettings.blackKeyLabelMode || 'both';
+                blackKeyModeSelect.value = mode;
             }
             
             popup.classList.add('active');
@@ -823,15 +875,26 @@
     function resetKeyLabelsToDefaults() {
         window.keyLabelSettings.showOnlyWhenPressed = true;
         window.keyLabelSettings.alwaysVisible = false;
+        window.keyLabelSettings.blackKeyLabelMode = 'both';
         
         // Update UI
         const visibilitySelect = document.getElementById('key-labels-visibility');
+        const blackKeyModeSelect = document.getElementById('key-labels-black-key-mode');
+        
         if (visibilitySelect) {
             visibilitySelect.value = 'pressed';
         }
         
+        if (blackKeyModeSelect) {
+            blackKeyModeSelect.value = 'both';
+        }
+        
         if (window.updateAllKeyLabels) {
             window.updateAllKeyLabels();
+        }
+        
+        if (window.updateBlackKeyLabels) {
+            window.updateBlackKeyLabels();
         }
     }
     

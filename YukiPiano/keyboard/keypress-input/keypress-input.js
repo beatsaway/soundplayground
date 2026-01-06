@@ -1,7 +1,7 @@
 /**
  * Keypress Input Module
  * Handles computer keyboard input to play piano keys
- * Maps: a,w,s,e,d,f,t,g,y,h,u,j,k,o,l to C3-D4 range
+ * Maps: a,w,s,e,d,f,t,g,y,h,u,j,k,o,l,p,;,',],\ to C3-G4 range
  * < and > to shift octave (A0 to C8 range)
  */
 
@@ -27,8 +27,8 @@
     let handleNoteOffFn = null;
     
     // Keyboard mapping: key -> { midiNoteOffset, isBlack }
-    // Base range: C3 to D4 (MIDI notes 48-50, 52-54, 56-58, 60-62)
-    // C3=48, C#3=49, D3=50, D#3=51, E3=52, F3=53, F#3=54, G3=55, G#3=56, A3=57, A#3=58, B3=59, C4=60, C#4=61, D4=62
+    // Base range: C3 to G4 (MIDI notes 48-67)
+    // C3=48, C#3=49, D3=50, D#3=51, E3=52, F3=53, F#3=54, G3=55, G#3=56, A3=57, A#3=58, B3=59, C4=60, C#4=61, D4=62, D#4=63, E4=64, F4=65, F#4=66, G4=67
     const keyMap = {
         'a': { offset: 0, isBlack: false },   // C
         'w': { offset: 1, isBlack: true },    // C#
@@ -44,7 +44,12 @@
         'j': { offset: 11, isBlack: false },   // B
         'k': { offset: 12, isBlack: false },   // C (next octave)
         'o': { offset: 13, isBlack: true },   // C#
-        'l': { offset: 14, isBlack: false }   // D
+        'l': { offset: 14, isBlack: false },   // D
+        'p': { offset: 15, isBlack: true },   // D#
+        ';': { offset: 16, isBlack: false },   // E
+        "'": { offset: 17, isBlack: false },   // F
+        ']': { offset: 18, isBlack: true },   // F#
+        '\\': { offset: 19, isBlack: false }   // G
     };
     
     // Base MIDI note for C3

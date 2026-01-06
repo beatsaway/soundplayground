@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yuki Piano</title>
+    <!-- Suppress favicon request to prevent 404 error -->
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(20, 20, 30, 0.9);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #header h1 {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #fff;
+            letter-spacing: 0.5px;
+            cursor: default;
+        }
+        #settings-icon {
+            cursor: pointer;
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-left: 8px;
+        }
+        #settings-icon:hover {
+            transform: rotate(90deg);
+        }
+        #keyboard-visual-icon {
+            cursor: pointer;
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-left: 8px;
+        }
+        #keyboard-visual-icon:hover {
+            transform: scale(1.2);
+        }
+        .keyboard-visual-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2001;
+            align-items: center;
+            justify-content: center;
+        }
+        .keyboard-visual-modal.active {
+            display: flex;
+        }
+        .keyboard-visual-panel {
+            background: rgba(30, 30, 45, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        .keyboard-visual-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .keyboard-visual-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .keyboard-visual-panel h2 {
+            margin: 0 0 20px 0;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #fff;
+        }
+        .keyboard-visual-setting-item {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .keyboard-visual-setting-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .keyboard-visual-setting-item label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .keyboard-visual-setting-item input[type="checkbox"] {
+            margin-right: 10px;
+            margin-top: 2px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .keyboard-visual-settings-btn {
+            background: none;
+            border: none;
+            color: #4a9eff;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            margin-left: 8px;
+        }
+        .keyboard-visual-settings-btn:hover {
+            background: rgba(74, 158, 255, 0.1);
+        }
+        .keyboard-visual-setting-item .setting-description {
+            margin-top: 4px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.4;
+        }
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        #settings-modal.active {
+            display: flex;
+        }
+        #settings-panel {
+            background: rgba(30, 30, 45, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        @media (max-width: 768px) {
+            #settings-panel {
+                max-width: 95%;
+                padding: 20px;
+            }
+        }
+        .settings-category {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .settings-category.active {
+            display: flex;
+        }
+        #settings-panel h2 {
+            margin: 0 0 16px 0;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #fff;
+        }
+        .settings-header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 16px;
+        }
+        .settings-header-sticky {
+            position: sticky;
+            top: 0;
+            background: rgba(30, 30, 45, 0.95);
+            z-index: 11;
+            padding-top: 4px;
+            margin-top: -4px;
+            padding-bottom: 4px;
+        }
+        .settings-preset-dropdown {
+            position: relative;
+        }
+        .settings-preset-select {
+            padding: 6px 12px;
+            padding-right: 32px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 12px;
+            min-width: 180px;
+        }
+        .settings-preset-select:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        .settings-preset-select:focus {
+            outline: none;
+            border-color: #4a9eff;
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        .settings-preset-select option {
+            background: rgba(40, 40, 55, 0.98);
+            color: #fff;
+            padding: 8px 14px;
+        }
+        .settings-navbar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 2px;
+        }
+        .settings-navbar::-webkit-scrollbar {
+            height: 3px;
+        }
+        .settings-navbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+        .nav-tab {
+            padding: 8px 14px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-bottom: -2px;
+        }
+        .nav-tab:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .nav-tab.active {
+            color: #fff;
+            border-bottom-color: #4a9eff;
+        }
+        .settings-category {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .settings-category.active {
+            display: flex;
+        }
+        .setting-item {
+            margin-bottom: 0;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .setting-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .setting-item label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .setting-item input[type="checkbox"] {
+            margin-right: 10px;
+            margin-top: 2px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .setting-description {
+            margin-top: 4px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.4;
+        }
+        .setting-cpu-warning {
+            margin-top: 4px;
+            font-size: 10px;
+            color: #ffaa44;
+            font-family: 'Inter', sans-serif;
+        }
+        .binaural-reverb-button {
+            background: none;
+            border: none;
+            color: #4a9eff;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            margin-left: 8px;
+        }
+        .binaural-reverb-button:hover {
+            background: rgba(74, 158, 255, 0.1);
+        }
+        #settings-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        #settings-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .light-badge {
+            display: inline-block;
+            background: rgba(74, 158, 255, 0.2);
+            color: #4a9eff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>Yuki Piano<span id="keyboard-visual-icon">🎹</span><span id="settings-icon">❄️</span></h1>
+    </div>
+    <div id="settings-modal">
+        <div id="settings-panel">
+            <button id="settings-close">×</button>
+            <div class="settings-header-sticky">
+                <div class="settings-header-controls">
+                    <h2>Physics Settings (Light Version)</h2>
+                </div>
+                
+                <!-- Navigation Tabs - Simplified for Light Version -->
+                <div class="settings-navbar">
+                    <button class="nav-tab active" data-category="envelope">🎹 Amplitude Envelope</button>
+                    <button class="nav-tab" data-category="timbre">🎵 Timbre</button>
+                    <button class="nav-tab" data-category="frequency">🎚️ Frequency & Pitch</button>
+                </div>
+            </div>
+            
+            <!-- Amplitude Envelope Category -->
+            <div class="settings-category active" id="category-envelope">
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-velocity-attack" checked>
+                        <div>
+                            <strong>Velocity-Dependent Attack Time</strong>
+                            <div class="setting-description">
+                                Higher velocities produce faster attack times. Louder notes respond more quickly, matching real piano behavior.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 1-5ms (attack phase)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-two-stage-decay" checked>
+                        <div>
+                            <strong>Two-Stage Decay</strong>
+                            <div class="setting-description">
+                                Realistic piano decay: fast initial decay followed by slower long decay. Velocity affects decay rates.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 50ms (fast) → seconds (slow decay)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" checked disabled>
+                        <div>
+                            <strong>Primary Envelope Settings</strong>
+                            <button class="binaural-reverb-button" id="envelope-settings-btn">[...]</button>
+                            <div class="setting-description">
+                                Core amplitude envelope parameters: attack, decay, sustain, and release times. These control the fundamental shape of each note's amplitude over time.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: 1-2000ms (envelope phases)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: No impact</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Timbre Category -->
+            <div class="settings-category" id="category-timbre">
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-velocity-timbre" checked>
+                        <div>
+                            <strong>Velocity-Dependent Timbre</strong>
+                            <div class="setting-description">
+                                Higher velocities produce brighter sounds with more harmonics. Based on piano hammer-string physics.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Frequency & Pitch Category -->
+            <div class="settings-category" id="category-frequency">
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="enable-frequency-compensation" checked>
+                        <div>
+                            <strong>Frequency Compensation</strong>
+                            <button class="binaural-reverb-button" id="frequency-compensation-settings-btn">[...]</button>
+                            <div class="setting-description">
+                                Applies ISO 226 equal-loudness contour compensation to make notes sound equally loud across the piano range (A0-C8).
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Medium impact (runs on every note)</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" checked disabled>
+                        <div>
+                            <strong>Velocity Mapping</strong>
+                            <button class="binaural-reverb-button" id="velocity-mapping-settings-btn">[...]</button>
+                            <div class="setting-description">
+                                Maps MIDI velocity (0-127) to amplitude using a power curve. Controls the "feel" of velocity response and applies frequency compensation for equal-loudness perception.
+                                <br><span style="color: rgba(255, 255, 255, 0.5); font-size: 11px;">⏱️ Timescale: Instant (on note attack)</span>
+                            </div>
+                            <div class="setting-cpu-warning">CPU: Low impact (runs on every note)</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+    <!-- Audio Processing Modules -->
+    <script src="audio/physics-settings/physics-settings.js"></script>
+    <script src="audio/velocity-timbre/velocity-timbre.js"></script>
+    <script src="audio/velocity-attack/velocity-attack.js"></script>
+    <script src="audio/two-stage-decay/two-stage-decay.js"></script>
+    <script src="audio/frequency-compensation/frequency-compensation.js"></script>
+    <script src="audio/frequency-compensation/frequency-compensation-settings.js"></script>
+    <script src="audio/velocity-mapping-two-stage/velocity-mapping-two-stage.js"></script>
+    <script src="audio/velocity-mapping-two-stage/velocity-mapping-settings.js"></script>
+    <script src="audio/envelope-settings/envelope-settings.js"></script>
+    <!-- Keyboard Visual & Input Modules -->
+    <script src="keyboard/key-highlight/key-highlight.js"></script>
+    <script src="keyboard/key-movement/key-movement.js"></script>
+    <script src="keyboard/key-labels/key-labels.js"></script>
+    <script src="keyboard/keypress-input/keypress-input.js"></script>
+    <script src="keyboard/keyboard-visual-settings/keyboard-visual-settings.js"></script>
+    <!-- MIDI Modules -->
+    <script src="midi/midi-input/midi-input.js"></script>
+    <script src="midi/midi-mapping/midi-mapping.js"></script>
+    <script type="module" src="main.js"></script>
+    <script>
+        // Initialize keyboard visual settings when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize keyboard visual settings module
+            if (window.initKeyboardVisualSettings) {
+                window.initKeyboardVisualSettings();
+            }
+            
+            // Set up click handler for 🎹 emoji
+            const keyboardVisualIcon = document.getElementById('keyboard-visual-icon');
+            if (keyboardVisualIcon && window.showKeyboardVisualSettings) {
+                keyboardVisualIcon.addEventListener('click', () => {
+                    window.showKeyboardVisualSettings();
+                });
+            }
+            
+            // Settings modal toggle
+            const settingsIcon = document.getElementById('settings-icon');
+            const settingsModal = document.getElementById('settings-modal');
+            const settingsClose = document.getElementById('settings-close');
+            
+            if (settingsIcon && settingsModal) {
+                settingsIcon.addEventListener('click', () => {
+                    settingsModal.classList.add('active');
+                });
+            }
+            
+            if (settingsClose && settingsModal) {
+                settingsClose.addEventListener('click', () => {
+                    settingsModal.classList.remove('active');
+                });
+            }
+            
+            // Settings category tabs
+            const navTabs = document.querySelectorAll('.nav-tab');
+            const categories = document.querySelectorAll('.settings-category');
+            
+            navTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const category = tab.getAttribute('data-category');
+                    
+                    // Update active tab
+                    navTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Update active category
+                    categories.forEach(c => c.classList.remove('active'));
+                    const targetCategory = document.getElementById(`category-${category}`);
+                    if (targetCategory) {
+                        targetCategory.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

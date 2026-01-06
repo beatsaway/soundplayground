@@ -9,9 +9,10 @@
     // Settings
     window.keyMovementSettings = {
         enabled: true, // Default: ON
-        animationStyle: 'instant', // 'none', 'instant', 'animated' - Default: 'instant' for immediate movement
+        animationStyle: 'animated', // 'none', 'instant', 'animated' - Default: 'animated' for smooth movement
         pressDepth: 0.7, // 70% of key height
-        animationDuration: 0.1 // seconds for animated style
+        animationDuration: 0.1, // seconds for animated style
+        maxPressDepth: 0.9 // Maximum depth as percentage of key height (safety limit)
     };
     
     // Animation state tracking
@@ -47,7 +48,16 @@
             const progress = Math.min(elapsed / window.keyMovementSettings.animationDuration, 1);
             const eased = easeOut(progress);
             
-            const currentY = anim.startY + (anim.targetY - anim.startY) * eased;
+            let currentY = anim.startY + (anim.targetY - anim.startY) * eased;
+            
+            // Safety clamp: prevent key from going below minimum safe position
+            if (anim.keyData.originalY !== undefined) {
+                const keyHeight = anim.keyData.isBlack ? 0.07 : 0.1; // Approximate key heights
+                const maxDepth = keyHeight * (window.keyMovementSettings.maxPressDepth || 0.9);
+                const minY = anim.keyData.originalY - maxDepth;
+                currentY = Math.max(currentY, minY);
+            }
+            
             anim.keyData.mesh.position.y = currentY;
             
             if (progress >= 1) {
@@ -65,12 +75,7 @@
     window.pressKeyMovement = function(keyData, keyHeight) {
         if (!window.keyMovementSettings.enabled || !keyData) return;
         
-        // If key is already pressed, reset it first
-        if (keyData.isPressed) {
-            window.releaseKeyMovement(keyData, keyHeight);
-        }
-        
-        // Ensure we have originalY
+        // Ensure we have originalY (store it if not set)
         if (keyData.originalY === undefined) {
             keyData.originalY = keyData.mesh.position.y;
         }
@@ -79,8 +84,24 @@
         const midiNote = keyData.midiNote;
         if (midiNote === undefined || midiNote === null) return;
         
-        const pressDepth = keyHeight * window.keyMovementSettings.pressDepth;
+        // Calculate target depth with safety limit
+        const maxDepth = keyHeight * (window.keyMovementSettings.maxPressDepth || 0.9);
+        const pressDepth = Math.min(
+            keyHeight * window.keyMovementSettings.pressDepth,
+            maxDepth
+        );
+        
+        // Calculate target Y position
         const targetY = keyData.originalY - pressDepth;
+        
+        // Safety check: prevent key from going too far down (below originalY - maxDepth)
+        const minY = keyData.originalY - maxDepth;
+        const safeTargetY = Math.max(targetY, minY);
+        
+        // If key is already pressed/animated, cancel animation and use current position as start
+        // This prevents cumulative movement on rapid presses
+        const currentY = keyData.mesh.position.y;
+        const startY = (keyAnimations.has(midiNote) || keyData.isPressed) ? currentY : keyData.originalY;
         
         // Cancel any existing animation
         keyAnimations.delete(midiNote);
@@ -90,22 +111,25 @@
                 // No movement
                 break;
             case 'instant':
-                // Instant position change
-                keyData.mesh.position.y = targetY;
+                // Instant position change with safety clamp
+                // safeTargetY is already clamped to prevent going below minY (originalY - maxDepth)
+                // Additional check: ensure we never exceed the safety limit
+                const instantFinalY = Math.max(safeTargetY, minY);
+                keyData.mesh.position.y = instantFinalY;
                 break;
             case 'animated':
                 // Animated movement
                 const startTime = performance.now() / 1000; // Convert to seconds
                 keyAnimations.set(midiNote, {
                     startTime: startTime,
-                    startY: keyData.mesh.position.y,
-                    targetY: targetY,
+                    startY: startY,
+                    targetY: safeTargetY,
                     keyData: keyData
                 });
                 break;
             default:
                 // Fallback to instant
-                keyData.mesh.position.y = targetY;
+                keyData.mesh.position.y = safeTargetY;
                 break;
         }
     };
@@ -134,15 +158,24 @@
             }
         }
         
+        // Use originalY as target, but ensure it's not below current position if something went wrong
         const targetY = keyData.originalY;
+        
+        // Safety check: if key is somehow stuck too low, force it back to original
+        const currentY = keyData.mesh.position.y;
+        const maxDepth = keyHeight * (window.keyMovementSettings.maxPressDepth || 0.9);
+        const minSafeY = keyData.originalY - maxDepth;
+        
+        // If current position is below safe minimum, force reset to original
+        const safeTargetY = (currentY < minSafeY) ? keyData.originalY : targetY;
         
         switch (window.keyMovementSettings.animationStyle) {
             case 'none':
                 // No movement
                 break;
             case 'instant':
-                // Instant position change
-                keyData.mesh.position.y = targetY;
+                // Instant position change - always restore to originalY (safety reset)
+                keyData.mesh.position.y = safeTargetY;
                 break;
             case 'animated':
                 // Animated movement
@@ -151,12 +184,12 @@
                     keyAnimations.set(midiNote, {
                         startTime: startTime,
                         startY: keyData.mesh.position.y,
-                        targetY: targetY,
+                        targetY: safeTargetY,
                         keyData: keyData
                     });
                 } else {
                     // Fallback to instant if no midiNote
-                    keyData.mesh.position.y = targetY;
+                    keyData.mesh.position.y = safeTargetY;
                 }
                 break;
         }

@@ -2,6 +2,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 // Tone.js is loaded via script tag, available globally as Tone
 
+// Make THREE available globally for modules that need it (like key-highlight.js)
+if (typeof window !== 'undefined') {
+    window.THREE = THREE;
+}
+
 // Create scene
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x2a2a3e);
@@ -44,7 +49,7 @@ controls.dampingFactor = 0.05;
 
 // White key material - improved for realistic piano keys
 const whiteKeyMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xfefefe, // Slightly off-white, more realistic
+    color: 0xd0d0d0, // Darker grey-white for better highlight contrast
     metalness: 0.0, // Piano keys are not metallic
     roughness: 0.3, // Smooth, polished surface
     clearcoat: 0.5, // Subtle glossy finish
@@ -54,7 +59,7 @@ const whiteKeyMaterial = new THREE.MeshPhysicalMaterial({
 
 // Black key material - grey color
 const blackKeyMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x505050, // Grey color
+    color: 0x404040, // Darker grey for better highlight contrast
     metalness: 0.0,
     roughness: 0.4, // Slightly rougher than white keys
     clearcoat: 0.3,
@@ -62,8 +67,8 @@ const blackKeyMaterial = new THREE.MeshPhysicalMaterial({
     reflectivity: 0.3
 });
 
-// Function to create text texture
-function createTextTexture(text, color = '#ffffff', fontSize = 100) {
+// Function to create text texture (make available globally for key-labels module)
+window.createTextTexture = function(text, color = '#ffffff', fontSize = 100) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     // Increase canvas resolution for larger text to maintain quality
@@ -105,7 +110,8 @@ function createTextTexture(text, color = '#ffffff', fontSize = 100) {
         texture.generateMipmaps = false;
     }
     return texture;
-}
+};
+const createTextTexture = window.createTextTexture; // Also keep local reference
 
 // Function to create text label as a plane
 function createTextLabel(text, xPosition, keyHeight, keyDepth, color = '#ffffff', fontSize = 100, planeSize = 0.12, planeHeight = null) {
@@ -225,22 +231,51 @@ if (window.initKeyLabels) {
 // Deferred initialization of key highlight (after THREE.js is available)
 // This will be called after whiteKeyMaterial and blackKeyMaterial are created
 function initializeKeyHighlightDeferred() {
-    // Ensure THREE.js is fully loaded and available
-    if (typeof THREE === 'undefined' || !THREE.MeshPhysicalMaterial) {
-        // THREE.js not ready yet, retry after a short delay
-        setTimeout(initializeKeyHighlightDeferred, 10);
+    // THREE.js is imported as ES module and set to window.THREE
+    // Check if window.THREE is available (for key-highlight.js module)
+    if (typeof window === 'undefined' || !window.THREE) {
+        console.log('Waiting for window.THREE...');
+        setTimeout(initializeKeyHighlightDeferred, 50);
+        return;
+    }
+    
+    if (!window.THREE.MeshPhysicalMaterial) {
+        console.log('Waiting for window.THREE.MeshPhysicalMaterial...');
+        setTimeout(initializeKeyHighlightDeferred, 50);
         return;
     }
     
     if (window.initKeyHighlight && whiteKeyMaterial && blackKeyMaterial) {
-        window.initKeyHighlight(whiteKeyMaterial, blackKeyMaterial);
+        console.log('Initializing key highlight materials...');
+        const initSuccess = window.initKeyHighlight(whiteKeyMaterial, blackKeyMaterial);
         
-        // Now that materials are initialized, update all existing keys with pressed materials
-        keyMap.forEach((keyData, midiNote) => {
-            if (!keyData.pressedMaterial && window.getKeyPressedMaterial) {
-                keyData.pressedMaterial = window.getKeyPressedMaterial(keyData.isBlack);
-            }
-        });
+        // Verify initialization
+        if (initSuccess && window.isKeyHighlightInitialized && window.isKeyHighlightInitialized()) {
+            console.log('✓ Key highlight materials initialized successfully');
+            
+            // Now that materials are initialized, update all existing keys with pressed materials
+            let updatedCount = 0;
+            keyMap.forEach((keyData, midiNote) => {
+                if (!keyData.pressedMaterial && window.getKeyPressedMaterial) {
+                    keyData.pressedMaterial = window.getKeyPressedMaterial(keyData.isBlack);
+                    if (keyData.pressedMaterial) {
+                        updatedCount++;
+                    }
+                }
+            });
+            console.log(`✓ Updated ${updatedCount} keys with pressed materials`);
+        } else {
+            console.error('✗ Key highlight materials failed to initialize');
+            console.error('  - initSuccess:', initSuccess);
+            console.error('  - isKeyHighlightInitialized:', window.isKeyHighlightInitialized ? window.isKeyHighlightInitialized() : 'function missing');
+            console.error('  - THREE available:', typeof THREE !== 'undefined');
+            console.error('  - THREE.MeshPhysicalMaterial available:', typeof THREE !== 'undefined' && !!THREE.MeshPhysicalMaterial);
+        }
+    } else {
+        console.warn('Cannot initialize key highlight - missing initKeyHighlight function or materials');
+        if (!window.initKeyHighlight) console.warn('  - initKeyHighlight function missing');
+        if (!whiteKeyMaterial) console.warn('  - whiteKeyMaterial missing');
+        if (!blackKeyMaterial) console.warn('  - blackKeyMaterial missing');
     }
 }
 
@@ -294,8 +329,20 @@ for (let i = 0; i < numWhiteKeys; i++) {
         keyMap.set(midiNote, keyData);
         
         // Register label with key-labels module (if available)
+        // Store original data for color changes
         if (window.registerKeyLabel) {
-            window.registerKeyLabel(midiNote, label);
+            window.registerKeyLabel(midiNote, label, {
+                text: fullLabel,
+                color: '#ffffff',
+                fontSize: 200,
+                planeSize: whiteKeyWidth,
+                planeHeight: null
+            });
+            // Also store in userData for easy access
+            label.userData.originalText = fullLabel;
+            label.userData.originalColor = '#ffffff';
+            label.userData.fontSize = 200;
+            label.userData.planeSize = whiteKeyWidth;
         }
     }
 }
@@ -319,9 +366,12 @@ function shouldHaveBlackKey(note1, note2) {
 }
 
 // Function to get black key label (both sharp and flat, no octave numbers)
-function getBlackKeyLabel(currentNote, nextNote) {
+function getBlackKeyLabel(currentNote, nextNote, mode) {
     const note1Letter = currentNote[0];
     const note2Letter = nextNote[0];
+    
+    // Use provided mode or default to setting
+    const labelMode = mode || (window.keyLabelSettings && window.keyLabelSettings.blackKeyLabelMode) || 'both';
     
     // Black keys are the sharp of the first note (or flat of the second)
     // C-D -> C#/D♭, D-E -> D#/E♭, F-G -> F#/G♭, G-A -> G#/A♭, A-B -> A#/B♭
@@ -344,7 +394,14 @@ function getBlackKeyLabel(currentNote, nextNote) {
     const sharp = sharpMap[note1Letter];
     const flat = flatMap[note2Letter];
     
-    return sharp + '<br>' + flat;
+    if (labelMode === 'sharp') {
+        return sharp || '';
+    } else if (labelMode === 'flat') {
+        return flat || '';
+    } else {
+        // both (default)
+        return sharp + '<br>' + flat;
+    }
 }
 
 // Add black keys between appropriate white keys
@@ -371,7 +428,9 @@ for (let i = 0; i < numWhiteKeys - 1; i++) {
         
         // Add label as a textured plane on the top surface (lower part) with moody grey text
         // Position label relative to the black key's front edge
-        const blackKeyLabel = getBlackKeyLabel(currentNote, nextNote);
+        // Use the setting from keyLabelSettings if available
+        const labelMode = (window.keyLabelSettings && window.keyLabelSettings.blackKeyLabelMode) || 'both';
+        const blackKeyLabel = getBlackKeyLabel(currentNote, nextNote, labelMode);
         const blackKeyFrontEdge = blackKeyZ + blackKeyDepth / 2; // Front edge of black key
         const labelZ = blackKeyFrontEdge - 0.1; // Moved up a bit (further back from front edge)
         const label = createTextLabel(blackKeyLabel, xPosition, whiteKeyHeight + blackKeyHeight, blackKeyDepth, '#888888', 65, 0.15);
@@ -406,12 +465,68 @@ for (let i = 0; i < numWhiteKeys - 1; i++) {
             keyMap.set(midiNote, keyData);
             
             // Register label with key-labels module (if available)
+            // Store original data for color changes
             if (window.registerKeyLabel) {
-                window.registerKeyLabel(midiNote, label);
+                window.registerKeyLabel(midiNote, label, {
+                    text: blackKeyLabel,
+                    color: '#888888',
+                    fontSize: 65,
+                    planeSize: 0.15,
+                    planeHeight: null
+                });
+                // Also store in userData for easy access
+                label.userData.originalText = blackKeyLabel;
+                label.userData.originalColor = '#888888';
+                label.userData.fontSize = 65;
+                label.userData.planeSize = 0.15;
+                // Store note information for label regeneration
+                label.userData.currentNote = currentNote;
+                label.userData.nextNote = nextNote;
             }
         }
     }
 }
+
+// Function to update all black key labels based on mode
+window.updateBlackKeyLabelsFromMain = function(mode) {
+    const labelMode = mode || (window.keyLabelSettings && window.keyLabelSettings.blackKeyLabelMode) || 'both';
+    
+    // Iterate through all keys in keyMap
+    keyMap.forEach((keyData, midiNote) => {
+        if (keyData.isBlack) {
+            // Find the label mesh for this MIDI note
+            const labelMesh = window.getAllKeyLabels ? window.getAllKeyLabels().get(midiNote) : null;
+            if (labelMesh && labelMesh.userData.currentNote && labelMesh.userData.nextNote) {
+                // Get new label text based on mode
+                const newLabelText = getBlackKeyLabel(labelMesh.userData.currentNote, labelMesh.userData.nextNote, labelMode);
+                
+                // Update the label texture
+                if (window.updateLabelColor && window.createTextTexture) {
+                    const originalData = labelMesh.userData;
+                    const newTexture = window.createTextTexture(newLabelText, originalData.originalColor || '#888888', originalData.fontSize || 65);
+                    if (labelMesh.material) {
+                        labelMesh.material.map = newTexture;
+                        labelMesh.material.needsUpdate = true;
+                    }
+                    
+                    // Update stored original text
+                    labelMesh.userData.originalText = newLabelText;
+                    
+                    // Update in key-labels module if registered
+                    if (window.registerKeyLabel) {
+                        window.registerKeyLabel(midiNote, labelMesh, {
+                            text: newLabelText,
+                            color: originalData.originalColor || '#888888',
+                            fontSize: originalData.fontSize || 65,
+                            planeSize: originalData.planeSize || 0.15,
+                            planeHeight: originalData.planeHeight || null
+                        });
+                    }
+                }
+            }
+        }
+    });
+};
 
 // Initialize key highlight module now that THREE.js is available
 initializeKeyHighlightDeferred();
