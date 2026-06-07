@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finger Chords – Soft Piano</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0a0a0f;
+            font-family: system-ui, -apple-system, sans-serif;
+            color: #eee;
+        }
+        .container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+        #webcam { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); pointer-events: none; }
+        #overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.72);
+            z-index: 10;
+            cursor: pointer;
+            text-align: center;
+            padding: 24px;
+        }
+        #overlay.hidden { display: none; }
+        #overlay h1 { margin: 0 0 12px; font-size: clamp(1.4rem, 4vw, 2rem); font-weight: 600; }
+        #overlay p { margin: 0; opacity: 0.85; max-width: 480px; line-height: 1.55; font-size: 14px; }
+        #overlay .cols { display: flex; gap: 28px; margin-top: 16px; text-align: left; font-size: 13px; opacity: 0.9; }
+        #overlay .cols div { flex: 1; }
+        #overlay .cols strong { display: block; margin-bottom: 6px; }
+        #hud {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 5;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.5;
+            backdrop-filter: blur(6px);
+        }
+        #hud strong { display: block; font-size: 15px; margin-bottom: 4px; }
+        #chord-display {
+            position: absolute;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            pointer-events: none;
+            font-size: clamp(2rem, 8vw, 3.5rem);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-shadow: 0 2px 24px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        #chord-display.visible { opacity: 1; }
+        #chord-display .parts { font-size: 0.45em; opacity: 0.75; letter-spacing: 0.02em; margin-top: 4px; }
+    </style>
+    <script src="js/chord-intervals-config.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/instrument-soft-piano.js"></script>
+    <script>
+        function noteNameToMidiNote(noteName) {
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const match = String(noteName).match(/^([A-G]#?)(\d+)$/);
+            if (!match) return null;
+            const noteIndex = noteNames.indexOf(match[1]);
+            if (noteIndex === -1) return null;
+            return (parseInt(match[2], 10) + 1) * 12 + noteIndex;
+        }
+        function midiNoteToNoteName(midi) {
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const octave = Math.floor(midi / 12) - 1;
+            return noteNames[midi % 12] + octave;
+        }
+        window.noteNameToMidiNote = noteNameToMidiNote;
+        window.midiNoteToNoteName = midiNoteToNoteName;
+        window.gslPresetSlots = ['softPiano', null, null, 'softPiano', null, null];
+        window.gslSlotVolumes = [50, 33, 33, 50, 33, 33];
+        window.gslLayerPlayMode = 'leftRight';
+    </script>
+    <script src="js/gsl-synth.js"></script>
+</head>
+<body>
+    <div class="container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="canvas"></canvas>
+        <div id="overlay">
+            <h1>Finger Chords</h1>
+            <p>Tap to start. Left hand picks the root (C–A). Right hand picks the chord type.</p>
+            <div class="cols">
+                <div>
+                    <strong>Left — root</strong>
+                    fist C · point D · peace E<br>
+                    I♥U F · 3 fingers G · 4 / palm A
+                </div>
+                <div>
+                    <strong>Right — type</strong>
+                    fist major · point minor · peace maj7<br>
+                    I♥U m7 · 3 fingers 7 · 4 fingers m9 · palm maj9
+                </div>
+            </div>
+        </div>
+        <div id="hud">
+            <strong>Soft Piano</strong>
+            <span id="status">Loading…</span>
+        </div>
+        <div id="chord-display" aria-live="polite"></div>
+    </div>
+
+    <script type="module">
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const statusElement = document.getElementById('status');
+        const chordDisplayEl = document.getElementById('chord-display');
+        const overlayEl = document.getElementById('overlay');
+
+        const PALM_LANDMARK_INDICES = [0, 5, 9, 13, 17];
+
+        // Left hand: slot 0–5 → root note C D E F G A
+        const ROOT_BY_SLOT = ['C', 'D', 'E', 'F', 'G', 'A'];
+
+        // Right hand: chord types from v1_68 ChordEngine / CHORD_INTERVALS
+        const VARIATION_BY_SLOT = [
+            { type: 'major-triad', tag: 'major' },
+            { type: 'minor-triad', tag: 'minor' },
+            { type: 'major-7th', tag: 'maj7' },
+            { type: 'minor-7th', tag: 'm7' },
+            { type: 'dominant-7th', tag: '7' },
+            { type: 'minor-9th', tag: 'm9' },
+            { type: 'major-9th', tag: 'maj9' }
+        ];
+
+        const STRUM_MS = 42;
+        const BASS_VELOCITY = 70 / 127;   // v1_68 CC_DEFAULT_BASS_VELOCITY
+        const TREBLE_VELOCITY = 74 / 127; // v1_68 CC_DEFAULT_TREBLE_VELOCITY
+        const BASS_NOTE_COUNT = 3;        // v1_68: first 3 intervals = bass (-24, -12, -5)
+        const TREBLE_START_MS = 55;       // treble enters after bass root+fifth land
+
+        let chordEngine = null;
+        let activeNoteNames = new Set();
+        let currentChordKey = null;
+        let appStarted = false;
+
+        function isThreeFingersUp(landmarks) {
+            if (!landmarks || landmarks.length < 21) return false;
+            const tipY = (i) => landmarks[i].y;
+            return tipY(8) < tipY(6) && tipY(12) < tipY(10) && tipY(16) < tipY(14)
+                && tipY(4) >= tipY(3) - 0.05 && tipY(20) >= tipY(18) - 0.05;
+        }
+        function isFourFingersUp(landmarks) {
+            if (!landmarks || landmarks.length < 21) return false;
+            const tipY = (i) => landmarks[i].y;
+            return tipY(8) < tipY(6) && tipY(12) < tipY(10) && tipY(16) < tipY(14) && tipY(20) < tipY(18)
+                && tipY(4) >= tipY(3) - 0.05;
+        }
+
+        /** @param {'left'|'right'} side */
+        function gestureToSlot(gestureName, landmarks, side) {
+            const openPalmSlot = side === 'left' ? 5 : 6;
+            const map = {
+                'Closed_Fist': 0,
+                'Pointing_Up': 1,
+                'Victory': 2,
+                'ILoveYou': 3,
+                'Open_Palm': openPalmSlot
+            };
+            if (gestureName && Object.prototype.hasOwnProperty.call(map, gestureName)) {
+                return map[gestureName];
+            }
+            if (landmarks && isThreeFingersUp(landmarks)) return 4;
+            if (landmarks && isFourFingersUp(landmarks)) return 5;
+            return null;
+        }
+
+        function initChordEngine() {
+            if (!window.ChordEngine || !window.CHORD_INTERVALS || !window.NOTE_TO_INDEX) return;
+            chordEngine = new window.ChordEngine({
+                noteToIndex: window.NOTE_TO_INDEX,
+                chordIntervals: window.CHORD_INTERVALS
+            });
+        }
+
+        function formatChordLabel(rootNote, chordType) {
+            if (!chordEngine) return rootNote;
+            const suffix = chordEngine.chordTypeNames[chordType] ?? '';
+            return rootNote + suffix;
+        }
+
+        function getMidiNotes(rootNote, chordType) {
+            if (!chordEngine) return [];
+            return chordEngine.chordToMIDINotes({ rootNote, chordType });
+        }
+
+        /** Match v1_68 buildCompiledState: bass = low root (-2 oct), root (-1 oct), 5th support; rest = treble. */
+        function splitVoicingV168(allMidi) {
+            const bass = allMidi.slice(0, BASS_NOTE_COUNT);
+            const treble = allMidi.slice(BASS_NOTE_COUNT);
+            return { bass, treble };
+        }
+
+        function triggerNoteGroup(midiList, startDelayMs, velocity, key) {
+            if (!midiList.length || !window.synth) return;
+            const ctx = window.synth.synth && window.synth.synth.audioCtx;
+            midiList.forEach((midi, i) => {
+                const noteName = window.midiNoteToNoteName(midi);
+                activeNoteNames.add(noteName);
+                const delayMs = startDelayMs + i * STRUM_MS;
+                const when = ctx ? ctx.currentTime + delayMs / 1000 : undefined;
+                setTimeout(() => {
+                    if (currentChordKey !== key) return;
+                    window.synth.triggerAttack(noteName, when, velocity);
+                }, delayMs);
+            });
+        }
+
+        function releaseAllNotes() {
+            const synth = window.synth;
+            if (!synth) return;
+            activeNoteNames.forEach((noteName) => {
+                try {
+                    if (synth.releaseAllVoices) synth.releaseAllVoices(noteName);
+                    else synth.triggerRelease(noteName);
+                } catch (_) {}
+            });
+            activeNoteNames.clear();
+        }
+
+        function playCombinedChord(leftSlot, rightSlot) {
+            if (leftSlot == null || leftSlot < 0 || leftSlot > 5 || rightSlot == null || rightSlot < 0 || rightSlot > 6) {
+                stopChord();
+                return;
+            }
+
+            const rootNote = ROOT_BY_SLOT[leftSlot];
+            const variation = VARIATION_BY_SLOT[rightSlot];
+            if (!rootNote || !variation) {
+                stopChord();
+                return;
+            }
+
+            const key = rootNote + '|' + variation.type;
+            if (key === currentChordKey) return;
+
+            releaseAllNotes();
+            currentChordKey = key;
+
+            const midiNotes = getMidiNotes(rootNote, variation.type);
+            if (!midiNotes.length || !window.synth) return;
+
+            const ctx = window.synth.synth && window.synth.synth.audioCtx;
+            if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
+
+            const { bass, treble } = splitVoicingV168(midiNotes);
+            triggerNoteGroup(bass, 0, BASS_VELOCITY, key);
+            triggerNoteGroup(treble, TREBLE_START_MS, TREBLE_VELOCITY, key);
+        }
+
+        function stopChord() {
+            if (currentChordKey == null) return;
+            currentChordKey = null;
+            releaseAllNotes();
+        }
+
+        function updateCanvasSize() {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+        }
+        window.addEventListener('resize', updateCanvasSize);
+        updateCanvasSize();
+
+        async function initWebcam() {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+            });
+            videoElement.srcObject = stream;
+            return new Promise((resolve) => {
+                videoElement.onloadedmetadata = () => {
+                    updateCanvasSize();
+                    resolve(videoElement);
+                };
+            });
+        }
+
+        function drawLandmarks(landmarks, isLeft) {
+            const w = canvasElement.width;
+            const h = canvasElement.height;
+            const lineWidth = Math.max(2, Math.min(5, Math.min(w, h) / 300));
+            const pointSize = Math.max(2, Math.min(8, Math.min(w, h) / 250));
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],
+                [0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]
+            ];
+            const handColor = isLeft ? 'rgba(140, 190, 255, 0.88)' : 'rgba(255, 190, 140, 0.88)';
+            canvasCtx.lineWidth = lineWidth;
+            canvasCtx.strokeStyle = handColor;
+            connections.forEach(([i, j]) => {
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(landmarks[i].x * w, landmarks[i].y * h);
+                canvasCtx.lineTo(landmarks[j].x * w, landmarks[j].y * h);
+                canvasCtx.stroke();
+            });
+            landmarks.forEach((lm, idx) => {
+                canvasCtx.fillStyle = (idx === 4 || idx === 8) ? 'rgba(255, 255, 255, 0.95)' : handColor;
+                canvasCtx.beginPath();
+                canvasCtx.arc(lm.x * w, lm.y * h, pointSize * 1.2, 0, 2 * Math.PI);
+                canvasCtx.fill();
+            });
+        }
+
+        function drawLabelOnPalm(palmPx, text, color) {
+            if (!palmPx || !text) return;
+            const cx = palmPx.x;
+            const cy = palmPx.y;
+            const fontSize = Math.min(44, Math.max(22, Math.min(canvasElement.width, canvasElement.height) * 0.065));
+            canvasCtx.font = `700 ${fontSize}px system-ui, sans-serif`;
+            canvasCtx.textAlign = 'center';
+            canvasCtx.textBaseline = 'middle';
+            canvasCtx.fillStyle = color || 'rgba(255, 255, 255, 0.95)';
+            canvasCtx.save();
+            canvasCtx.translate(cx, cy);
+            canvasCtx.scale(-1, 1);
+            canvasCtx.translate(-cx, -cy);
+            canvasCtx.fillText(text, cx, cy);
+            canvasCtx.restore();
+        }
+
+        function setChordDisplay(leftSlot, rightSlot) {
+            if (leftSlot == null || leftSlot < 0 || leftSlot > 5 || rightSlot == null || rightSlot < 0 || rightSlot > 6) {
+                chordDisplayEl.innerHTML = '';
+                chordDisplayEl.classList.remove('visible');
+                return;
+            }
+            const root = ROOT_BY_SLOT[leftSlot];
+            const variation = VARIATION_BY_SLOT[rightSlot];
+            const label = formatChordLabel(root, variation.type);
+            chordDisplayEl.innerHTML = label + '<div class="parts">' + root + ' · ' + variation.tag + '</div>';
+            chordDisplayEl.classList.add('visible');
+            statusElement.textContent = 'Root: ' + root + '  ·  Type: ' + variation.tag;
+        }
+
+        function palmCenterPx(landmarks, w, h) {
+            const palm = PALM_LANDMARK_INDICES.reduce((acc, idx) => ({
+                x: acc.x + landmarks[idx].x,
+                y: acc.y + landmarks[idx].y
+            }), { x: 0, y: 0 });
+            const n = PALM_LANDMARK_INDICES.length;
+            return { x: (palm.x / n) * w, y: (palm.y / n) * h };
+        }
+
+        async function startMediaPipe() {
+            statusElement.textContent = 'Loading MediaPipe…';
+            const mpVision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+            const { GestureRecognizer, FilesetResolver } = mpVision;
+            const vision = await FilesetResolver.forVisionTasks(
+                'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+            );
+            const gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task'
+                },
+                runningMode: 'VIDEO',
+                numHands: 2
+            });
+
+            await initWebcam();
+            statusElement.textContent = 'Show both hands';
+
+            let lastVideoTime = -1;
+            function processFrame() {
+                if (videoElement.readyState < 2) {
+                    requestAnimationFrame(processFrame);
+                    return;
+                }
+                const now = videoElement.currentTime * 1000;
+                if (now !== lastVideoTime) {
+                    lastVideoTime = now;
+                    const result = gestureRecognizer.recognizeForVideo(videoElement, now);
+                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                    let leftSlot = null;
+                    let rightSlot = null;
+                    let leftPalmPx = null;
+                    let rightPalmPx = null;
+                    const w = canvasElement.width;
+                    const h = canvasElement.height;
+
+                    if (result.landmarks && result.landmarks.length > 0) {
+                        for (let i = 0; i < result.landmarks.length; i++) {
+                            const landmarks = result.landmarks[i];
+                            const handedness = result.handedness && result.handedness[i] && result.handedness[i][0];
+                            const isLeft = handedness ? handedness.categoryName === 'Left' : (i === 0);
+                            drawLandmarks(landmarks, isLeft);
+
+                            const gesture = result.gestures && result.gestures[i] && result.gestures[i][0];
+                            const name = gesture ? gesture.categoryName : 'None';
+                            const slot = gestureToSlot(name, landmarks, isLeft ? 'left' : 'right');
+
+                            if (landmarks.length >= 21) {
+                                const palmPx = palmCenterPx(landmarks, w, h);
+                                if (isLeft) {
+                                    leftSlot = slot;
+                                    leftPalmPx = palmPx;
+                                } else {
+                                    rightSlot = slot;
+                                    rightPalmPx = palmPx;
+                                }
+                            }
+                        }
+                    }
+
+                    playCombinedChord(leftSlot, rightSlot);
+                    setChordDisplay(leftSlot, rightSlot);
+
+                    if (leftPalmPx && leftSlot != null && leftSlot >= 0 && leftSlot <= 5) {
+                        drawLabelOnPalm(leftPalmPx, ROOT_BY_SLOT[leftSlot], 'rgba(180, 220, 255, 0.98)');
+                    }
+                    if (rightPalmPx && rightSlot != null && rightSlot >= 0 && rightSlot <= 6) {
+                        drawLabelOnPalm(rightPalmPx, VARIATION_BY_SLOT[rightSlot].tag, 'rgba(255, 210, 170, 0.98)');
+                    }
+                }
+                requestAnimationFrame(processFrame);
+            }
+            processFrame();
+        }
+
+        async function startApp() {
+            if (appStarted) return;
+            appStarted = true;
+            overlayEl.classList.add('hidden');
+
+            initChordEngine();
+            if (window.synth) {
+                window.synth.setMasterVolume(120);
+                window.synth.setReverb(0.35);
+                const ctx = window.synth.synth && window.synth.synth.audioCtx;
+                if (ctx && ctx.state !== 'running') await ctx.resume().catch(() => {});
+            }
+
+            try {
+                await startMediaPipe();
+            } catch (e) {
+                statusElement.textContent = 'Error: ' + e.message;
+                console.error(e);
+            }
+        }
+
+        overlayEl.addEventListener('click', startApp);
+    </script>
+</body>
+</html>
