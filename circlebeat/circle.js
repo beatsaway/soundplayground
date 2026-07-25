@@ -1,0 +1,4270 @@
+/**
+ * Circle Beat — up to 20 wheels (layers). Edit one at a time.
+ * Play starts at current layer, then loops through next enabled circles.
+ * Human / Swing capped at 10% of step.
+ */
+(function () {
+  'use strict';
+
+  var MAX_CIRCLES = 20;
+  var RINGS = [
+    { id: 'r48', segments: 48 },
+    { id: 'r24', segments: 24 },
+    { id: 'r32', segments: 32 },
+    { id: 'r16', segments: 16 }
+  ];
+
+  var SAY_COLORS = [
+    '#ff6a00', '#c43dff', '#00c2ff', '#ff2d8a', '#1eea4a',
+    '#ffd000', '#3d6bff', '#ff3b1a', '#a34dff'
+  ];
+  var SAMPLE_COLORS = [
+    '#d4894a', '#9a6cbc', '#4a9cba', '#c46a8e', '#5aaa6a',
+    '#c4a84a', '#6a7aba', '#c4745a', '#8a6aaa'
+  ];
+  var SAY_PATTERN = 'dots';
+  var SAMPLE_PATTERN = 'diag';
+  // Grayscale drums + distinct overlays so they stay readable.
+  var DRUM_META = {
+    kick: { color: '#1a1a1a', pattern: 'dotsBig' },
+    tom: { color: '#323232', pattern: 'stripesH' },
+    ride: { color: '#4a4a4a', pattern: 'stripesV' },
+    clap: { color: '#6e6e6e', pattern: 'cross' },
+    cowbell: { color: '#8c8c8c', pattern: 'checkers' },
+    snare: { color: '#b4b4b4', pattern: 'rings' },
+    hatOpen: { color: '#d4d4d4', pattern: 'dash' },
+    hatClosed: { color: '#f0f0f0', pattern: 'grid' }
+  };
+
+  var SAMPLES = [
+    { id: 'say1', label: 'Word 1', type: 'text', color: SAY_COLORS[0], pattern: SAY_PATTERN },
+    { id: 'say2', label: 'Word 2', type: 'text', color: SAY_COLORS[1], pattern: SAY_PATTERN },
+    { id: 'say3', label: 'Word 3', type: 'text', color: SAY_COLORS[2], pattern: SAY_PATTERN },
+    { id: 'say4', label: 'Word 4', type: 'text', color: SAY_COLORS[3], pattern: SAY_PATTERN },
+    { id: 'say5', label: 'Word 5', type: 'text', color: SAY_COLORS[4], pattern: SAY_PATTERN },
+    { id: 'say6', label: 'Word 6', type: 'text', color: SAY_COLORS[5], pattern: SAY_PATTERN },
+    { id: 'say7', label: 'Word 7', type: 'text', color: SAY_COLORS[6], pattern: SAY_PATTERN },
+    { id: 'say8', label: 'Word 8', type: 'text', color: SAY_COLORS[7], pattern: SAY_PATTERN },
+    { id: 'say9', label: 'Word 9', type: 'text', color: SAY_COLORS[8], pattern: SAY_PATTERN },
+    { id: 'kick', label: 'Kick', type: 'maker', maker: 'kick', open: false, color: DRUM_META.kick.color, pattern: DRUM_META.kick.pattern },
+    { id: 'snare', label: 'Snare', type: 'maker', maker: 'snare', open: false, color: DRUM_META.snare.color, pattern: DRUM_META.snare.pattern },
+    { id: 'clap', label: 'Clap', type: 'maker', maker: 'clap', open: false, color: DRUM_META.clap.color, pattern: DRUM_META.clap.pattern },
+    { id: 'hatClosed', label: 'Hat', type: 'maker', maker: 'hat', open: false, color: DRUM_META.hatClosed.color, pattern: DRUM_META.hatClosed.pattern },
+    { id: 'hatOpen', label: 'Open', type: 'maker', maker: 'hat', open: true, color: DRUM_META.hatOpen.color, pattern: DRUM_META.hatOpen.pattern },
+    { id: 'ride', label: 'Ride', type: 'maker', maker: 'ride', open: false, color: DRUM_META.ride.color, pattern: DRUM_META.ride.pattern },
+    { id: 'cowbell', label: 'Cow', type: 'maker', maker: 'cowbell', open: false, color: DRUM_META.cowbell.color, pattern: DRUM_META.cowbell.pattern },
+    { id: 'tom', label: 'Tom', type: 'maker', maker: 'tom', open: false, color: DRUM_META.tom.color, pattern: DRUM_META.tom.pattern },
+    { id: 'sample1', label: 'Sample 1', type: 'sample', color: SAMPLE_COLORS[0], pattern: SAMPLE_PATTERN },
+    { id: 'sample2', label: 'Sample 2', type: 'sample', color: SAMPLE_COLORS[1], pattern: SAMPLE_PATTERN },
+    { id: 'sample3', label: 'Sample 3', type: 'sample', color: SAMPLE_COLORS[2], pattern: SAMPLE_PATTERN },
+    { id: 'sample4', label: 'Sample 4', type: 'sample', color: SAMPLE_COLORS[3], pattern: SAMPLE_PATTERN },
+    { id: 'sample5', label: 'Sample 5', type: 'sample', color: SAMPLE_COLORS[4], pattern: SAMPLE_PATTERN },
+    { id: 'sample6', label: 'Sample 6', type: 'sample', color: SAMPLE_COLORS[5], pattern: SAMPLE_PATTERN },
+    { id: 'sample7', label: 'Sample 7', type: 'sample', color: SAMPLE_COLORS[6], pattern: SAMPLE_PATTERN },
+    { id: 'sample8', label: 'Sample 8', type: 'sample', color: SAMPLE_COLORS[7], pattern: SAMPLE_PATTERN },
+    { id: 'sample9', label: 'Sample 9', type: 'sample', color: SAMPLE_COLORS[8], pattern: SAMPLE_PATTERN }
+  ];
+
+  var CORE_DRUM_IDS = ['kick', 'snare', 'hatClosed'];
+
+  var EMPTY_COLOR = '#1e1e24';
+  var NS = 'http://www.w3.org/2000/svg';
+  var HOLD_MS = 450;
+  var sayTexts = {
+    say1: '', say2: '', say3: '', say4: '', say5: '',
+    say6: '', say7: '', say8: '', say9: ''
+  };
+  /** Per-word: browser voice + pseudo-random pitch/volume variation amounts (0–1). */
+  var sayVoiceParams = {
+    say1: null, say2: null, say3: null, say4: null, say5: null,
+    say6: null, say7: null, say8: null, say9: null
+  };
+  var browserVoices = [];
+  /** Natural TTS voices (StreamElements) — sampled into AudioBuffers like SAM. */
+  var NATURAL_TTS_VOICES = [
+    'Brian', 'Amy', 'Emma', 'Joanna', 'Matthew', 'Justin',
+    'Ivy', 'Salli', 'Joey', 'Kendra', 'Kimberly', 'Nicole'
+  ];
+  /** Max API attempts per user click / action (then fall back to SAM). */
+  var NATURAL_TTS_MAX_TRIES = 3;
+  var sampleNames = {
+    sample1: '', sample2: '', sample3: '', sample4: '', sample5: '',
+    sample6: '', sample7: '', sample8: '', sample9: ''
+  };
+  var MAKER_DEFAULTS = {
+    kick: { f0: 150, f1: 42, pitchRampTime: 0.055, decayBase: 0.45, bodyLevel: 0.75, bodyPunchHold: 0.012, bodyPunchTime: 0.045, bodyTailLevel: 0.12, bodyHighpassHz: 32, bodyShape: 0.7, clickNoiseLevel: 0.3, clickOscLevel: 0.22, clickFreq: 3800, clickDecay: 0.005, clickFilterQ: 2, fmAmount: 0.35, fmDecay: 0.06, fmFreqMult: 1.6 },
+    snare: { bodyF: 185, bodyFEnd: 95, decayT: 0.16, toneLevel: 0.55, fmAmount: 0.25, fmRatio: 2.2, decayN: 0.22, noiseLevel: 0.95, noiseFilterFreq: 2800, noiseFilterQ: 0.85, noiseFilterType: 'highpass', crackLevel: 1.15, crackDecay: 0.028, crackFreq: 6500, crackQ: 1.1 },
+    clap: { decay: 0.08, level: 0.85, attack: 0, bpF: 4000, bpQ: 1.2, crackLevel: 0.2, crackFreq: 4500, crackDecay: 0.008, addTone: false, toneFreq: 280, toneDecay: 0.028, toneLevel: 0.18, clapCount: 4, clapSpacingMs: 10, lastDecayMul: 2.5 },
+    hat: { durClosed: 0.05, durOpen: 0.2, hpF: 6500, levelClosed: 0.58, levelOpen: 0.58, noiseType: 'pink', filterType: 'highpass', bpQ: 0.7, addOscillators: false, oscFreq1: 8000, oscFreq2: 10000, oscLevel: 0.2, bodyLevel: 0.3, bodyFreq: 1400, bodyDecay: 0.022, attack: 0, stickLevel: 0.28, stickDecay: 0.006, stickFreq: 5500, resonantLevel: 0.15, resonantFreq: 10000, resonantQ: 4, resonantDecay: 0.025, hatOpen: false },
+    tom: { level: 0.6, decay: 0.4, f0: 155, f1: 78, sweepTime: 0.18, bodyOscType: 'sine', attack: 0, stickLevel: 0.2, stickDecay: 0.02, stickFreq: 1800, stickQ: 1.2 },
+    ride: { decay: 0.35, level: 0.4, stickDip: 0.7, attack: 0, hpF: 8000, bpF: 10000, bpQ: 0.8, addOscillators: false, oscFreq1: 8000, oscFreq2: 11000, oscLevel: 0.2 },
+    cowbell: { level: 0.6, decay1: 0.15, decay2: 0.08, f1: 800, level1: 0.6, f2: 1200, level2: 0.4, osc1Type: 'sine', osc2Type: 'sine', addSecondPair: false, secondF1: 600, secondF2: 900, secondLevel: 0.2, secondDecay: 0.06, stickLevel: 0.2, stickDecay: 0.02, stickFreq: 3500, stickQ: 1.5 }
+  };
+  var MAKER_RANGES = {
+    kick: { f0: [48, 250], f1: [20, 62], pitchRampTime: [0.012, 0.48], decayBase: [0.1, 1.4], bodyLevel: [0.2, 1.02], bodyPunchHold: [0.003, 0.035], bodyPunchTime: [0.02, 0.14], bodyTailLevel: [0.05, 0.4], bodyHighpassHz: [0, 78], bodyShape: [0, 1], clickNoiseLevel: [0, 0.82], clickOscLevel: [0, 0.68], clickFreq: [600, 7200], clickDecay: [0.0015, 0.036], clickFilterQ: [0.4, 7], fmAmount: [0, 1.25], fmDecay: [0.018, 0.2], fmFreqMult: [0.6, 3] },
+    snare: { bodyF: [75, 500], bodyFEnd: [50, 280], decayT: [0.02, 0.42], toneLevel: [0.08, 0.98], fmAmount: [0, 1.5], fmRatio: [1, 6.5], decayN: [0.03, 0.55], noiseLevel: [0.2, 1.5], noiseFilterFreq: [600, 10000], noiseFilterQ: [0.3, 4], crackLevel: [0, 1.85], crackDecay: [0.01, 0.26], crackFreq: [1800, 14000], crackQ: [0.4, 4.2] },
+    clap: { decay: [0.035, 0.2], level: [0.45, 1.05], attack: [0, 0.011], bpF: [2000, 6000], bpQ: [0.28, 2.4], crackLevel: [0, 0.52], crackFreq: [2200, 7200], crackDecay: [0.004, 0.018], toneFreq: [130, 520], toneDecay: [0.014, 0.052], toneLevel: [0.02, 0.38], clapCount: [1, 8], clapSpacingMs: [6, 26], lastDecayMul: [1.1, 2.9] },
+    hat: { durClosed: [0.01, 0.21], durOpen: [0.06, 0.82], levelClosed: [0.08, 0.98], levelOpen: [0.08, 0.98], attack: [0, 0.024], stickLevel: [0, 0.58], stickDecay: [0.002, 0.018], bodyLevel: [0, 0.82], bodyFreq: [300, 5400], bodyDecay: [0.006, 0.115], resonantLevel: [0, 0.48], resonantFreq: [8000, 12000], resonantQ: [2, 9.5], resonantDecay: [0.008, 0.058], hpF: [2000, 15800], bpQ: [0.25, 4.8], oscFreq1: [3600, 14800], oscFreq2: [4600, 17800], oscLevel: [0.04, 0.72] },
+    tom: { level: [0.35, 0.95], decay: [0.18, 0.85], f0: [70, 200], f1: [48, 110], sweepTime: [0.06, 0.28], attack: [0, 0.028], stickLevel: [0, 0.48], stickDecay: [0.01, 0.045], stickFreq: [900, 2800], stickQ: [0.6, 2.8] },
+    ride: { decay: [0.14, 0.82], level: [0.12, 0.82], stickDip: [0.38, 0.98], attack: [0, 0.019], hpF: [3800, 11800], bpF: [5800, 13800], bpQ: [0.25, 1.9], oscFreq1: [4200, 11800], oscFreq2: [5800, 13800], oscLevel: [0.06, 0.48] },
+    cowbell: { level: [0.2, 0.95], decay1: [0.05, 0.32], decay2: [0.025, 0.18], f1: [450, 2100], f2: [700, 3000], level1: [0.3, 1], level2: [0.15, 0.85], secondF1: [400, 1700], secondF2: [600, 2300], secondLevel: [0.08, 0.55], secondDecay: [0.025, 0.14], stickLevel: [0, 0.58], stickDecay: [0.008, 0.038], stickFreq: [2000, 5500], stickQ: [0.6, 3.8] }
+  };
+  var MAKER_ROUND_KEYS = {
+    kick: ['f0', 'f1', 'clickFreq'],
+    snare: ['bodyF', 'bodyFEnd', 'noiseFilterFreq', 'crackFreq'],
+    clap: ['bpF', 'clapCount', 'clapSpacingMs', 'crackFreq', 'toneFreq'],
+    hat: ['hpF', 'oscFreq1', 'oscFreq2', 'bodyFreq', 'resonantFreq'],
+    tom: ['f0', 'f1', 'stickFreq'],
+    ride: ['hpF', 'bpF', 'oscFreq1', 'oscFreq2'],
+    cowbell: ['f1', 'f2', 'secondF1', 'secondF2', 'stickFreq']
+  };
+  var MAKER_BOOLS = {
+    snare: [{ key: 'noiseFilterType', options: ['highpass', 'bandpass'], label: 'Noise filter' }],
+    clap: [{ key: 'addTone', type: 'bool', label: 'Add tone' }],
+    hat: [
+      { key: 'noiseType', options: ['white', 'pink'], label: 'Noise' },
+      { key: 'filterType', options: ['highpass', 'bandpass'], label: 'Filter' },
+      { key: 'addOscillators', type: 'bool', label: 'Oscillators' }
+    ],
+    tom: [{ key: 'bodyOscType', options: ['sine', 'triangle'], label: 'Body osc' }],
+    ride: [{ key: 'addOscillators', type: 'bool', label: 'Oscillators' }],
+    cowbell: [
+      { key: 'osc1Type', options: ['sine', 'triangle', 'square'], label: 'Osc 1' },
+      { key: 'osc2Type', options: ['sine', 'triangle', 'sawtooth', 'square'], label: 'Osc 2' },
+      { key: 'addSecondPair', type: 'bool', label: 'Second pair' }
+    ]
+  };
+  var makerIds = ['kick', 'snare', 'clap', 'hat', 'tom', 'ride', 'cowbell'];
+  var makerSoundParams = {};
+  makerIds.forEach(function (id) {
+    makerSoundParams[id] = Object.assign({}, MAKER_DEFAULTS[id]);
+  });
+
+  var BANK_DUR = 0.55;
+  var BANK_SR = 44100;
+  var LOOK_AHEAD = 0.12;
+  var SCHEDULE_MS = 25;
+  var MAX_DELAY_FRAC = 0.10;
+  var REVERB_HP_HZ = 267;
+  var STEREO_CROSSOVER_HZ = 267;
+  var MASTER_GAIN = 0.85;
+  /** Sidechain duck (envelope, not a compressor — no ratio).
+   *  Depth = residual gain while ducked; shorter atk/rel = snappier pump. */
+  var DUCK_DEPTH = 0.12;
+  var DUCK_ATTACK = 0.002;
+  var DUCK_HOLD = 0.04;
+  var DUCK_RELEASE = 0.09;
+  var CX = 500;
+  var CY = 500;
+  var OUTER = 470;
+  var INNER_HUB = 170;
+  var RING_GAP = 6;
+  var SEG_GAP_DEG = 1.8;
+  var START_ANGLE = -Math.PI / 2;
+
+  var layers = [];
+  var viewLayer = 0;
+  var pattern = null;
+  var soundBank = {};
+  var paintSample = 'say1';
+  var ctx = null;
+  var master = null;
+  var punchBus = null;
+  var duckGain = null;
+  var mixBus = null;
+  var analyser = null;
+  var analyserData = null;
+  var fftCanvas = document.getElementById('fftRing');
+  var fftCtx2d = fftCanvas ? fftCanvas.getContext('2d') : null;
+  var fftSmooth = null;
+  var fftParticles = [];
+  var FFT_POINTS_MAX = 28;
+  var FFT_PARTICLE_COUNT = 10;
+  var starCanvas = document.getElementById('starField');
+  var starCtx2d = starCanvas ? starCanvas.getContext('2d') : null;
+  var stageEl = document.getElementById('stage');
+  var starParticles = [];
+  var STAR_COUNT = 22;
+  var galaxyParticles = [];
+  var GALAXY_COUNT = 200; // low-cost slow white star undertone
+  var FLOCK_TRAIL = 6;
+  var glitchLines = [];
+  var nextGlitchAt = 0;
+  var reverbConvolver = null;
+  var reverbWetGain = null;
+  var stereoMidHighGain = null;
+  var activeVoices = [];
+  var playing = false;
+  var nextBarTime = 0;
+  var barOrigin = 0;
+  var scheduleTimer = 0;
+  var playheadRaf = 0;
+  var audioReady = false;
+  var playCursor = 0;
+  var barEvents = [];
+  var shownPlayLayer = -1;
+  var viewLocked = false;
+  /** Painted segment hit flashes: key "ring:i" → audio time of hit. */
+  var segHitFlashes = {};
+
+  var svg = document.getElementById('ringSvg');
+  var hubBtn = document.getElementById('hubBtn');
+  var hubIcon = document.getElementById('hubIcon');
+  var circleWrap = document.getElementById('circleWrap');
+  var bpmEl = document.getElementById('bpm');
+  var bpmVal = document.getElementById('bpmVal');
+  var humanEl = document.getElementById('humanize');
+  var humanVal = document.getElementById('humanVal');
+  var swingEl = document.getElementById('swing');
+  var swingVal = document.getElementById('swingVal');
+  var reverbEl = document.getElementById('reverb');
+  var reverbVal = document.getElementById('reverbVal');
+  var reverbDurEl = document.getElementById('reverbDuration');
+  var reverbDurVal = document.getElementById('reverbDurationVal');
+  var stereoEl = document.getElementById('stereo');
+  var stereoVal = document.getElementById('stereoVal');
+  var panelBurger = document.getElementById('panelBurger');
+  var panelMenu = document.getElementById('panelMenu');
+  var panelMenuWrap = document.getElementById('panelMenuWrap');
+  var appRoot = document.getElementById('appRoot');
+  var launchOverlay = document.getElementById('launchOverlay');
+  var topCloseBtn = document.getElementById('topCloseBtn');
+  var activePanel = 'edit';
+  var visualFxOn = true;
+  var visualOnBtn = document.getElementById('visualOnBtn');
+  var visualOffBtn = document.getElementById('visualOffBtn');
+  var appStarted = false;
+  var energyBursts = [];
+  var baseHaloWings = [];
+  var shootingStars = [];
+  var nextShootAt = 0;
+  var pendingKickBursts = [];
+  var kickBurstCooldownUntil = 0;
+  var layerTrigger = document.getElementById('layerTrigger');
+  var layerMenu = document.getElementById('layerMenu');
+  var layerLab = document.getElementById('layerLab');
+  var soundDesignBtn = document.getElementById('soundDesignBtn');
+  var paintTrigger = document.getElementById('paintTrigger');
+  var paintMenu = document.getElementById('paintMenu');
+  var paintDot = document.getElementById('paintDot');
+  var paintLab = document.getElementById('paintLab');
+  var randBtn = document.getElementById('randBtn');
+  var randOptsBtn = document.getElementById('randOptsBtn');
+  var randOptsMenu = document.getElementById('randOptsMenu');
+  var randLayersList = document.getElementById('randLayersList');
+  var randOptPatterns = document.getElementById('randOptPatterns');
+  var randOptSounds = document.getElementById('randOptSounds');
+  var randOptWords = document.getElementById('randOptWords');
+  var randOptVoices = document.getElementById('randOptVoices');
+  var randOptBpm = document.getElementById('randOptBpm');
+  var randOptSpace = document.getElementById('randOptSpace');
+  var soundSheet = document.getElementById('soundSheet');
+  var soundBody = document.getElementById('soundBody');
+  var soundTitle = document.getElementById('soundTitle');
+  var soundDot = document.getElementById('soundDot');
+  var soundClose = document.getElementById('soundClose');
+  var sampleExtra = document.getElementById('sampleExtra');
+  var textExtra = document.getElementById('textExtra');
+  var loadSampleBtn = document.getElementById('loadSampleBtn');
+  var sayInput = document.getElementById('sayInput');
+  var sayApplyBtn = document.getElementById('sayApplyBtn');
+  var sayCancelBtn = document.getElementById('sayCancelBtn');
+  var sayActions = document.getElementById('sayActions');
+  var wavInput = document.getElementById('wavInput');
+  var playheadEl = null;
+  var discGroupEl = null;
+  var needleEl = null;
+  var segEls = {};
+  var editMakerId = null;
+  var rebuildTimer = 0;
+  var sayBusy = false;
+
+  var ICON_PLAY = '<path d="M8 5v14l11-7z"/>';
+  var ICON_PAUSE = '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+
+  function sampleById(id) {
+    for (var i = 0; i < SAMPLES.length; i++) {
+      if (SAMPLES[i].id === id) return SAMPLES[i];
+    }
+    return null;
+  }
+
+  function getHumanize() {
+    return Math.max(0, Math.min(1, (parseFloat(humanEl.value) || 0) / 100));
+  }
+
+  function getSwing() {
+    return Math.max(0, Math.min(1, (parseFloat(swingEl.value) || 0) / 100));
+  }
+
+  function getReverb() {
+    return Math.max(0, Math.min(1, (parseFloat(reverbEl.value) || 50) / 100));
+  }
+
+  function getReverbDurationSec() {
+    var bpm = getBpm();
+    var minSec = bpm / 240;
+    var maxSec = bpm / 60;
+    var pct = Math.max(0, Math.min(100, parseFloat(reverbDurEl.value) || 50) / 100);
+    return minSec + (maxSec - minSec) * pct;
+  }
+
+  function getStereo() {
+    return Math.max(0, Math.min(100, parseFloat(stereoEl.value) || 0));
+  }
+
+  function getStereoMidHighAmount() {
+    var pct = getStereo() / 100;
+    var db = -36 * pct;
+    return Math.pow(10, db / 20);
+  }
+
+  function createReverbIR(audioCtx, durationSec, decaySec) {
+    var sr = audioCtx.sampleRate;
+    var len = Math.ceil(sr * durationSec);
+    var buf = audioCtx.createBuffer(2, len, sr);
+    var L = buf.getChannelData(0);
+    var R = buf.getChannelData(1);
+    for (var i = 0; i < len; i++) {
+      var t = i / sr;
+      var decay = Math.exp(-t / decaySec);
+      L[i] = (Math.random() * 2 - 1) * decay;
+      R[i] = (Math.random() * 2 - 1) * decay;
+    }
+    return buf;
+  }
+
+  function updateReverbIR() {
+    var durationSec = getReverbDurationSec();
+    reverbDurVal.textContent = durationSec.toFixed(2) + ' s';
+    if (!ctx || !reverbConvolver) return;
+    reverbConvolver.buffer = createReverbIR(ctx, durationSec, durationSec * 0.55);
+  }
+
+  function applySpaceSettings() {
+    if (reverbWetGain) reverbWetGain.gain.value = getReverb();
+    if (stereoMidHighGain) stereoMidHighGain.gain.value = getStereoMidHighAmount();
+  }
+
+  function buildAudioGraph() {
+    master = ctx.createGain();
+    master.gain.value = MASTER_GAIN;
+
+    punchBus = ctx.createGain();
+    punchBus.gain.value = 1;
+    punchBus.connect(master);
+
+    duckGain = ctx.createGain();
+    duckGain.gain.value = 1;
+    duckGain.connect(master);
+
+    mixBus = ctx.createGain();
+    mixBus.gain.value = 1;
+    master.connect(mixBus);
+
+    var reverbSend = ctx.createBiquadFilter();
+    reverbSend.type = 'highpass';
+    reverbSend.frequency.value = REVERB_HP_HZ;
+    reverbSend.Q.value = 0.7;
+    master.connect(reverbSend);
+
+    reverbConvolver = ctx.createConvolver();
+    reverbConvolver.normalize = true;
+    var durationSec = getReverbDurationSec();
+    reverbConvolver.buffer = createReverbIR(ctx, durationSec, durationSec * 0.55);
+    reverbSend.connect(reverbConvolver);
+
+    reverbWetGain = ctx.createGain();
+    reverbWetGain.gain.value = getReverb();
+    reverbConvolver.connect(reverbWetGain);
+    reverbWetGain.connect(mixBus);
+
+    var widthSplit = ctx.createChannelSplitter(2);
+    var midSum = ctx.createGain();
+    var sideSum = ctx.createGain();
+    var invGain = ctx.createGain();
+    invGain.gain.value = -1;
+    widthSplit.connect(midSum, 0);
+    widthSplit.connect(midSum, 1);
+    widthSplit.connect(sideSum, 0);
+    widthSplit.connect(invGain, 1);
+    invGain.connect(sideSum);
+
+    var midLowLP = ctx.createBiquadFilter();
+    midLowLP.type = 'lowpass';
+    midLowLP.frequency.value = STEREO_CROSSOVER_HZ;
+    midLowLP.Q.value = 0.7;
+    var midHighHP = ctx.createBiquadFilter();
+    midHighHP.type = 'highpass';
+    midHighHP.frequency.value = STEREO_CROSSOVER_HZ;
+    midHighHP.Q.value = 0.7;
+    var midLowGain = ctx.createGain();
+    midLowGain.gain.value = 1;
+    stereoMidHighGain = ctx.createGain();
+    stereoMidHighGain.gain.value = getStereoMidHighAmount();
+    var midMerge = ctx.createGain();
+    midMerge.gain.value = 1;
+    midSum.connect(midLowLP);
+    midLowLP.connect(midLowGain);
+    midLowGain.connect(midMerge);
+    midSum.connect(midHighHP);
+    midHighHP.connect(stereoMidHighGain);
+    stereoMidHighGain.connect(midMerge);
+
+    var sideGain = ctx.createGain();
+    sideGain.gain.value = 1;
+    var sideGainInv = ctx.createGain();
+    sideGainInv.gain.value = -1;
+    sideSum.connect(sideGain);
+    sideSum.connect(sideGainInv);
+
+    var widthMerge = ctx.createChannelMerger(2);
+    midMerge.connect(widthMerge, 0, 0);
+    midMerge.connect(widthMerge, 0, 1);
+    sideGain.connect(widthMerge, 0, 0);
+    sideGainInv.connect(widthMerge, 0, 1);
+
+    mixBus.connect(widthSplit);
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.78;
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -18;
+    analyserData = new Uint8Array(analyser.frequencyBinCount);
+    fftSmooth = new Float32Array(FFT_POINTS_MAX);
+    initFftParticles();
+    initStarParticles();
+    initGalaxyParticles();
+    widthMerge.connect(analyser);
+    analyser.connect(ctx.destination);
+  }
+
+  function lfo01(t, periodSec, phase) {
+    return 0.5 + 0.5 * Math.sin((t / Math.max(0.001, periodSec)) * Math.PI * 2 + (phase || 0));
+  }
+
+  /** Blend several sine cycles (incommensurate periods) → slow-drifting aesthetic params. */
+  function getVfxAesthetics(t) {
+    var a = lfo01(t, 11.3, 0.2);
+    var b = lfo01(t, 17.7, 1.1);
+    var c = lfo01(t, 29.1, 2.4);
+    var d = lfo01(t, 7.4, 0.7);
+    var e = lfo01(t, 41.0, 3.0);
+    var f = lfo01(t, 23.5, 4.2);
+    var g = lfo01(t, 13.9, 5.5);
+    var h = lfo01(t, 53.0, 1.8);
+    var i = lfo01(t, 19.6, 0.9);
+    var j = lfo01(t, 37.2, 2.1);
+    var k = lfo01(t, 8.8, 3.7);
+
+    // Slow hue wander + occasional faster secondary wash
+    var hue = (a * 200 + b * 95 + c * 55 + i * 30) % 360;
+    var hue2 = (hue + 35 + d * 70 + j * 25) % 360;
+    var spinDir = e > 0.52 ? 1 : (e < 0.48 ? -1 : 0);
+    return {
+      hue: hue,
+      hue2: hue2,
+      sat: 0.42 + a * 0.45,
+      lit: 0.42 + b * 0.28,
+      facets: Math.round(11 + c * 17),
+      morphScale: 0.65 + d * 1.05,
+      ringSpin: spinDir,
+      ringSpinSpeed: 0.0015 + f * 0.028 + k * 0.008,
+      orbitSpread: 0.5 + g * 0.65,
+      ringPartCount: Math.round(3 + a * 6),
+      starActive: Math.round(8 + b * 12),
+      starSpeed: 0.55 + c * 1.2 + k * 0.25,
+      trailFade: 0.22 + d * 0.32,
+      ringTrail: 0.55 + i * 0.4,
+      swirl: (f - 0.5) * 0.14 + (j - 0.5) * 0.05,
+      coverage: 0.75 + g * 0.55,
+      spokeAlpha: 0.03 + h * 0.2,
+      strokeWide: 1.1 + a * 3.0,
+      particleSize: 0.65 + e * 1.2,
+      reverseChance: f,
+      partDirFlip: i > 0.62 ? -1 : 1,
+      flockHeading: (a * 2.1 + c * 1.4 + t * 0.08) % (Math.PI * 2),
+      flockSpread: 0.55 + g * 0.7,
+      // Sparse bg dots — no trails
+      galaxyActive: Math.round(6 + h * 10),
+      galaxySpeed: 0.25 + i * 0.35,
+      galaxyTrail: 0.1 + k * 0.1,
+      galaxySize: 0.55 + g * 0.55,
+      // Larger outer morph shell
+      outerScale: 1.55 + b * 0.35,
+      outerFacets: Math.round(9 + e * 14),
+      outerAmp: 0.55 + f * 0.7,
+      outerAlpha: 0.18 + g * 0.28,
+      outerSpin: (h - 0.5) * 1.4
+    };
+  }
+
+  function hslToRgb(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    s = Math.max(0, Math.min(1, s));
+    l = Math.max(0, Math.min(1, l));
+    var c = (1 - Math.abs(2 * l - 1)) * s;
+    var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    var m = l - c / 2;
+    var r = 0;
+    var g = 0;
+    var b = 0;
+    if (h < 60) { r = c; g = x; }
+    else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; }
+    else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; }
+    else { r = c; b = x; }
+    return {
+      r: Math.round((r + m) * 255),
+      g: Math.round((g + m) * 255),
+      b: Math.round((b + m) * 255)
+    };
+  }
+
+  function rgbaStr(rgb, a) {
+    return 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + a + ')';
+  }
+
+  function initFftParticles() {
+    fftParticles = [];
+    var i;
+    for (i = 0; i < FFT_PARTICLE_COUNT; i++) {
+      fftParticles.push({
+        ang: (i / FFT_PARTICLE_COUNT) * Math.PI * 2 + Math.random() * 0.5,
+        // Keep near outer ring — not crowding the center
+        orbit: 0.92 + Math.random() * 0.35,
+        size: 0.8 + Math.random() * 1.8,
+        phase: Math.random() * Math.PI * 2,
+        spin: (0.12 + Math.random() * 0.45) * (Math.random() < 0.5 ? 1 : -1),
+        wobble: 0.25 + Math.random() * 0.8
+      });
+    }
+  }
+
+  /** Spawn flock agents away from center; varied personal heading. */
+  function resetFlock(p, w, h, flockHeading) {
+    var cx = w * 0.5;
+    var cy = h * 0.5;
+    var minDim = Math.min(w, h);
+    var keepOut = minDim * 0.28;
+    var tries = 0;
+    do {
+      p.x = Math.random() * w;
+      p.y = Math.random() * h;
+      tries++;
+    } while (tries < 12 && Math.hypot(p.x - cx, p.y - cy) < keepOut);
+
+    var head = (flockHeading != null ? flockHeading : Math.random() * Math.PI * 2)
+      + (Math.random() - 0.5) * 1.2;
+    p.vx = Math.cos(head);
+    p.vy = Math.sin(head);
+    p.speed = 0.55 + Math.random() * 1.1;
+    p.size = 0.7 + Math.random() * 1.6;
+    p.phase = Math.random() * Math.PI * 2;
+    p.turnBias = (Math.random() - 0.5) * 0.08;
+    p.trailLen = 4 + Math.floor(Math.random() * (FLOCK_TRAIL - 3));
+    p.hueOff = (Math.random() - 0.5) * 50;
+    p.trail = [];
+  }
+
+  function initStarParticles() {
+    starParticles = [];
+    var i;
+    for (i = 0; i < STAR_COUNT; i++) {
+      var p = {};
+      resetFlock(p, 800, 600, i * 0.37);
+      starParticles.push(p);
+    }
+  }
+
+  /** Sparse distant dots — slow white star undertone (~200, cheap). */
+  function resetGalaxyStar(p, w, h) {
+    p.x = Math.random() * (w || 800);
+    p.y = Math.random() * (h || 600);
+    p.phase = Math.random() * Math.PI * 2;
+    p.twinkle = 0.25 + Math.random() * 0.75;
+    p.drift = (Math.random() - 0.5) * 0.08;
+    p.size = 0.35 + Math.random() * 0.95;
+  }
+
+  function initGalaxyParticles() {
+    galaxyParticles = [];
+    var i;
+    for (i = 0; i < GALAXY_COUNT; i++) {
+      var p = {};
+      resetGalaxyStar(p, 800, 600);
+      galaxyParticles.push(p);
+    }
+  }
+
+  function sizeStarCanvas() {
+    if (!starCanvas || !stageEl) return;
+    var rect = stageEl.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.max(1, Math.floor(rect.width * dpr));
+    var h = Math.max(1, Math.floor(rect.height * dpr));
+    if (starCanvas.width !== w || starCanvas.height !== h) {
+      starCanvas.width = w;
+      starCanvas.height = h;
+    }
+  }
+
+  function clearStarField() {
+    if (starCtx2d && starCanvas) starCtx2d.clearRect(0, 0, starCanvas.width, starCanvas.height);
+    if (stageEl) stageEl.classList.remove('is-playing');
+    shootingStars = [];
+    glitchLines = [];
+    nextGlitchAt = 0;
+  }
+
+  function clearFftRing() {
+    if (!fftCtx2d || !fftCanvas) return;
+    fftCtx2d.clearRect(0, 0, fftCanvas.width, fftCanvas.height);
+    energyBursts = [];
+    baseHaloWings = [];
+    pendingKickBursts = [];
+  }
+
+  /** Quiet white star field undertone — no shadows, slow drift, low CPU. */
+  function drawGalaxyStars(bass, midEnergy, aes, time) {
+    if (!galaxyParticles.length) initGalaxyParticles();
+    var w = starCanvas.width;
+    var h = starCanvas.height;
+    var energy = Math.max(bass, midEnergy * 0.35);
+    var i;
+    // Single path batch of tiny fills
+    for (i = 0; i < galaxyParticles.length; i++) {
+      var g = galaxyParticles[i];
+      g.x += g.drift * 0.35;
+      g.y += Math.sin(time * 0.07 + g.phase) * 0.12;
+      if (g.x < 0) g.x += w;
+      if (g.x > w) g.x -= w;
+      if (g.y < 0) g.y += h;
+      if (g.y > h) g.y -= h;
+
+      var tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(time * (0.6 + g.twinkle) + g.phase));
+      var alpha = (0.1 + g.twinkle * 0.22 + energy * 0.08) * tw;
+      var sz = g.size * (0.75 + energy * 0.15);
+      starCtx2d.fillStyle = 'rgba(235,240,255,' + Math.min(0.72, alpha).toFixed(3) + ')';
+      starCtx2d.fillRect(g.x, g.y, Math.max(0.6, sz), Math.max(0.6, sz));
+    }
+  }
+
+  /** Subtle H/V glitch slices — rare, thin, just a bit clearer. */
+  function maybeSpawnGlitchLines(time, bass, mid, vol, w, h) {
+    if (time < nextGlitchAt) return;
+    var energy = Math.max(bass, vol * 0.8, mid * 0.4);
+    // Mostly quiet — only occasional single lines
+    if (Math.random() > 0.08 + energy * 0.12) {
+      nextGlitchAt = time + 0.35 + Math.random() * 0.7;
+      return;
+    }
+    var horiz = Math.random() < 0.55;
+    var len = (horiz ? w : h) * (0.18 + Math.random() * 0.35);
+    var pos = Math.random() * (horiz ? h : w);
+    var start = Math.random() * ((horiz ? w : h) - len);
+    glitchLines.push({
+      horiz: horiz,
+      pos: pos,
+      start: start,
+      len: len,
+      thick: 0.7 + Math.random() * 0.9,
+      life: 1,
+      decay: 0.14 + Math.random() * 0.1,
+      bright: 0.22 + energy * 0.18,
+      twin: false,
+      hue: Math.random() < 0.5 ? 200 : 280
+    });
+    nextGlitchAt = time + 0.55 + Math.random() * 1.2;
+  }
+
+  function drawGlitchLines(vol, bass) {
+    if (!starCtx2d || !glitchLines.length) return;
+    var i;
+    var energy = Math.max(bass, vol);
+    starCtx2d.save();
+    starCtx2d.globalCompositeOperation = 'lighter';
+    for (i = glitchLines.length - 1; i >= 0; i--) {
+      var g = glitchLines[i];
+      g.life -= g.decay;
+      if (g.life <= 0) {
+        glitchLines.splice(i, 1);
+        continue;
+      }
+      var a = g.life * g.bright * (0.45 + energy * 0.25);
+      var rgb = hslToRgb(g.hue, 0.35, 0.72);
+      starCtx2d.fillStyle = rgbaStr(rgb, Math.min(0.38, a));
+      if (g.horiz) {
+        starCtx2d.fillRect(g.start, g.pos, g.len, g.thick);
+      } else {
+        starCtx2d.fillRect(g.pos, g.start, g.thick, g.len);
+      }
+    }
+    starCtx2d.restore();
+  }
+
+  function spawnShootingStar(w, h, aes) {
+    var fromTop = Math.random() > 0.35;
+    var x = Math.random() * w * 0.85;
+    var y = fromTop ? (-10 - Math.random() * 40) : (Math.random() * h * 0.35);
+    var ang = 0.55 + Math.random() * 0.55; // down-right-ish
+    var spd = 7 + Math.random() * 14;
+    shootingStars.push({
+      x: x,
+      y: y,
+      vx: Math.cos(ang) * spd,
+      vy: Math.sin(ang) * spd,
+      life: 1,
+      decay: 0.012 + Math.random() * 0.018,
+      len: 18 + Math.random() * 34,
+      hue: (aes.hue2 + Math.random() * 40) % 360,
+      width: 1 + Math.random() * 1.6
+    });
+  }
+
+  function spawnEnergyBurst(cx, cy, circleR, aes, bass, vol) {
+    var neonHues = [aes.hue, aes.hue2, (aes.hue + 160) % 360, (aes.hue2 + 90) % 360, 190, 310];
+    var blurry = Math.random() < 0.42;
+    var wide = Math.random() < 0.48;
+    var fast = Math.random() < 0.4;
+    var v = vol != null ? vol : 0.5;
+    // Intensity from music volume + occasional quieter flashes
+    var intensity = (0.2 + v * 0.85) * (Math.random() < 0.45 ? (0.45 + Math.random() * 0.35) : (0.75 + Math.random() * 0.25));
+    var hue = neonHues[Math.floor(Math.random() * neonHues.length)];
+    var startR = circleR * (0.55 + Math.random() * 0.25);
+    var maxR = circleR * (wide ? (2.6 + Math.random() * 2.2) : (1.45 + Math.random() * 0.9));
+    var parts = [];
+    var partN = Math.random() < 0.55 ? 0 : (4 + Math.floor(Math.random() * 6));
+    var pi;
+    for (pi = 0; pi < partN; pi++) {
+      parts.push({
+        ang: (pi / Math.max(1, partN)) * Math.PI * 2 + Math.random() * 0.4,
+        drift: (Math.random() - 0.5) * 0.035,
+        size: 1.4 + Math.random() * (blurry ? 3.2 : 2.2),
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+    energyBursts.push({
+      x: cx,
+      y: cy,
+      r: startR,
+      maxR: maxR,
+      life: 1,
+      decay: fast ? (0.022 + Math.random() * 0.02) : (0.01 + Math.random() * 0.012),
+      expand: fast ? (0.1 + Math.random() * 0.12) : (0.035 + Math.random() * 0.05),
+      width: blurry ? (12 + Math.random() * 18) : (2.2 + Math.random() * 5),
+      blur: blurry ? (22 + Math.random() * 28) : (4 + Math.random() * 10),
+      blurry: blurry,
+      intensity: intensity,
+      hue: hue,
+      sat: 0.65 + Math.random() * 0.25,
+      particles: parts
+    });
+  }
+
+  function maybeSpawnShootingStars(time, bass, midEnergy, aes, w, h) {
+    var energy = Math.max(bass, midEnergy * 0.5);
+    if (time < nextShootAt) return;
+    nextShootAt = time + 1.8 + Math.random() * 4.5;
+    if (Math.random() < 0.55 + energy * 0.35) {
+      spawnShootingStar(w, h, aes);
+      if (Math.random() < 0.35) spawnShootingStar(w, h, aes);
+    }
+  }
+
+  function noteKickForBurst(when) {
+    if (!playing || !ctx) return;
+    var t = Math.max(when || 0, ctx.currentTime);
+    if (t < kickBurstCooldownUntil) return;
+    // Occasional — not every kick
+    if (Math.random() > 0.36) return;
+    pendingKickBursts.push(t);
+    kickBurstCooldownUntil = t + 0.55 + Math.random() * 2.4;
+  }
+
+  function drawShootingStars(dtScale) {
+    var i;
+    for (i = shootingStars.length - 1; i >= 0; i--) {
+      var s = shootingStars[i];
+      s.x += s.vx * dtScale;
+      s.y += s.vy * dtScale;
+      s.life -= s.decay * dtScale;
+      if (s.life <= 0 || s.x > starCanvas.width + 80 || s.y > starCanvas.height + 80) {
+        shootingStars.splice(i, 1);
+        continue;
+      }
+      var rgb = hslToRgb(s.hue, 0.55, 0.78);
+      var alpha = Math.max(0, s.life) * 0.85;
+      var tx = s.x - s.vx * s.len * 0.12;
+      var ty = s.y - s.vy * s.len * 0.12;
+      starCtx2d.strokeStyle = rgbaStr(rgb, alpha);
+      starCtx2d.lineWidth = s.width;
+      starCtx2d.lineCap = 'round';
+      starCtx2d.beginPath();
+      starCtx2d.moveTo(tx, ty);
+      starCtx2d.lineTo(s.x, s.y);
+      starCtx2d.stroke();
+      starCtx2d.fillStyle = rgbaStr(rgb, Math.min(1, alpha + 0.15));
+      starCtx2d.beginPath();
+      starCtx2d.arc(s.x, s.y, Math.max(0.8, s.width * 0.7), 0, Math.PI * 2);
+      starCtx2d.fill();
+    }
+  }
+
+  /** Soft morph halo rings — same look as the old pair, slowly push out; new one from inside. */
+  function spawnBaseHaloWing(circleR, aes, startScale) {
+    var hue = aes.hue;
+    var hue2 = aes.hue2;
+    baseHaloWings.push({
+      // Start near the drum; expand slowly to outer halo size
+      r: circleR * (startScale != null ? startScale : 0.94),
+      maxR: circleR * (2.15 + Math.random() * 0.35),
+      // Very slow outward push
+      expand: 0.0032 + Math.random() * 0.0018,
+      width: 5.5 + Math.random() * 2.5,
+      phase: Math.random() * Math.PI * 2,
+      hue: hue,
+      hue2: hue2,
+      sat: Math.min(0.65, aes.sat * 0.65),
+      strength: 0.95 + Math.random() * 0.2
+    });
+  }
+
+  function maybeSpawnBaseHaloWing(circleR, aes) {
+    var maxAlive = 3;
+    var n = baseHaloWings.length;
+    if (n >= maxAlive) return;
+
+    // Seed first two so it reads like the old dual rings
+    if (n === 0) {
+      spawnBaseHaloWing(circleR, aes, 0.94);
+      spawnBaseHaloWing(circleR, aes, 1.28);
+      return;
+    }
+
+    // Don't stack another until the newest has pushed out a bit
+    var i;
+    var minR = Infinity;
+    var maxRNow = 0;
+    for (i = 0; i < n; i++) {
+      if (baseHaloWings[i].r < minR) minR = baseHaloWings[i].r;
+      if (baseHaloWings[i].r > maxRNow) maxRNow = baseHaloWings[i].r;
+    }
+    if (minR < circleR * 1.1) return;
+
+    // New ring from inside as the biggest one is on its way out
+    var outerLeaving = maxRNow > circleR * 1.55;
+    if (n < 2 || outerLeaving) {
+      spawnBaseHaloWing(circleR, aes, 0.92);
+    }
+  }
+
+  function drawBaseHaloWings(c2d, cx, cy, circleR, ring, points, spinOff, bass, vol, bright, blurScale, time, aes) {
+    if (!c2d) return;
+    var midRgb = hslToRgb(aes.hue, Math.min(0.65, aes.sat * 0.65), 0.74);
+    var outerRgb = hslToRgb(aes.hue + 35, aes.sat * 0.5, 0.66);
+    var coreRgb = hslToRgb(aes.hue2, Math.min(0.5, aes.sat * 0.4), 0.9);
+    var i;
+
+    c2d.save();
+    c2d.globalCompositeOperation = 'lighter';
+    for (i = baseHaloWings.length - 1; i >= 0; i--) {
+      var wing = baseHaloWings[i];
+      // Keep max tied to current drum size
+      wing.maxR = Math.max(wing.maxR, circleR * 2.1);
+      wing.r += (wing.maxR - wing.r) * wing.expand + 0.18;
+      var grow = (wing.r - circleR * 0.9) / Math.max(1, wing.maxR - circleR * 0.9);
+      grow = Math.max(0, Math.min(1, grow));
+
+      // Fade as it becomes the outgoing biggest ring
+      var fadeOut = grow > 0.72 ? (1 - (grow - 0.72) / 0.28) : 1;
+      fadeOut = Math.max(0, fadeOut);
+      // Soft fade-in while emerging from inside
+      var fadeIn = grow < 0.12 ? grow / 0.12 : 1;
+      // Stronger music pulse on halo rings
+      var pulse = 0.55 + bass * 0.9 + vol * 0.75 + 0.1 * Math.sin(time * 4.2 + wing.phase);
+      var a = fadeIn * fadeOut * pulse * (0.1 + vol * 1.05) * bright * wing.strength;
+
+      if (fadeOut <= 0.02 || wing.r >= wing.maxR * 0.98) {
+        baseHaloWings.splice(i, 1);
+        continue;
+      }
+
+      // Radius and thickness also breathe with the music
+      var musicPulse = 1 + bass * 0.12 + vol * 0.1;
+      var amp = circleR * (0.08 + grow * 0.06) * (0.55 + bass * 0.55) * musicPulse;
+      var verts = buildMorphVerts(cx, cy, wing.r * musicPulse, amp, ring, points, spinOff * (0.4 + grow * 0.4), bass, time);
+      var rgb = grow > 0.45 ? outerRgb : midRgb;
+      var thick = wing.width * (1.05 - grow * 0.25) * (0.85 + bass * 0.55 + vol * 0.25);
+      // Inner / early rings: much softer blurred edges
+      var innerSoft = 1 + (1 - grow) * 1.8;
+
+      c2d.shadowColor = rgbaStr(rgb, Math.min(1, 0.85 * a));
+      c2d.shadowBlur = blurScale * (1.05 + grow * 0.35) * innerSoft;
+      c2d.strokeStyle = rgbaStr(rgb, Math.min(0.75, 0.42 * a));
+      c2d.lineWidth = thick * (grow < 0.35 ? 1.35 : 1);
+      c2d.beginPath();
+      traceSmoothClosedPath(c2d, verts, 1.0);
+      c2d.stroke();
+
+      // Soft core — dimmer/blurrier when still inside
+      c2d.shadowBlur = blurScale * (grow < 0.35 ? 1.1 : 0.45);
+      c2d.strokeStyle = rgbaStr(coreRgb, Math.min(0.9, (grow < 0.35 ? 0.35 : 0.65) * a));
+      c2d.lineWidth = Math.max(1.4, thick * (grow < 0.35 ? 0.45 : 0.32));
+      c2d.beginPath();
+      traceSmoothClosedPath(c2d, verts, 1.0);
+      c2d.stroke();
+    }
+    c2d.shadowBlur = 0;
+    c2d.restore();
+  }
+
+  function drawEnergyBursts(c2d, brightScale) {
+    if (!c2d) return;
+    var i;
+    var j;
+    c2d.save();
+    c2d.globalCompositeOperation = 'lighter';
+    for (i = energyBursts.length - 1; i >= 0; i--) {
+      var b = energyBursts[i];
+      var expand = b.expand != null ? b.expand : 0.08;
+      b.r += (b.maxR - b.r) * expand + (1.2 + expand * 18);
+      b.life -= b.decay;
+      if (b.life <= 0 || b.r > b.maxR * 1.12) {
+        energyBursts.splice(i, 1);
+        continue;
+      }
+      var intensity = b.intensity != null ? b.intensity : 0.75;
+      var rgb = hslToRgb(b.hue, b.sat, b.blurry ? 0.55 : 0.64);
+      var core = hslToRgb(b.hue, 0.28, 0.88);
+      // Live music volume scales ring opacity while it expands
+      var volLive = (typeof musicVolume === 'function') ? musicVolume() : 0.5;
+      var a = Math.max(0, b.life) * intensity * (0.2 + volLive * 0.95) *
+        (0.4 + (brightScale || 0.5) * 0.35);
+      var blur = (b.blur != null ? b.blur : 12) * (0.55 + intensity * 0.45);
+
+      c2d.shadowColor = rgbaStr(rgb, Math.min(0.85, a * (b.blurry ? 0.55 : 0.8)));
+      c2d.shadowBlur = blur * (0.55 + b.life * 0.4);
+      c2d.strokeStyle = rgbaStr(rgb, Math.min(0.7, a * (b.blurry ? 0.28 : 0.62)));
+      c2d.lineWidth = b.width * (b.blurry ? (0.85 + b.life * 0.4) : (0.5 + b.life * 0.5));
+      c2d.beginPath();
+      c2d.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      c2d.stroke();
+
+      if (!b.blurry && intensity > 0.45) {
+        c2d.shadowBlur = blur * 0.28;
+        c2d.strokeStyle = rgbaStr(core, Math.min(0.75, a * 0.7));
+        c2d.lineWidth = Math.max(1, b.width * 0.22);
+        c2d.beginPath();
+        c2d.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        c2d.stroke();
+      }
+
+      if (b.particles && b.particles.length && intensity > 0.35) {
+        for (j = 0; j < b.particles.length; j++) {
+          var p = b.particles[j];
+          p.ang += p.drift;
+          var pr = b.r + Math.sin(b.life * 8 + p.phase) * (b.blurry ? 8 : 3);
+          var px = b.x + Math.cos(p.ang) * pr;
+          var py = b.y + Math.sin(p.ang) * pr;
+          var psz = p.size * (0.55 + b.life * 0.55) * intensity;
+          c2d.shadowBlur = b.blurry ? 10 : 5;
+          c2d.fillStyle = rgbaStr(core, Math.min(0.8, a * 0.65));
+          c2d.beginPath();
+          c2d.arc(px, py, Math.max(0.45, psz), 0, Math.PI * 2);
+          c2d.fill();
+        }
+      }
+    }
+    c2d.shadowBlur = 0;
+    c2d.restore();
+  }
+
+  /** Flocking trails — shared heading, personal variance, avoid radiating from center. */
+  function drawStarField(bass, midEnergy, aes, time) {
+    if (!starCtx2d || !starCanvas) return;
+    sizeStarCanvas();
+    if (!starParticles.length) initStarParticles();
+    var w = starCanvas.width;
+    var h = starCanvas.height;
+    var cx = w * 0.5;
+    var cy = h * 0.5;
+    var keepOut = Math.min(w, h) * (0.22 + aes.flockSpread * 0.08);
+    var energy = Math.max(bass, midEnergy * 0.45);
+    var active = Math.max(6, Math.min(STAR_COUNT, aes.starActive));
+    var trail = Math.max(0.2, Math.min(0.55, aes.trailFade));
+    var flockHead = aes.flockHeading + aes.swirl * 8;
+    var baseSpeed = (0.9 + energy * 3.2) * aes.starSpeed;
+    var i;
+    var j;
+
+    starCtx2d.fillStyle = 'rgba(17, 17, 20, ' + trail + ')';
+    starCtx2d.fillRect(0, 0, w, h);
+
+    // Slow white star undertone (~200 dots, cheap fillRect)
+    drawGalaxyStars(bass, midEnergy, aes, time);
+
+    var volNow = (typeof musicVolume === 'function') ? musicVolume() : energy;
+    maybeSpawnGlitchLines(time, bass, midEnergy, volNow, w, h);
+    drawGlitchLines(volNow, bass);
+
+    // Neighbor alignment sample (cheap flocking)
+    var alignX = 0;
+    var alignY = 0;
+    var alignN = Math.min(active, 12);
+    for (i = 0; i < alignN; i++) {
+      alignX += starParticles[i].vx;
+      alignY += starParticles[i].vy;
+    }
+    alignX /= alignN || 1;
+    alignY /= alignN || 1;
+    var alignLen = Math.hypot(alignX, alignY) || 1;
+    alignX /= alignLen;
+    alignY /= alignLen;
+
+    for (i = 0; i < active; i++) {
+      var s = starParticles[i];
+      var flockX = Math.cos(flockHead + s.turnBias * 4);
+      var flockY = Math.sin(flockHead + s.turnBias * 4);
+
+      // Blend personal dir + flock + neighbor alignment (not radial)
+      var tx = s.vx * 0.55 + flockX * 0.28 + alignX * 0.17;
+      var ty = s.vy * 0.55 + flockY * 0.28 + alignY * 0.17;
+      var tLen = Math.hypot(tx, ty) || 1;
+      tx /= tLen;
+      ty /= tLen;
+
+      // Soft steer away from center — no radiating out of hub
+      var dx = s.x - cx;
+      var dy = s.y - cy;
+      var dist = Math.hypot(dx, dy) || 1;
+      if (dist < keepOut * 1.35) {
+        var push = (keepOut * 1.35 - dist) / keepOut;
+        tx += (dx / dist) * push * 0.9;
+        ty += (dy / dist) * push * 0.9;
+        var pLen = Math.hypot(tx, ty) || 1;
+        tx /= pLen;
+        ty /= pLen;
+      }
+
+      // Gentle personal wander so trails aren't identical
+      var wand = 0.04 + energy * 0.05;
+      tx += Math.cos(time * (1.1 + s.phase) + s.phase) * wand;
+      ty += Math.sin(time * (0.9 + s.phase * 0.7) + s.phase) * wand;
+      var wLen = Math.hypot(tx, ty) || 1;
+      s.vx = tx / wLen;
+      s.vy = ty / wLen;
+
+      var spd = baseSpeed * s.speed * (0.75 + 0.35 * Math.sin(time * 2.4 + s.phase));
+      s.x += s.vx * spd;
+      s.y += s.vy * spd;
+
+      // Edge wrap — keep flock flowing, not respawning from center
+      var margin = 8;
+      if (s.x < -margin) s.x = w + margin;
+      if (s.x > w + margin) s.x = -margin;
+      if (s.y < -margin) s.y = h + margin;
+      if (s.y > h + margin) s.y = -margin;
+
+      if (!s.trail) s.trail = [];
+      s.trail.push({ x: s.x, y: s.y });
+      while (s.trail.length > s.trailLen) s.trail.shift();
+
+      // Skip drawing if still too close to center (clear hub)
+      if (dist < keepOut * 0.75) continue;
+
+      var rgb = hslToRgb(aes.hue2 + s.hueOff, aes.sat * 0.65, 0.7);
+      var pulse = 0.55 + energy * 0.55 + 0.2 * Math.sin(time * 5 + s.phase);
+      var tw = Math.max(0.45, s.size * aes.particleSize * pulse * 0.85);
+      var alpha = 0.12 + energy * 0.28 + (i % 5) * 0.03;
+
+      if (s.trail.length > 1) {
+        starCtx2d.beginPath();
+        starCtx2d.moveTo(s.trail[0].x, s.trail[0].y);
+        for (j = 1; j < s.trail.length; j++) {
+          starCtx2d.lineTo(s.trail[j].x, s.trail[j].y);
+        }
+        starCtx2d.strokeStyle = rgbaStr(rgb, alpha * 0.55);
+        starCtx2d.lineWidth = Math.max(0.4, tw * 0.55);
+        starCtx2d.lineCap = 'round';
+        starCtx2d.lineJoin = 'round';
+        starCtx2d.stroke();
+      }
+
+      starCtx2d.fillStyle = rgbaStr(rgb, Math.min(0.9, alpha + 0.18));
+      starCtx2d.beginPath();
+      starCtx2d.arc(s.x, s.y, tw, 0, Math.PI * 2);
+      starCtx2d.fill();
+    }
+
+    // Occasional shooting stars across the background
+    maybeSpawnShootingStars(time, bass, midEnergy, aes, w, h);
+    drawShootingStars(1);
+  }
+
+  function pseudo01(ringId, stepIdx, channel) {
+    var seed = 0;
+    for (var i = 0; i < ringId.length; i++) seed = (seed * 31 + ringId.charCodeAt(i)) | 0;
+    var x = Math.sin((seed + stepIdx * 31 + channel * 17) * 9999.123) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  function emptyPattern() {
+    var p = {};
+    RINGS.forEach(function (ring) {
+      p[ring.id] = Array(ring.segments).fill(null);
+    });
+    return p;
+  }
+
+  function initLayers() {
+    layers = [];
+    for (var i = 0; i < MAX_CIRCLES; i++) {
+      layers.push({ enabled: i < 1, pattern: emptyPattern() });
+    }
+  }
+
+  function layerLabel(i) {
+    return 'Wheel ' + (i + 1);
+  }
+
+  function closeLayerMenus() {
+    layerMenu.classList.remove('open');
+    layerTrigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function buildLayerMenu() {
+    layerMenu.innerHTML = '';
+    for (var i = 0; i < MAX_CIRCLES; i++) {
+      (function (idx) {
+        var row = document.createElement('div');
+        row.className = 'layer-opt' + (idx === viewLayer ? ' active' : '') + (layers[idx].enabled ? '' : ' off');
+        row.setAttribute('role', 'option');
+
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!layers[idx].enabled;
+        cb.title = layers[idx].enabled ? 'On' : 'Off';
+        cb.addEventListener('click', function (e) {
+          e.stopPropagation();
+        });
+        cb.addEventListener('change', function (e) {
+          e.stopPropagation();
+          layers[idx].enabled = !!cb.checked;
+          setViewLayer(idx);
+          syncLayerUi();
+        });
+
+        var name = document.createElement('button');
+        name.type = 'button';
+        name.className = 'name';
+        name.textContent = layerLabel(idx);
+        name.style.cssText = 'border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer;text-align:left;width:100%';
+        name.addEventListener('click', function (e) {
+          e.stopPropagation();
+          setViewLayer(idx);
+          closeLayerMenus();
+        });
+
+        row.appendChild(cb);
+        row.appendChild(name);
+        row.addEventListener('click', function (e) {
+          if (e.target === cb) return;
+          setViewLayer(idx);
+          closeLayerMenus();
+        });
+        layerMenu.appendChild(row);
+      })(i);
+    }
+
+    var actions = document.createElement('div');
+    actions.className = 'layer-menu-actions';
+    var allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.textContent = 'All';
+    allBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      layers.forEach(function (layer) { layer.enabled = true; });
+      buildLayerMenu();
+      syncLayerUi();
+    });
+    var thisBtn = document.createElement('button');
+    thisBtn.type = 'button';
+    thisBtn.textContent = 'This';
+    thisBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      layers.forEach(function (layer, idx) { layer.enabled = (idx === viewLayer); });
+      buildLayerMenu();
+      syncLayerUi();
+    });
+    var noneBtn = document.createElement('button');
+    noneBtn.type = 'button';
+    noneBtn.textContent = 'None';
+    noneBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      layers.forEach(function (layer) { layer.enabled = false; });
+      buildLayerMenu();
+      syncLayerUi();
+    });
+    actions.appendChild(allBtn);
+    actions.appendChild(thisBtn);
+    actions.appendChild(noneBtn);
+    layerMenu.appendChild(actions);
+  }
+
+  function openLayerMenu() {
+    closeLayerMenus();
+    closeRandMenus();
+    buildLayerMenu();
+    layerMenu.classList.add('open');
+    layerTrigger.setAttribute('aria-expanded', 'true');
+  }
+
+  var randLayerChecked = {};
+  var iRand;
+  for (iRand = 0; iRand < MAX_CIRCLES; iRand++) randLayerChecked[iRand] = (iRand === 0);
+
+  function syncLayerUi() {
+    var on = !!(layers[viewLayer] && layers[viewLayer].enabled);
+    layerLab.textContent = layerLabel(viewLayer) + (on ? '' : ' · off');
+    circleWrap.classList.toggle('disabled', !on);
+    if (layerMenu.classList.contains('open')) buildLayerMenu();
+  }
+
+  function setViewLayer(idx, opts) {
+    opts = opts || {};
+    idx = Math.max(0, Math.min(MAX_CIRCLES - 1, idx | 0));
+    viewLayer = idx;
+    pattern = layers[viewLayer].pattern;
+    if (!opts.fromPlayhead) viewLocked = true;
+    syncLayerUi();
+    if (!opts.skipPaint) {
+      if (opts.fromPlayhead) refreshSegFills();
+      else {
+        buildSvg();
+        refreshSegFills();
+      }
+    }
+  }
+
+  function nextEnabled(from) {
+    for (var i = 1; i <= MAX_CIRCLES; i++) {
+      var j = (from + i) % MAX_CIRCLES;
+      if (layers[j].enabled) return j;
+    }
+    return -1;
+  }
+
+  function resolveStart(from) {
+    from = Math.max(0, Math.min(MAX_CIRCLES - 1, from | 0));
+    if (layers[from].enabled) return from;
+    return nextEnabled(from);
+  }
+
+  function ringRadii(layerIndex) {
+    var n = RINGS.length;
+    var span = OUTER - INNER_HUB;
+    var band = (span - RING_GAP * (n - 1)) / n;
+    var outer = OUTER - layerIndex * (band + RING_GAP);
+    var inner = outer - band;
+    return { inner: inner, outer: outer };
+  }
+
+  function polar(cx, cy, r, a) {
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  }
+
+  function arcPath(inner, outer, a0, a1) {
+    var large = (a1 - a0) > Math.PI ? 1 : 0;
+    var p0 = polar(CX, CY, outer, a0);
+    var p1 = polar(CX, CY, outer, a1);
+    var p2 = polar(CX, CY, inner, a1);
+    var p3 = polar(CX, CY, inner, a0);
+    return [
+      'M', p0.x, p0.y,
+      'A', outer, outer, 0, large, 1, p1.x, p1.y,
+      'L', p2.x, p2.y,
+      'A', inner, inner, 0, large, 0, p3.x, p3.y,
+      'Z'
+    ].join(' ');
+  }
+
+  function darkenHex(hex, amount) {
+    var h = String(hex || '#888888').replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var r = Math.max(0, Math.min(255, parseInt(h.slice(0, 2), 16) * (1 - amount)));
+    var g = Math.max(0, Math.min(255, parseInt(h.slice(2, 4), 16) * (1 - amount)));
+    var b = Math.max(0, Math.min(255, parseInt(h.slice(4, 6), 16) * (1 - amount)));
+    return '#' + [r, g, b].map(function (n) {
+      var s = Math.round(n).toString(16);
+      return s.length === 1 ? '0' + s : s;
+    }).join('');
+  }
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS(NS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        el.setAttribute(k, attrs[k]);
+      });
+    }
+    return el;
+  }
+
+  function appendPatternMarks(pat, kind, color) {
+    var bg = darkenHex(color, 0.55);
+    pat.appendChild(svgEl('rect', { width: '100%', height: '100%', fill: bg }));
+    if (kind === 'solid') {
+      pat.setAttribute('width', '8');
+      pat.setAttribute('height', '8');
+      pat.appendChild(svgEl('rect', { width: '100%', height: '100%', fill: color }));
+      return;
+    }
+    if (kind === 'dots') {
+      pat.setAttribute('width', '10');
+      pat.setAttribute('height', '10');
+      pat.appendChild(svgEl('circle', { cx: '2.5', cy: '2.5', r: '1.6', fill: color }));
+      pat.appendChild(svgEl('circle', { cx: '7.5', cy: '7.5', r: '1.6', fill: color }));
+      return;
+    }
+    if (kind === 'dotsBig') {
+      pat.setAttribute('width', '14');
+      pat.setAttribute('height', '14');
+      pat.appendChild(svgEl('circle', { cx: '7', cy: '7', r: '3.2', fill: color }));
+      return;
+    }
+    if (kind === 'stripesH') {
+      pat.setAttribute('width', '8');
+      pat.setAttribute('height', '8');
+      pat.appendChild(svgEl('rect', { y: '0', width: '8', height: '3.2', fill: color }));
+      return;
+    }
+    if (kind === 'stripesV') {
+      pat.setAttribute('width', '8');
+      pat.setAttribute('height', '8');
+      pat.appendChild(svgEl('rect', { x: '0', width: '3.2', height: '8', fill: color }));
+      return;
+    }
+    if (kind === 'diag') {
+      pat.setAttribute('width', '10');
+      pat.setAttribute('height', '10');
+      pat.appendChild(svgEl('path', {
+        d: 'M0 10 L10 0 M-2 2 L2 -2 M8 12 L12 8',
+        stroke: color,
+        'stroke-width': '2.4',
+        fill: 'none'
+      }));
+      return;
+    }
+    if (kind === 'diag2') {
+      pat.setAttribute('width', '10');
+      pat.setAttribute('height', '10');
+      pat.appendChild(svgEl('path', {
+        d: 'M0 0 L10 10 M-2 8 L2 12 M8 -2 L12 2',
+        stroke: color,
+        'stroke-width': '2.4',
+        fill: 'none'
+      }));
+      return;
+    }
+    if (kind === 'cross') {
+      pat.setAttribute('width', '10');
+      pat.setAttribute('height', '10');
+      pat.appendChild(svgEl('path', {
+        d: 'M0 10 L10 0 M0 0 L10 10',
+        stroke: color,
+        'stroke-width': '1.8',
+        fill: 'none'
+      }));
+      return;
+    }
+    if (kind === 'checkers') {
+      pat.setAttribute('width', '12');
+      pat.setAttribute('height', '12');
+      pat.appendChild(svgEl('rect', { width: '6', height: '6', fill: color }));
+      pat.appendChild(svgEl('rect', { x: '6', y: '6', width: '6', height: '6', fill: color }));
+      return;
+    }
+    if (kind === 'rings') {
+      pat.setAttribute('width', '12');
+      pat.setAttribute('height', '12');
+      pat.appendChild(svgEl('circle', {
+        cx: '6', cy: '6', r: '3.4', fill: 'none', stroke: color, 'stroke-width': '2'
+      }));
+      return;
+    }
+    if (kind === 'dash') {
+      pat.setAttribute('width', '12');
+      pat.setAttribute('height', '8');
+      pat.appendChild(svgEl('rect', { x: '0', y: '2.4', width: '7', height: '3.2', fill: color }));
+      return;
+    }
+    if (kind === 'grid') {
+      pat.setAttribute('width', '10');
+      pat.setAttribute('height', '10');
+      pat.appendChild(svgEl('path', {
+        d: 'M0 5 H10 M5 0 V10',
+        stroke: color,
+        'stroke-width': '2',
+        fill: 'none'
+      }));
+      return;
+    }
+    pat.setAttribute('width', '8');
+    pat.setAttribute('height', '8');
+    pat.appendChild(svgEl('rect', { width: '100%', height: '100%', fill: color }));
+  }
+
+  function buildFillDefs(parent) {
+    var defs = svgEl('defs');
+    SAMPLES.forEach(function (s) {
+      if (!s.pattern || s.pattern === 'solid') return;
+      var pat = svgEl('pattern', {
+        id: 'fill-' + s.id,
+        patternUnits: 'userSpaceOnUse',
+        width: '10',
+        height: '10'
+      });
+      appendPatternMarks(pat, s.pattern, s.color);
+      defs.appendChild(pat);
+    });
+
+    // Needle light-strike glow
+    var glow = svgEl('filter', {
+      id: 'needleGlow',
+      x: '-120%',
+      y: '-40%',
+      width: '340%',
+      height: '180%'
+    });
+    glow.appendChild(svgEl('feGaussianBlur', {
+      in: 'SourceGraphic',
+      stdDeviation: '6',
+      result: 'blur'
+    }));
+    var merge = svgEl('feMerge');
+    merge.appendChild(svgEl('feMergeNode', { in: 'blur' }));
+    merge.appendChild(svgEl('feMergeNode', { in: 'blur' }));
+    merge.appendChild(svgEl('feMergeNode', { in: 'SourceGraphic' }));
+    glow.appendChild(merge);
+    defs.appendChild(glow);
+
+    var softGlow = svgEl('filter', {
+      id: 'needleSoftGlow',
+      x: '-200%',
+      y: '-60%',
+      width: '500%',
+      height: '220%'
+    });
+    softGlow.appendChild(svgEl('feGaussianBlur', {
+      in: 'SourceGraphic',
+      stdDeviation: '14'
+    }));
+    defs.appendChild(softGlow);
+
+    var grad = svgEl('linearGradient', {
+      id: 'needleStrikeGrad',
+      x1: '0%',
+      y1: '0%',
+      x2: '0%',
+      y2: '100%'
+    });
+    grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#ffffff', 'stop-opacity': '0.95' }));
+    grad.appendChild(svgEl('stop', { offset: '35%', 'stop-color': '#f2f6ff', 'stop-opacity': '0.75' }));
+    grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#ffffff', 'stop-opacity': '0' }));
+    defs.appendChild(grad);
+
+    parent.appendChild(defs);
+  }
+
+  function segFill(sampleId) {
+    if (!sampleId) return EMPTY_COLOR;
+    var s = sampleById(sampleId);
+    if (!s) return EMPTY_COLOR;
+    if (!s.pattern || s.pattern === 'solid') return s.color;
+    return 'url(#fill-' + s.id + ')';
+  }
+
+  function cssSwatch(s) {
+    var c = s.color;
+    var bg = darkenHex(c, 0.45);
+    var kind = s.pattern || 'solid';
+    if (kind === 'solid') return c;
+    if (kind === 'dots' || kind === 'dotsBig') {
+      var sz = kind === 'dotsBig' ? '7px 7px' : '5px 5px';
+      return 'radial-gradient(circle, ' + c + ' 28%, transparent 30%) 0 0 / ' + sz + ', ' + bg;
+    }
+    if (kind === 'stripesH') {
+      return 'repeating-linear-gradient(0deg, ' + c + ' 0 3px, ' + bg + ' 3px 6px)';
+    }
+    if (kind === 'stripesV') {
+      return 'repeating-linear-gradient(90deg, ' + c + ' 0 3px, ' + bg + ' 3px 6px)';
+    }
+    if (kind === 'diag') {
+      return 'repeating-linear-gradient(45deg, ' + c + ' 0 3px, ' + bg + ' 3px 6px)';
+    }
+    if (kind === 'diag2') {
+      return 'repeating-linear-gradient(-45deg, ' + c + ' 0 3px, ' + bg + ' 3px 6px)';
+    }
+    if (kind === 'cross') {
+      return 'repeating-linear-gradient(45deg, ' + c + ' 0 2px, transparent 2px 5px), repeating-linear-gradient(-45deg, ' + c + ' 0 2px, ' + bg + ' 2px 5px)';
+    }
+    if (kind === 'checkers') {
+      return 'repeating-conic-gradient(' + c + ' 0 25%, ' + bg + ' 0 50%) 0 0 / 8px 8px';
+    }
+    if (kind === 'rings') {
+      return 'radial-gradient(circle, transparent 35%, ' + c + ' 36% 55%, transparent 56%), ' + bg;
+    }
+    if (kind === 'dash') {
+      return 'repeating-linear-gradient(90deg, ' + c + ' 0 5px, ' + bg + ' 5px 9px)';
+    }
+    if (kind === 'grid') {
+      return 'linear-gradient(' + c + ' 2px, transparent 2px) 0 0 / 8px 8px, linear-gradient(90deg, ' + c + ' 2px, transparent 2px) 0 0 / 8px 8px, ' + bg;
+    }
+    return c;
+  }
+
+  function applySwatchStyle(el, sample) {
+    if (!el) return;
+    if (!sample) {
+      el.style.background = EMPTY_COLOR;
+      return;
+    }
+    el.style.background = cssSwatch(sample);
+  }
+
+  function paintOptionLabel(s) {
+    if (s.type === 'sample' && sampleNames[s.id]) return truncateName(sampleNames[s.id], 12);
+    if (s.type === 'text') {
+      var w = String(sayTexts[s.id] || '').trim();
+      return w ? (s.label + ': ' + truncateName(w, 10)) : s.label;
+    }
+    return s.label;
+  }
+
+  function buildPaintMenu() {
+    paintMenu.innerHTML = '';
+    SAMPLES.forEach(function (s) {
+      var row = document.createElement('div');
+      row.className = 'paint-opt' + (s.id === paintSample ? ' active' : '');
+      row.dataset.id = s.id;
+      row.setAttribute('role', 'option');
+
+      var dot = document.createElement('i');
+      dot.className = 'dot';
+      applySwatchStyle(dot, s);
+
+      var nameBtn = document.createElement('button');
+      nameBtn.type = 'button';
+      nameBtn.className = 'paint-name';
+      nameBtn.textContent = paintOptionLabel(s);
+      nameBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setPaintSample(s.id);
+        closePaintMenu();
+      });
+
+      var playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = 'paint-play';
+      playBtn.title = 'Listen';
+      playBtn.setAttribute('aria-label', 'Listen ' + s.label);
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+      playBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        listenSample(s.id).catch(function (err) { console.error(err); });
+      });
+
+      row.appendChild(dot);
+      row.appendChild(nameBtn);
+      row.appendChild(playBtn);
+      paintMenu.appendChild(row);
+    });
+  }
+
+  function refreshPaintLabels() {
+    Array.prototype.forEach.call(paintMenu.querySelectorAll('.paint-opt'), function (row) {
+      var s = sampleById(row.dataset.id);
+      if (!s) return;
+      var nameBtn = row.querySelector('.paint-name');
+      if (nameBtn) nameBtn.textContent = paintOptionLabel(s);
+      row.classList.toggle('active', s.id === paintSample);
+      applySwatchStyle(row.querySelector('.dot'), s);
+    });
+    syncPaintSwatch();
+  }
+
+  function setPaintSample(id) {
+    paintSample = id;
+    syncPaintSwatch();
+    refreshPaintLabels();
+  }
+
+  function syncPaintSwatch() {
+    var s = sampleById(paintSample);
+    applySwatchStyle(paintDot, s);
+    paintLab.textContent = s ? paintOptionLabel(s) : '—';
+    syncPaintExtras();
+  }
+
+  function syncPaintExtras() {
+    var s = sampleById(paintSample);
+    sampleExtra.classList.toggle('show', !!(s && s.type === 'sample'));
+    textExtra.classList.toggle('show', !!(s && s.type === 'text'));
+    if (s && s.type === 'text') {
+      sayInput.value = sayTexts[paintSample] || '';
+      syncSayDirty();
+    } else {
+      setSayActionsVisible(false);
+    }
+  }
+
+  function setSayActionsVisible(show) {
+    if (!sayActions) return;
+    if (show) sayActions.removeAttribute('hidden');
+    else sayActions.setAttribute('hidden', '');
+  }
+
+  function syncSayDirty() {
+    var s = sampleById(paintSample);
+    if (!s || s.type !== 'text') {
+      setSayActionsVisible(false);
+      return;
+    }
+    var draft = String(sayInput.value || '').trim().slice(0, 20);
+    var saved = String(sayTexts[paintSample] || '').trim();
+    setSayActionsVisible(draft !== saved);
+  }
+
+  function cancelSayEdit() {
+    sayInput.value = sayTexts[paintSample] || '';
+    syncSayDirty();
+  }
+
+  function truncateName(name, n) {
+    var t = String(name || '').replace(/\.[^.]+$/, '');
+    return t.length > n ? t.slice(0, n - 1) + '…' : t;
+  }
+
+  function openPaintMenu() {
+    buildPaintMenu();
+    // Pin to viewport so parent overflow / collapse never crops the list
+    if (paintMenu.parentElement !== document.body) {
+      document.body.appendChild(paintMenu);
+    }
+    paintMenu.classList.add('open');
+    paintTrigger.setAttribute('aria-expanded', 'true');
+    var rect = paintTrigger.getBoundingClientRect();
+    var pad = 8;
+    var menuW = paintMenu.offsetWidth || 220;
+    var left = rect.left;
+    if (left + menuW > window.innerWidth - pad) {
+      left = Math.max(pad, window.innerWidth - pad - menuW);
+    }
+    paintMenu.style.position = 'fixed';
+    paintMenu.style.left = Math.round(left) + 'px';
+    paintMenu.style.top = Math.round(rect.bottom + 4) + 'px';
+    paintMenu.style.zIndex = '200';
+  }
+
+  function closePaintMenu() {
+    paintMenu.classList.remove('open');
+    paintTrigger.setAttribute('aria-expanded', 'false');
+    paintMenu.style.left = '';
+    paintMenu.style.top = '';
+  }
+
+  function randomInRange(lo, hi, round) {
+    var r = lo + Math.random() * (hi - lo);
+    return round ? Math.round(r) : parseFloat(r.toFixed(3));
+  }
+
+  function randomizeMakerSound(id) {
+    var ranges = MAKER_RANGES[id];
+    var roundKeys = MAKER_ROUND_KEYS[id] || [];
+    if (!ranges) return;
+    var params = Object.assign({}, makerSoundParams[id] || MAKER_DEFAULTS[id]);
+    Object.keys(ranges).forEach(function (key) {
+      var pair = ranges[key];
+      params[key] = randomInRange(pair[0], pair[1], roundKeys.indexOf(key) !== -1);
+    });
+    if (id === 'snare' && Math.random() > 0.5) params.noiseFilterType = Math.random() > 0.5 ? 'bandpass' : 'highpass';
+    if (id === 'clap') params.addTone = Math.random() > 0.5;
+    if (id === 'hat') {
+      if (Math.random() > 0.5) params.noiseType = Math.random() > 0.5 ? 'pink' : 'white';
+      if (Math.random() > 0.5) params.filterType = Math.random() > 0.5 ? 'bandpass' : 'highpass';
+      if (Math.random() > 0.5) params.addOscillators = Math.random() > 0.5;
+    }
+    if (id === 'tom' && Math.random() > 0.5) params.bodyOscType = Math.random() > 0.5 ? 'triangle' : 'sine';
+    if (id === 'ride') params.addOscillators = Math.random() > 0.5;
+    if (id === 'cowbell') {
+      if (Math.random() > 0.5) params.osc1Type = ['sine', 'triangle', 'square'][Math.floor(Math.random() * 3)];
+      if (Math.random() > 0.5) params.osc2Type = ['sine', 'triangle', 'sawtooth', 'square'][Math.floor(Math.random() * 4)];
+      if (Math.random() > 0.5) params.addSecondPair = Math.random() > 0.5;
+    }
+    makerSoundParams[id] = params;
+  }
+
+  async function randomizeAllSounds() {
+    makerIds.forEach(randomizeMakerSound);
+    await ensureAudio();
+    await buildBank();
+    previewSample(paintSample);
+  }
+
+  function makersUsedInPattern(pat) {
+    var used = {};
+    if (!pat) return [];
+    RINGS.forEach(function (ring) {
+      var steps = pat[ring.id] || [];
+      for (var i = 0; i < steps.length; i++) {
+        var s = sampleById(steps[i]);
+        if (s && s.type === 'maker' && s.maker) used[s.maker] = true;
+      }
+    });
+    return Object.keys(used);
+  }
+
+  var WORD_BANK = [
+    'triple', 'tung', 'type', 'mog', 'cap', 'rizz', 'sigma', 'gyatt',
+    'ohio', 'aura', 'mew', 'edge', 'glaze', 'yap', 'mid', 'apple', 'banana',
+    'cooked', 'locked', 'floss', 'drip', 'sus', 'bussin', 'nocap', 'fr',
+    'ong', 'twin', 'chat', 'ratio', 'based', 'cringe', 'delulu', 'slay',
+    'ate', 'bruh', 'brainrot', 'goon', 'grimace', 'chill', 'max', 'w',
+   
+    'yeah', 'yo', 'uh', 'ay', 'hey', 'whoa', 'woo', 'boom', 'bang', 'pop',
+    'bass', 'drop', 'beat', 'vibe', 'flow', 'rhyme', 'hook', 'verse', 'bar', 'mic',
+    'fire', 'hot', 'lit', 'go', 'run', 'move', 'jump', 'bounce', 'slide', 'spin',
+    'clap', 'snap', 'stomp', 'kick', 'snare', 'hat', 'ride', 'tom', 'loop', 'mix',
+    'low', 'high', 'loud', 'soft', 'slow', 'fast', 'hard', 'softly', 'deep', 'thick',
+    'money', 'cash', 'flex', 'ice', 'gold', 'shine', 'glow', 'night', 'city', 'street',
+    'love', 'hate', 'pain', 'dream', 'real', 'fake', 'truth', 'lie', 'win', 'lose',
+    'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'check', 'ready', 'set', 'push', 'pull', 'stop', 'play', 'pause', 'rewind', 'skip',
+    'echo', 'reverb', 'delay', 'filter', 'crush', 'dist', 'noise', 'static', 'glitch', 'wave'
+  ];
+
+  async function randomizeSoundsForPattern(pat) {
+    var used = makersUsedInPattern(pat);
+    if (!used.length) used = makerIds.slice();
+    used.forEach(randomizeMakerSound);
+    await ensureAudio();
+    await buildBank();
+    previewSample(paintSample);
+  }
+
+  async function randomizeSoundsForLayers(layerIndices) {
+    var usedMap = {};
+    layerIndices.forEach(function (idx) {
+      makersUsedInPattern(layers[idx].pattern).forEach(function (m) {
+        usedMap[m] = true;
+      });
+    });
+    var used = Object.keys(usedMap);
+    if (!used.length) used = makerIds.slice();
+    used.forEach(randomizeMakerSound);
+    await ensureAudio();
+    await buildBank();
+    previewSample(paintSample);
+  }
+
+  /** Assign Word 1–9 texts immediately (no audio). */
+  function seedWordTextsSync() {
+    var words = WORD_BANK.slice();
+    shuffleInPlace(words);
+    var n = 0;
+    SAMPLES.forEach(function (s) {
+      if (s.type !== 'text') return;
+      getSayVoiceParams(s.id);
+      if (!String(sayTexts[s.id] || '').trim()) {
+        sayTexts[s.id] = words[n % words.length];
+        n += 1;
+      }
+    });
+  }
+
+  /** Prerender seeded Word buffers when audio is allowed. */
+  async function seedWordBuffers() {
+    var textIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
+    try {
+      await waitForBrowserVoices(1800);
+      await ensureAudio();
+      var budget = newNaturalTtsBudget();
+      var i;
+      for (i = 0; i < textIds.length; i++) {
+        var id = textIds[i];
+        if (soundBank[id] || !String(sayTexts[id] || '').trim()) continue;
+        try {
+          soundBank[id] = await prerenderSpeechToBuffer(sayTexts[id], id, budget);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    } catch (e) {
+      /* Audio may wait for a user gesture; texts are already set. */
+    }
+  }
+
+  /** Fill empty Word slots from WORD_BANK so they can be painted. */
+  async function ensureWordsForRandom() {
+    var emptyIds = [];
+    SAMPLES.forEach(function (s) {
+      if (s.type === 'text' && !String(sayTexts[s.id] || '').trim()) emptyIds.push(s.id);
+    });
+    if (!emptyIds.length) return;
+    await ensureAudio();
+    var words = WORD_BANK.slice();
+    shuffleInPlace(words);
+    var budget = newNaturalTtsBudget();
+    var i;
+    for (i = 0; i < emptyIds.length; i++) {
+      var id = emptyIds[i];
+      var text = words[i % words.length];
+      sayTexts[id] = text;
+      getSayVoiceParams(id);
+      try {
+        soundBank[id] = await prerenderSpeechToBuffer(text, id, budget);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    refreshPaintLabels();
+    syncPaintExtras();
+  }
+
+  function closeRandMenus() {
+    if (randOptsMenu) randOptsMenu.classList.remove('open');
+    if (randOptsBtn) randOptsBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  function buildRandLayersList() {
+    if (!randLayersList) return;
+    randLayersList.innerHTML = '';
+    var i;
+    for (i = 0; i < MAX_CIRCLES; i++) {
+      (function (idx) {
+        var lab = document.createElement('label');
+        lab.className = 'rand-opt';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!randLayerChecked[idx];
+        cb.addEventListener('change', function () {
+          randLayerChecked[idx] = !!cb.checked;
+        });
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(layerLabel(idx)));
+        randLayersList.appendChild(lab);
+      })(i);
+    }
+  }
+
+  function selectedRandLayers() {
+    var out = [];
+    var i;
+    for (i = 0; i < MAX_CIRCLES; i++) if (randLayerChecked[i]) out.push(i);
+    return out;
+  }
+
+  /** Reshuffle Word 1–9 texts from WORD_BANK and prerender. */
+  async function randomizeWords() {
+    var words = WORD_BANK.slice();
+    shuffleInPlace(words);
+    var textIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
+    var i;
+    for (i = 0; i < textIds.length; i++) {
+      sayTexts[textIds[i]] = words[i % words.length];
+      getSayVoiceParams(textIds[i]);
+    }
+    refreshPaintLabels();
+    syncPaintExtras();
+    await ensureAudio();
+    var budget = newNaturalTtsBudget();
+    for (i = 0; i < textIds.length; i++) {
+      var id = textIds[i];
+      try {
+        soundBank[id] = await prerenderSpeechToBuffer(sayTexts[id], id, budget);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  /** Pick a random TTS voice per word slot and re-render buffers. */
+  async function randomizeVoices() {
+    var textIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
+    var i;
+    for (i = 0; i < textIds.length; i++) {
+      var p = getSayVoiceParams(textIds[i]);
+      if (isBrowserTtsAvailable() && NATURAL_TTS_VOICES.length) {
+        p.engine = 'browser';
+        p.voiceURI = NATURAL_TTS_VOICES[Math.floor(Math.random() * NATURAL_TTS_VOICES.length)];
+      } else {
+        p.engine = 'sam';
+      }
+    }
+    await ensureAudio();
+    var budget = newNaturalTtsBudget();
+    for (i = 0; i < textIds.length; i++) {
+      var id = textIds[i];
+      var text = String(sayTexts[id] || '').trim();
+      if (!text) continue;
+      try {
+        soundBank[id] = await prerenderSpeechToBuffer(text, id, budget);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (soundSheet.classList.contains('open')) {
+      var cur = sampleById(paintSample);
+      if (cur && cur.type === 'text') openSoundEditor();
+    }
+  }
+
+  function randomizeBpm() {
+    // Prefer slower tempos; still allows up to 130.
+    var v = lowBiasInt(50, 130, 2.2);
+    bpmEl.value = String(v);
+    bpmVal.textContent = String(v);
+    updateReverbIR();
+  }
+
+  /** Random in [min,max], biased toward lower values (power > 1). */
+  function lowBiasInt(min, max, power) {
+    var t = Math.pow(Math.random(), power || 2);
+    return Math.round(min + t * (max - min));
+  }
+
+  function randomizeSpace() {
+    // Prefer shorter / less wet; stereo always stays under 10 when randomised.
+    reverbEl.value = String(lowBiasInt(5, 100, 2.2));
+    reverbDurEl.value = String(lowBiasInt(5, 100, 2.5));
+    stereoEl.value = String(lowBiasInt(0, 9, 1.4));
+    reverbVal.textContent = Math.round(getReverb() * 100) + '%';
+    stereoVal.textContent = Math.round(getStereo()) + '%';
+    applySpaceSettings();
+    updateReverbIR();
+  }
+
+  async function runRandomise() {
+    var indices = selectedRandLayers();
+    var doPatterns = !!(randOptPatterns && randOptPatterns.checked);
+    var doSounds = !!(randOptSounds && randOptSounds.checked);
+    var doWords = !!(randOptWords && randOptWords.checked);
+    var doVoices = !!(randOptVoices && randOptVoices.checked);
+    var doBpm = !!(randOptBpm && randOptBpm.checked);
+    var doSpace = !!(randOptSpace && randOptSpace.checked);
+    if (!doPatterns && !doSounds && !doWords && !doVoices && !doBpm && !doSpace) return;
+
+    var wasPlaying = playing;
+
+    if (doBpm) randomizeBpm();
+    if (doSpace) randomizeSpace();
+
+    if (doWords) await randomizeWords();
+    if (doVoices) await randomizeVoices();
+
+    if (doPatterns && indices.length) {
+      if (!doWords) await ensureWordsForRandom();
+      indices.forEach(function (idx) {
+        randomFillPattern(layers[idx].pattern);
+      });
+      // Keep viewLayer pattern pointer in sync, then force a full redraw.
+      pattern = layers[viewLayer].pattern;
+      buildSvg();
+      refreshSegFills();
+    }
+
+    if (doSounds && indices.length) {
+      await randomizeSoundsForLayers(indices);
+    }
+
+    // Always play after Lucky Roll; if already playing, restart from the top.
+    if (wasPlaying) pause();
+    await play();
+  }
+
+  function prettyKey(key) {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, function (c) { return c.toUpperCase(); });
+  }
+
+  function openSoundEditor() {
+    var sample = sampleById(paintSample);
+    if (!sample) return;
+    soundTitle.textContent = sample.label;
+    soundDot.style.background = cssSwatch(sample);
+    soundBody.innerHTML = '';
+    editMakerId = null;
+    if (sample.type === 'maker') {
+      editMakerId = sample.maker;
+      buildSoundForm(editMakerId);
+    } else if (sample.type === 'sample') {
+      buildSampleForm(sample.id);
+    } else if (sample.type === 'text') {
+      buildTextForm(sample.id);
+    }
+    soundSheet.classList.add('open');
+    soundSheet.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSoundEditor() {
+    soundSheet.classList.remove('open');
+    soundSheet.setAttribute('aria-hidden', 'true');
+    editMakerId = null;
+  }
+
+  function buildSampleForm(sampleId) {
+    var note = document.createElement('div');
+    note.className = 'param';
+    note.innerHTML = '<div class="row"><span>File</span><span>' +
+      (sampleNames[sampleId] ? truncateName(sampleNames[sampleId], 18) : 'none') +
+      '</span></div>';
+    soundBody.appendChild(note);
+    var actions = document.createElement('div');
+    actions.className = 'param-actions';
+    var loadBtn = document.createElement('button');
+    loadBtn.type = 'button';
+    loadBtn.textContent = 'Load sample';
+    loadBtn.addEventListener('click', function () { triggerLoadSample(sampleId); });
+    var previewBtn = document.createElement('button');
+    previewBtn.type = 'button';
+    previewBtn.textContent = 'Listen';
+    previewBtn.addEventListener('click', function () {
+      listenSample(sampleId).catch(function (e) { console.error(e); });
+    });
+    actions.appendChild(loadBtn);
+    actions.appendChild(previewBtn);
+    soundBody.appendChild(actions);
+  }
+
+  function defaultSayVoiceParams() {
+    // Prefer Browser TTS (sampled buffer); SAM after retries fail.
+    return {
+      engine: 'browser',
+      voiceURI: 'Brian',
+      pitchVar: 0,
+      volVar: 0.33
+    };
+  }
+
+  function getSayVoiceParams(sampleId) {
+    if (!sayVoiceParams[sampleId]) sayVoiceParams[sampleId] = defaultSayVoiceParams();
+    var p = sayVoiceParams[sampleId];
+    if (!p.engine) p.engine = 'browser';
+    if (!p.voiceURI) p.voiceURI = 'Brian';
+    return p;
+  }
+
+  function isBrowserTtsAvailable() {
+    return typeof fetch === 'function';
+  }
+
+  function newNaturalTtsBudget() {
+    return { left: NATURAL_TTS_MAX_TRIES };
+  }
+
+  function waitForBrowserVoices(ms) {
+    ms = ms || 1500;
+    refreshBrowserVoices();
+    if (browserVoices.length) return Promise.resolve(browserVoices);
+    if (!window.speechSynthesis) return Promise.resolve([]);
+    return new Promise(function (resolve) {
+      var done = false;
+      var finish = function () {
+        if (done) return;
+        done = true;
+        window.speechSynthesis.removeEventListener('voiceschanged', onChange);
+        clearTimeout(tid);
+        resolve(refreshBrowserVoices());
+      };
+      var onChange = function () { finish(); };
+      var tid = setTimeout(finish, ms);
+      window.speechSynthesis.addEventListener('voiceschanged', onChange);
+      refreshBrowserVoices();
+      if (browserVoices.length) finish();
+    });
+  }
+
+  function refreshBrowserVoices() {
+    if (!window.speechSynthesis) {
+      browserVoices = [];
+      return browserVoices;
+    }
+    browserVoices = window.speechSynthesis.getVoices() || [];
+    return browserVoices;
+  }
+
+  function findBrowserVoice(voiceURI) {
+    if (!voiceURI) return null;
+    var list = browserVoices.length ? browserVoices : refreshBrowserVoices();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].voiceURI === voiceURI) return list[i];
+    }
+    return null;
+  }
+
+  function naturalTtsVoiceForSample(sampleId) {
+    var p = getSayVoiceParams(sampleId);
+    var id = String(p.voiceURI || 'Brian');
+    if (NATURAL_TTS_VOICES.indexOf(id) !== -1) return id;
+    var bv = findBrowserVoice(id);
+    var name = ((bv && bv.name) || id).toLowerCase();
+    if (/female|woman|zira|susan|samantha|hazel|karen|moira|tessa|victoria|salli|amy|emma|ivy|joanna|kendra|kimberly|nicole/.test(name)) {
+      return 'Amy';
+    }
+    return 'Brian';
+  }
+
+  function randomSayPlayMods(sampleId) {
+    var p = getSayVoiceParams(sampleId);
+    var volMul = 1 + (Math.random() * 2 - 1) * (p.volVar || 0) * 0.12;
+    return {
+      playbackRate: 1,
+      gain: Math.max(0.85, Math.min(1.15, volMul)),
+      semitones: 0
+    };
+  }
+
+  function buildTextForm(sampleId) {
+    var params = getSayVoiceParams(sampleId);
+    var word = String(sayTexts[sampleId] || '').trim();
+    var browserOk = isBrowserTtsAvailable();
+    if (params.engine === 'browser' && !browserOk) params.engine = 'sam';
+
+    var hint = document.createElement('div');
+    hint.className = 'param';
+    hint.innerHTML = '<div class="row"><span>Word</span><span>' +
+      (word ? truncateName(word, 16) : '(set in top bar)') +
+      '</span></div>';
+    soundBody.appendChild(hint);
+
+    var styleWrap = document.createElement('div');
+    styleWrap.className = 'param';
+    var styleRow = document.createElement('div');
+    styleRow.className = 'row';
+    styleRow.innerHTML = '<span>Style</span><span></span>';
+    styleWrap.appendChild(styleRow);
+    var styleSel = document.createElement('select');
+    styleSel.setAttribute('aria-label', 'Voice style');
+    var optBrowser = document.createElement('option');
+    optBrowser.value = 'browser';
+    optBrowser.textContent = browserOk ? 'Browser TTS' : 'Browser TTS (unavailable)';
+    optBrowser.disabled = !browserOk;
+    var optSam = document.createElement('option');
+    optSam.value = 'sam';
+    optSam.textContent = 'SAM (robot)';
+    styleSel.appendChild(optBrowser);
+    styleSel.appendChild(optSam);
+    styleSel.value = params.engine === 'browser' && browserOk ? 'browser' : 'sam';
+    styleWrap.appendChild(styleSel);
+    soundBody.appendChild(styleWrap);
+
+    var voiceWrap = document.createElement('div');
+    voiceWrap.className = 'param';
+    var voiceRow = document.createElement('div');
+    voiceRow.className = 'row';
+    voiceRow.innerHTML = '<span>Voice</span><span></span>';
+    voiceWrap.appendChild(voiceRow);
+    var voiceSel = document.createElement('select');
+    voiceSel.setAttribute('aria-label', 'TTS voice');
+    var currentVoice = naturalTtsVoiceForSample(sampleId);
+    NATURAL_TTS_VOICES.forEach(function (name) {
+      var opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      if (name === currentVoice) opt.selected = true;
+      voiceSel.appendChild(opt);
+    });
+    voiceWrap.appendChild(voiceSel);
+    soundBody.appendChild(voiceWrap);
+
+    function syncStyleUi() {
+      var useBrowser = styleSel.value === 'browser';
+      voiceWrap.style.display = useBrowser ? '' : 'none';
+      voiceSel.disabled = !useBrowser;
+    }
+    syncStyleUi();
+
+    function rerenderWord() {
+      if (word) applySayText(sampleId, word).catch(function (e) { console.error(e); });
+    }
+
+    styleSel.addEventListener('change', function () {
+      if (styleSel.value === 'browser' && !isBrowserTtsAvailable()) {
+        styleSel.value = 'sam';
+        params.engine = 'sam';
+        syncStyleUi();
+        return;
+      }
+      params.engine = styleSel.value;
+      syncStyleUi();
+      rerenderWord();
+    });
+
+    voiceSel.addEventListener('change', function () {
+      params.voiceURI = voiceSel.value;
+      if (params.engine === 'browser') rerenderWord();
+    });
+
+    function addVarSlider(key, label, formatFn) {
+      var wrap = document.createElement('div');
+      wrap.className = 'param';
+      var row = document.createElement('div');
+      row.className = 'row';
+      var lab = document.createElement('span');
+      lab.textContent = label;
+      var val = document.createElement('span');
+      val.textContent = formatFn(params[key] || 0);
+      row.appendChild(lab);
+      row.appendChild(val);
+      var input = document.createElement('input');
+      input.type = 'range';
+      input.min = '0';
+      input.max = '100';
+      input.step = '1';
+      input.value = String(Math.round((params[key] || 0) * 100));
+      input.addEventListener('input', function () {
+        params[key] = parseInt(input.value, 10) / 100;
+        val.textContent = formatFn(params[key]);
+      });
+      wrap.appendChild(row);
+      wrap.appendChild(input);
+      soundBody.appendChild(wrap);
+    }
+
+    addVarSlider('volVar', 'Volume variation', function (n) {
+      return '±' + Math.round(n * 50) + '%';
+    });
+
+    var actions = document.createElement('div');
+    actions.className = 'param-actions';
+    var previewBtn = document.createElement('button');
+    previewBtn.type = 'button';
+    previewBtn.textContent = 'Listen';
+    previewBtn.addEventListener('click', function () {
+      listenSample(sampleId).catch(function (e) { console.error(e); });
+    });
+    actions.appendChild(previewBtn);
+    soundBody.appendChild(actions);
+  }
+
+  function scheduleRebuild() {
+    clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(function () {
+      ensureAudio().then(function () {
+        return buildBank();
+      }).then(function () {
+        previewSample(paintSample);
+      }).catch(function (e) { console.error(e); });
+    }, 120);
+  }
+
+  function previewSample(sampleId) {
+    if (!ctx || !soundBank[sampleId]) return;
+    playBuf(sampleId, ctx.currentTime + 0.01);
+  }
+
+  function isSidechainKey(sampleId) {
+    return sampleId === 'kick' || sampleId === 'snare';
+  }
+
+  function busForSample(sampleId) {
+    if (isSidechainKey(sampleId)) return punchBus || master;
+    return duckGain || master;
+  }
+
+  function triggerSidechainDuck(when) {
+    if (!duckGain || !ctx || !playing) return;
+    var g = duckGain.gain;
+    var t0 = Math.max(when, ctx.currentTime);
+    var depth = DUCK_DEPTH;
+    var atk = DUCK_ATTACK;
+    var hold = DUCK_HOLD;
+    var rel = DUCK_RELEASE;
+    try {
+      if (typeof g.cancelAndHoldAtTime === 'function') g.cancelAndHoldAtTime(t0);
+      else {
+        g.cancelScheduledValues(t0);
+        g.setValueAtTime(Math.min(g.value, 1), t0);
+      }
+    } catch (e) {
+      g.cancelScheduledValues(t0);
+      g.setValueAtTime(1, t0);
+    }
+    g.linearRampToValueAtTime(depth, t0 + atk);
+    g.linearRampToValueAtTime(depth, t0 + atk + hold);
+    g.linearRampToValueAtTime(1, t0 + atk + hold + rel);
+  }
+
+  function playRawBuffer(buf, sampleId) {
+    if (!buf || !ctx || !master) return;
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    var g = ctx.createGain();
+    var mods = sampleId ? randomSayPlayMods(sampleId) : { playbackRate: 1, gain: 1 };
+    src.playbackRate.value = mods.playbackRate;
+    g.gain.value = mods.gain;
+    src.connect(g);
+    g.connect(busForSample(sampleId));
+    src.start(ctx.currentTime + 0.01);
+    activeVoices.push(src);
+    src.onended = function () {
+      var i = activeVoices.indexOf(src);
+      if (i !== -1) activeVoices.splice(i, 1);
+    };
+  }
+
+  async function listenSample(sampleId, draftText) {
+    await ensureAudio();
+    var s = sampleById(sampleId);
+    if (!s) return;
+    if (s.type === 'text') {
+      var text = String(draftText != null ? draftText : (sayTexts[sampleId] || '')).trim().slice(0, 20);
+      if (!text) return;
+      if ((draftText == null || sayTexts[sampleId] === text) && soundBank[sampleId] &&
+          typeof soundBank[sampleId].getChannelData === 'function') {
+        playBuf(sampleId, ctx.currentTime + 0.01);
+        return;
+      }
+      var buf = await prerenderSpeechToBuffer(text, sampleId, newNaturalTtsBudget());
+      playRawBuffer(buf, sampleId);
+      return;
+    }
+    if (s.type === 'maker' && !soundBank[sampleId]) await buildBank();
+    previewSample(sampleId);
+  }
+
+  function buildSoundForm(makerId) {
+    soundBody.innerHTML = '';
+    var params = makerSoundParams[makerId] || Object.assign({}, MAKER_DEFAULTS[makerId]);
+    makerSoundParams[makerId] = params;
+    var ranges = MAKER_RANGES[makerId] || {};
+
+    var actions = document.createElement('div');
+    actions.className = 'param-actions';
+    var listenBtn = document.createElement('button');
+    listenBtn.type = 'button';
+    listenBtn.textContent = 'Listen';
+    listenBtn.addEventListener('click', function () {
+      listenSample(paintSample).catch(function (e) { console.error(e); });
+    });
+    actions.appendChild(listenBtn);
+    soundBody.appendChild(actions);
+
+    Object.keys(ranges).forEach(function (key) {
+      var pair = ranges[key];
+      var wrap = document.createElement('div');
+      wrap.className = 'param';
+      var row = document.createElement('div');
+      row.className = 'row';
+      var lab = document.createElement('span');
+      lab.textContent = prettyKey(key);
+      var val = document.createElement('span');
+      var cur = params[key];
+      if (!Number.isFinite(cur)) cur = pair[0];
+      val.textContent = String(cur);
+      row.appendChild(lab);
+      row.appendChild(val);
+      var input = document.createElement('input');
+      input.type = 'range';
+      input.min = String(pair[0]);
+      input.max = String(pair[1]);
+      var span = pair[1] - pair[0];
+      input.step = span > 20 ? '1' : (span > 2 ? '0.01' : '0.001');
+      input.value = String(cur);
+      input.addEventListener('input', function () {
+        var n = parseFloat(input.value);
+        params[key] = n;
+        val.textContent = String(n);
+        scheduleRebuild();
+      });
+      wrap.appendChild(row);
+      wrap.appendChild(input);
+      soundBody.appendChild(wrap);
+    });
+
+    (MAKER_BOOLS[makerId] || []).forEach(function (meta) {
+      if (meta.type === 'bool') {
+        var row = document.createElement('label');
+        row.className = 'param-check';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!params[meta.key];
+        cb.addEventListener('change', function () {
+          params[meta.key] = cb.checked;
+          scheduleRebuild();
+        });
+        row.appendChild(cb);
+        row.appendChild(document.createTextNode(meta.label));
+        soundBody.appendChild(row);
+        return;
+      }
+      var wrap = document.createElement('div');
+      wrap.className = 'param';
+      var lab = document.createElement('div');
+      lab.className = 'row';
+      lab.innerHTML = '<span>' + meta.label + '</span><span></span>';
+      var sel = document.createElement('select');
+      meta.options.forEach(function (opt) {
+        var o = document.createElement('option');
+        o.value = opt;
+        o.textContent = opt;
+        sel.appendChild(o);
+      });
+      sel.value = params[meta.key] || meta.options[0];
+      sel.addEventListener('change', function () {
+        params[meta.key] = sel.value;
+        scheduleRebuild();
+      });
+      wrap.appendChild(lab);
+      wrap.appendChild(sel);
+      soundBody.appendChild(wrap);
+    });
+  }
+
+  function segmentAngles(n, swingAmt) {
+    var s = Math.max(0, Math.min(1, swingAmt));
+    var base = (Math.PI * 2) / n;
+    var skew = base * s * 0.28;
+    var widths = [];
+    var i;
+    for (i = 0; i < n; i++) {
+      if (i % 2 === 0) widths.push(base + skew);
+      else widths.push(Math.max(base * 0.2, base - skew));
+    }
+    var sum = 0;
+    for (i = 0; i < n; i++) sum += widths[i];
+    var scale = (Math.PI * 2) / sum;
+    var starts = [];
+    var a = START_ANGLE;
+    for (i = 0; i < n; i++) {
+      starts.push(a);
+      a += widths[i] * scale;
+    }
+    return { starts: starts, widths: widths.map(function (w) { return w * scale; }) };
+  }
+
+  function buildSvg() {
+    svg.innerHTML = '';
+    segEls = {};
+    discGroupEl = null;
+    needleEl = null;
+    playheadEl = null;
+
+    buildFillDefs(svg);
+
+    var bg = document.createElementNS(NS, 'circle');
+    bg.setAttribute('id', 'discBg');
+    bg.setAttribute('cx', CX);
+    bg.setAttribute('cy', CY);
+    bg.setAttribute('r', OUTER + 8);
+    bg.setAttribute('fill', '#16161a');
+    bg.setAttribute('stroke', 'none');
+    svg.appendChild(bg);
+
+    discGroupEl = document.createElementNS(NS, 'g');
+    discGroupEl.setAttribute('class', 'disc');
+    discGroupEl.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
+
+    var swingAmt = getSwing();
+    var gap = (SEG_GAP_DEG * Math.PI) / 180;
+    var pat = pattern || emptyPattern();
+
+    RINGS.forEach(function (ring, li) {
+      var rr = ringRadii(li);
+      var n = ring.segments;
+      var angles = segmentAngles(n, swingAmt);
+      for (var i = 0; i < n; i++) {
+        var a0 = angles.starts[i] + gap / 2;
+        var a1 = angles.starts[i] + angles.widths[i] - gap / 2;
+        if (a1 <= a0) a1 = a0 + 0.01;
+        var path = document.createElementNS(NS, 'path');
+        path.setAttribute('d', arcPath(rr.inner, rr.outer, a0, a1));
+        path.setAttribute('class', 'seg');
+        path.dataset.ring = ring.id;
+        path.dataset.seg = String(i);
+        path.setAttribute('fill', segFill(pat[ring.id][i]));
+        path.addEventListener('pointerdown', onSegPointerDown);
+        path.addEventListener('pointerup', onSegPointerUp);
+        path.addEventListener('pointercancel', onSegPointerCancel);
+        discGroupEl.appendChild(path);
+        segEls[ring.id + ':' + i] = path;
+      }
+    });
+    svg.appendChild(discGroupEl);
+
+    // Fixed light-strike at 12 o'clock (does not rotate with the disc).
+    needleEl = document.createElementNS(NS, 'g');
+    needleEl.setAttribute('class', 'needle');
+    var tipY = INNER_HUB + 8;
+    var topY = 18;
+    // Soft wide bloom
+    var bloom = document.createElementNS(NS, 'rect');
+    bloom.setAttribute('class', 'needle-bloom');
+    bloom.setAttribute('x', String(CX - 18));
+    bloom.setAttribute('y', String(topY));
+    bloom.setAttribute('width', '36');
+    bloom.setAttribute('height', String(tipY - topY));
+    bloom.setAttribute('rx', '10');
+    bloom.setAttribute('fill', 'rgba(255,255,255,0.22)');
+    bloom.setAttribute('filter', 'url(#needleSoftGlow)');
+    needleEl.appendChild(bloom);
+    // Mid glow beam
+    var beam = document.createElementNS(NS, 'rect');
+    beam.setAttribute('class', 'needle-beam');
+    beam.setAttribute('x', String(CX - 5));
+    beam.setAttribute('y', String(topY));
+    beam.setAttribute('width', '10');
+    beam.setAttribute('height', String(tipY - topY));
+    beam.setAttribute('rx', '4');
+    beam.setAttribute('fill', 'url(#needleStrikeGrad)');
+    beam.setAttribute('filter', 'url(#needleGlow)');
+    needleEl.appendChild(beam);
+    // Hot core strike
+    var core = document.createElementNS(NS, 'rect');
+    core.setAttribute('class', 'needle-core');
+    core.setAttribute('x', String(CX - 1.4));
+    core.setAttribute('y', String(topY + 4));
+    core.setAttribute('width', '2.8');
+    core.setAttribute('height', String(tipY - topY - 6));
+    core.setAttribute('rx', '1.4');
+    core.setAttribute('fill', 'rgba(255,255,255,0.95)');
+    needleEl.appendChild(core);
+    // Bright tip spark
+    var spark = document.createElementNS(NS, 'circle');
+    spark.setAttribute('class', 'needle-spark');
+    spark.setAttribute('cx', String(CX));
+    spark.setAttribute('cy', String(tipY));
+    spark.setAttribute('r', '5');
+    spark.setAttribute('fill', 'rgba(255,255,255,0.85)');
+    spark.setAttribute('filter', 'url(#needleGlow)');
+    needleEl.appendChild(spark);
+    svg.appendChild(needleEl);
+  }
+
+  function refreshSegFills() {
+    if (!pattern) return;
+    RINGS.forEach(function (ring) {
+      for (var i = 0; i < ring.segments; i++) paintSeg(ring.id, i);
+    });
+  }
+
+  function litIndexAtPhase(n, phase, swingAmt) {
+    var angles = segmentAngles(n, swingAmt);
+    var target = phase * Math.PI * 2;
+    var acc = 0;
+    for (var i = 0; i < n; i++) {
+      acc += angles.widths[i];
+      if (target < acc) return i;
+    }
+    return n - 1;
+  }
+
+  function paintSeg(ringId, i) {
+    var el = segEls[ringId + ':' + i];
+    if (!el || !pattern) return;
+    el.setAttribute('fill', segFill(pattern[ringId][i]));
+  }
+
+  var segPress = null;
+
+  function clearSegPress() {
+    if (segPress && segPress.timer) clearTimeout(segPress.timer);
+    segPress = null;
+  }
+
+  function onSegPointerDown(e) {
+    e.preventDefault();
+    if (!layers[viewLayer].enabled) return;
+    var ringId = e.currentTarget.dataset.ring;
+    var i = parseInt(e.currentTarget.dataset.seg, 10);
+    if (!pattern[ringId] || !Number.isFinite(i)) return;
+    clearSegPress();
+    segPress = {
+      ringId: ringId,
+      i: i,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      existing: pattern[ringId][i],
+      held: false,
+      el: e.currentTarget,
+      timer: null
+    };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    segPress.timer = setTimeout(function () {
+      if (!segPress) return;
+      segPress.held = true;
+      if (segPress.existing) {
+        setPaintSample(segPress.existing);
+        listenSample(segPress.existing).catch(function (err) { console.error(err); });
+      }
+    }, HOLD_MS);
+  }
+
+  function onSegPointerUp(e) {
+    if (!segPress || e.pointerId !== segPress.pointerId) return;
+    var press = segPress;
+    if (press.timer) clearTimeout(press.timer);
+    segPress = null;
+    try { press.el.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+
+    var moved = Math.hypot(e.clientX - press.startX, e.clientY - press.startY) > 14;
+    if (press.held || moved) return;
+    if (!layers[viewLayer].enabled) return;
+
+    var ringId = press.ringId;
+    var i = press.i;
+    if (pattern[ringId][i] === paintSample) {
+      pattern[ringId][i] = null;
+      paintSeg(ringId, i);
+      return;
+    }
+    pattern[ringId][i] = paintSample;
+    paintSeg(ringId, i);
+    listenSample(paintSample).catch(function (err) { console.error(err); });
+  }
+
+  function onSegPointerCancel(e) {
+    if (!segPress || e.pointerId !== segPress.pointerId) return;
+    clearSegPress();
+  }
+
+  function pickRingPreferFewerSegments(availableIds) {
+    if (!availableIds.length) return null;
+    var weights = [];
+    var total = 0;
+    var i;
+    for (i = 0; i < availableIds.length; i++) {
+      var ring = null;
+      var j;
+      for (j = 0; j < RINGS.length; j++) {
+        if (RINGS[j].id === availableIds[i]) { ring = RINGS[j]; break; }
+      }
+      // Fewer segments → higher weight (squared for a stronger bias).
+      var w = ring ? 1 / (ring.segments * ring.segments) : 1;
+      weights.push(w);
+      total += w;
+    }
+    var r = Math.random() * total;
+    var acc = 0;
+    for (i = 0; i < availableIds.length; i++) {
+      acc += weights[i];
+      if (r <= acc) return availableIds[i];
+    }
+    return availableIds[availableIds.length - 1];
+  }
+
+  function randomFillPattern(pat) {
+    // Always wipe + reshape so prior paint cannot block a new fill.
+    RINGS.forEach(function (ring) {
+      pat[ring.id] = Array(ring.segments).fill(null);
+    });
+
+    var ringIds = RINGS.map(function (r) { return r.id; });
+    var remaining = ringIds.slice();
+    var usedSounds = {};
+
+    // Kick prefers rings with fewer segments; snare/hat take other rings.
+    var coreOrder = CORE_DRUM_IDS.slice();
+    var c;
+    for (c = 0; c < coreOrder.length && remaining.length; c++) {
+      var coreId = coreOrder[c];
+      var coreRingId = (coreId === 'kick')
+        ? pickRingPreferFewerSegments(remaining)
+        : remaining[Math.floor(Math.random() * remaining.length)];
+      var ri = remaining.indexOf(coreRingId);
+      if (ri !== -1) remaining.splice(ri, 1);
+      var coreArr = pat[coreRingId];
+      var n = coreArr.length;
+      applyEuclid(coreArr, coreId, randomPulses(n), Math.floor(Math.random() * n));
+      usedSounds[coreId] = coreRingId;
+    }
+
+    // Extra drums/samples first, then at most 1–2 words (sparse)
+    var wordPool = [];
+    var otherPool = [];
+    SAMPLES.forEach(function (s) {
+      if (usedSounds[s.id]) return;
+      if (s.type === 'text') {
+        if (!String(sayTexts[s.id] || '').trim()) return;
+        wordPool.push(s.id);
+        return;
+      }
+      if (s.type === 'sample' && !soundBank[s.id]) return;
+      otherPool.push(s.id);
+    });
+    shuffleInPlace(wordPool);
+    shuffleInPlace(otherPool);
+
+    var extraCount = Math.min(otherPool.length, 2 + Math.floor(Math.random() * 4)); // 2..5
+    var e;
+    for (e = 0; e < extraCount; e++) {
+      var soundId = otherPool[e];
+      var ringId = pickRingWithMostEmpty(pat, ringIds);
+      if (!ringId) break;
+      var arr = pat[ringId];
+      var empties = countEmpty(arr);
+      if (empties === 0) break;
+      var pulses = Math.max(1, Math.min(empties, randomPulses(empties)));
+      applyEuclidOnEmpty(arr, soundId, pulses, Math.floor(Math.random() * empties));
+      usedSounds[soundId] = ringId;
+    }
+
+    // Words: only 1–2 total, few hits each (avoid word spam)
+    var wordCount = Math.min(wordPool.length, 1 + Math.floor(Math.random() * 2)); // 1 or 2
+    var w;
+    for (w = 0; w < wordCount; w++) {
+      var wordId = wordPool[w];
+      var wordRing = pickRingWithMostEmpty(pat, ringIds);
+      if (!wordRing) break;
+      var wordArr = pat[wordRing];
+      var wordEmpty = countEmpty(wordArr);
+      if (wordEmpty === 0) break;
+      var wordPulses = Math.min(wordEmpty, 1 + (Math.random() < 0.35 ? 1 : 0)); // 1, sometimes 2
+      applyEuclidOnEmpty(wordArr, wordId, wordPulses, Math.floor(Math.random() * wordEmpty));
+      usedSounds[wordId] = wordRing;
+    }
+  }
+
+  function pickRingWithMostEmpty(pat, ringIds) {
+    var bestId = null;
+    var bestEmpty = 0;
+    var candidates = [];
+    var i;
+    for (i = 0; i < ringIds.length; i++) {
+      var id = ringIds[i];
+      var empty = countEmpty(pat[id]);
+      if (empty <= 0) continue;
+      if (empty > bestEmpty) {
+        bestEmpty = empty;
+        candidates = [id];
+      } else if (empty === bestEmpty) {
+        candidates.push(id);
+      }
+    }
+    if (!candidates.length) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  /** Bjorklund Euclidean rhythm → boolean hits length = steps. */
+  function euclidHits(steps, pulses) {
+    steps = Math.max(0, steps | 0);
+    pulses = Math.max(0, Math.min(steps, pulses | 0));
+    if (steps === 0) return [];
+    if (pulses === 0) {
+      var z = [];
+      for (var zi = 0; zi < steps; zi++) z.push(false);
+      return z;
+    }
+    if (pulses === steps) {
+      var f = [];
+      for (var fi = 0; fi < steps; fi++) f.push(true);
+      return f;
+    }
+    var pattern = [];
+    var counts = [];
+    var remainders = [];
+    var divisor = steps - pulses;
+    remainders.push(pulses);
+    var level = 0;
+    while (true) {
+      counts.push(Math.floor(divisor / remainders[level]));
+      remainders.push(divisor % remainders[level]);
+      divisor = remainders[level];
+      level += 1;
+      if (remainders[level] <= 1) break;
+    }
+    counts.push(divisor);
+
+    function build(lvl) {
+      if (lvl === -1) {
+        pattern.push(false);
+        return;
+      }
+      if (lvl === -2) {
+        pattern.push(true);
+        return;
+      }
+      var c;
+      for (c = 0; c < counts[lvl]; c++) build(lvl - 1);
+      if (remainders[lvl] !== 0) build(lvl - 2);
+    }
+    build(level);
+    return pattern.reverse();
+  }
+
+  function rotateBools(arr, rot) {
+    var n = arr.length;
+    if (!n) return arr;
+    rot = ((rot % n) + n) % n;
+    return arr.slice(rot).concat(arr.slice(0, rot));
+  }
+
+  function countEmpty(arr) {
+    var c = 0;
+    for (var i = 0; i < arr.length; i++) if (!arr[i]) c++;
+    return c;
+  }
+
+  function randomPulses(n) {
+    if (n <= 1) return n;
+    var max = Math.max(1, Math.floor(n / 2));
+    return 1 + Math.floor(Math.random() * max);
+  }
+
+  /** Place Euclidean hits, overwriting whatever is already on the ring. */
+  function applyEuclid(arr, soundId, pulses, rot) {
+    var n = arr.length;
+    if (!n || pulses <= 0) return;
+    pulses = Math.min(pulses, n);
+    var hits = rotateBools(euclidHits(n, pulses), rot || 0);
+    var i;
+    for (i = 0; i < n; i++) {
+      if (hits[i]) arr[i] = soundId;
+    }
+  }
+
+  /** Place `pulses` hits of soundId only on currently empty steps, Euclidean spacing. */
+  function applyEuclidOnEmpty(arr, soundId, pulses, rot) {
+    var emptyIdx = [];
+    var i;
+    for (i = 0; i < arr.length; i++) {
+      if (!arr[i]) emptyIdx.push(i);
+    }
+    if (!emptyIdx.length || pulses <= 0) return;
+    pulses = Math.min(pulses, emptyIdx.length);
+    var hits = rotateBools(euclidHits(emptyIdx.length, pulses), rot || 0);
+    for (i = 0; i < emptyIdx.length; i++) {
+      if (hits[i]) arr[emptyIdx[i]] = soundId;
+    }
+  }
+
+  function shuffleInPlace(list) {
+    var i;
+    for (i = list.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
+    }
+    return list;
+  }
+
+  function getBpm() {
+    return Math.max(50, Math.min(130, parseInt(bpmEl.value, 10) || 120));
+  }
+
+  function getBarDur() {
+    return (60 / getBpm()) * 4;
+  }
+
+  async function ensureAudio() {
+    if (audioReady && ctx) {
+      if (ctx.state === 'suspended') await ctx.resume();
+      return;
+    }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    ctx = new AC();
+    buildAudioGraph();
+    await buildBank();
+    audioReady = true;
+  }
+
+  function renderVoice(makerId, openHat) {
+    var OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    var len = Math.ceil(BANK_SR * BANK_DUR);
+    var offline = new OfflineCtx(1, len, BANK_SR);
+    var params = Object.assign({}, makerSoundParams[makerId] || MAKER_DEFAULTS[makerId]);
+    var dest = offline.destination;
+    if (makerId === 'kick') window.playKickTest(offline, dest, params, 0);
+    else if (makerId === 'snare') window.playSnareTest(offline, dest, params, 0);
+    else if (makerId === 'clap') window.playClapTest(offline, dest, params, 0);
+    else if (makerId === 'hat') window.playHatTest(offline, dest, Object.assign({}, params, { hatOpen: !!openHat }), 0, !!openHat);
+    else if (makerId === 'ride') window.playRideTest(offline, dest, params, 0);
+    else if (makerId === 'cowbell') window.playCowbellTest(offline, dest, params, 0);
+    else if (makerId === 'tom') window.playTomTest(offline, dest, params, 0);
+    return offline.startRendering();
+  }
+
+  async function buildBank() {
+    await Promise.all(SAMPLES.filter(function (s) {
+      return s.type === 'maker';
+    }).map(function (s) {
+      return renderVoice(s.maker, s.open).then(function (buf) {
+        soundBank[s.id] = buf;
+      });
+    }));
+  }
+
+  function floatsToAudioBuffer(floats, sampleRate) {
+    if (!floats || !floats.length) throw new Error('Empty speech buffer');
+    var rate = sampleRate || 22050;
+    var buf = ctx.createBuffer(1, floats.length, rate);
+    var ch = buf.getChannelData(0);
+    for (var i = 0; i < floats.length; i++) ch[i] = floats[i];
+    return buf;
+  }
+
+  /** Peak-normalise an AudioBuffer in place to targetPeakDb (e.g. -3). */
+  var WORD_PEAK_DB = -3;
+  function normalizeAudioBufferPeak(buf, targetPeakDb) {
+    if (!buf || typeof buf.getChannelData !== 'function') return buf;
+    var target = Math.pow(10, (targetPeakDb != null ? targetPeakDb : WORD_PEAK_DB) / 20);
+    var peak = 0;
+    var ch;
+    var i;
+    var n;
+    var data;
+    for (ch = 0; ch < buf.numberOfChannels; ch++) {
+      data = buf.getChannelData(ch);
+      for (i = 0, n = data.length; i < n; i++) {
+        var a = Math.abs(data[i]);
+        if (a > peak) peak = a;
+      }
+    }
+    if (peak < 1e-8) return buf;
+    var scale = target / peak;
+    for (ch = 0; ch < buf.numberOfChannels; ch++) {
+      data = buf.getChannelData(ch);
+      for (i = 0, n = data.length; i < n; i++) data[i] *= scale;
+    }
+    return buf;
+  }
+
+  function samParamsForSample(sampleId) {
+    // Mild voice colour only — keep speed near default so words stay clear.
+    var seed = sampleId || 'say';
+    if (sampleId) {
+      var vp = getSayVoiceParams(sampleId);
+      var bv = findBrowserVoice(vp.voiceURI);
+      if (bv && bv.voiceURI) seed = bv.voiceURI;
+      else if (vp.voiceURI) seed = vp.voiceURI;
+    }
+    var h = 2166136261;
+    var i;
+    for (i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    h = h >>> 0;
+    return {
+      speed: 70 + (h % 8),
+      pitch: 58 + ((h >>> 6) % 12),
+      throat: 110 + ((h >>> 12) % 36),
+      mouth: 110 + ((h >>> 18) % 36)
+    };
+  }
+
+  function prerenderSpeechWithSam(text, sampleId) {
+    if (typeof SamJs !== 'function') throw new Error('SAM missing');
+    var p = samParamsForSample(sampleId);
+    var sam = new SamJs({ speed: p.speed, pitch: p.pitch, throat: p.throat, mouth: p.mouth });
+    var floats = sam.buf32(String(text).slice(0, 20));
+    if (!floats || !floats.length) throw new Error('SAM empty');
+    return normalizeAudioBufferPeak(floatsToAudioBuffer(floats, 22050), WORD_PEAK_DB);
+  }
+
+  async function prerenderSpeechWithBrowser(text, sampleId, budget) {
+    await ensureAudio();
+    if (!budget || budget.left <= 0) throw new Error('TTS try budget empty');
+    var voice = naturalTtsVoiceForSample(sampleId);
+    var q = encodeURIComponent(String(text).slice(0, 20));
+    var url = 'https://api.streamelements.com/kappa/v2/speech?voice=' +
+      encodeURIComponent(voice) + '&text=' + q;
+    var lastErr = null;
+
+    while (budget.left > 0) {
+      budget.left -= 1;
+      try {
+        var res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var arr = await res.arrayBuffer();
+        if (!arr || arr.byteLength < 64) throw new Error('Empty audio');
+        var buf = await ctx.decodeAudioData(arr.slice(0));
+        return normalizeAudioBufferPeak(buf, WORD_PEAK_DB);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('Browser TTS failed');
+  }
+
+  async function prerenderSpeechToBuffer(text, sampleId, budget) {
+    if (!text) throw new Error('Empty text');
+    var p = getSayVoiceParams(sampleId);
+    var wantBrowser = (p.engine || 'browser') === 'browser' && isBrowserTtsAvailable();
+    if (wantBrowser) {
+      var b = budget || newNaturalTtsBudget();
+      if (b.left > 0) {
+        try {
+          return await prerenderSpeechWithBrowser(text, sampleId, b);
+        } catch (e) {
+          // Fall through to SAM for this word; budget already spent.
+        }
+      }
+    }
+    return prerenderSpeechWithSam(text, sampleId);
+  }
+
+  async function applySayText(sampleId, raw) {
+    if (sayBusy) return;
+    var text = String(raw || '').trim().slice(0, 20);
+    sayBusy = true;
+    try {
+      await ensureAudio();
+      if (!text) {
+        sayTexts[sampleId] = '';
+        delete soundBank[sampleId];
+        refreshPaintLabels();
+        if (soundSheet.classList.contains('open') && paintSample === sampleId) openSoundEditor();
+        syncSayDirty();
+        return;
+      }
+      sayTexts[sampleId] = text;
+      soundBank[sampleId] = await prerenderSpeechToBuffer(text, sampleId, newNaturalTtsBudget());
+      refreshPaintLabels();
+      previewSample(sampleId);
+      if (soundSheet.classList.contains('open') && paintSample === sampleId) openSoundEditor();
+      if (sampleId === paintSample) {
+        sayInput.value = text;
+        syncSayDirty();
+      }
+    } finally {
+      sayBusy = false;
+    }
+  }
+
+  function triggerLoadSample(forId) {
+    wavInput.dataset.target = forId || paintSample;
+    wavInput.value = '';
+    wavInput.click();
+  }
+
+  async function loadWavFile(sampleId, file) {
+    if (!file || !sampleId) return;
+    await ensureAudio();
+    var arr = await file.arrayBuffer();
+    var buffer = await ctx.decodeAudioData(arr.slice(0));
+    soundBank[sampleId] = buffer;
+    sampleNames[sampleId] = file.name || 'sample.wav';
+    refreshPaintLabels();
+    previewSample(sampleId);
+    if (soundSheet.classList.contains('open') && paintSample === sampleId) openSoundEditor();
+  }
+
+  function noteSegHit(ringId, segIdx, when) {
+    segHitFlashes[ringId + ':' + segIdx] = when;
+  }
+
+  function playBuf(sampleId, when) {
+    var buf = soundBank[sampleId];
+    if (!buf || !ctx || !master) return;
+    if (typeof buf.getChannelData !== 'function') return;
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    var g = ctx.createGain();
+    var s = sampleById(sampleId);
+    if (s && s.type === 'text') {
+      var mods = randomSayPlayMods(sampleId);
+      src.playbackRate.value = mods.playbackRate;
+      g.gain.value = mods.gain;
+    } else {
+      g.gain.value = 1;
+    }
+    src.connect(g);
+    g.connect(busForSample(sampleId));
+    var startAt = Math.max(when, ctx.currentTime);
+    try {
+      src.start(startAt);
+    } catch (e) {
+      return;
+    }
+    if (isSidechainKey(sampleId)) triggerSidechainDuck(startAt);
+    if (sampleId === 'kick') noteKickForBurst(startAt);
+    activeVoices.push(src);
+    src.onended = function () {
+      var i = activeVoices.indexOf(src);
+      if (i !== -1) activeVoices.splice(i, 1);
+    };
+  }
+
+  function stopAllVoices() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    var now = ctx ? ctx.currentTime : 0;
+    activeVoices.slice().forEach(function (src) {
+      try { src.stop(0); } catch (e) { /* already stopped */ }
+    });
+    activeVoices = [];
+    if (master) {
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(0, now);
+      master.gain.setValueAtTime(MASTER_GAIN, now + 0.02);
+    }
+    if (duckGain) {
+      duckGain.gain.cancelScheduledValues(now);
+      duckGain.gain.setValueAtTime(1, now);
+    }
+    if (reverbWetGain) {
+      var wet = getReverb();
+      reverbWetGain.gain.cancelScheduledValues(now);
+      reverbWetGain.gain.setValueAtTime(0, now);
+      reverbWetGain.gain.setValueAtTime(wet, now + 0.05);
+    }
+  }
+
+  function scheduleBar(barStart, layerIdx) {
+    var pat = layers[layerIdx] && layers[layerIdx].pattern;
+    if (!pat) return;
+    var barDur = getBarDur();
+    var human = getHumanize();
+    var swing = getSwing();
+    barEvents.push({ start: barStart, layer: layerIdx });
+    if (barEvents.length > 64) barEvents.splice(0, barEvents.length - 32);
+
+    RINGS.forEach(function (ring) {
+      var steps = pat[ring.id];
+      if (!steps) return;
+      var n = ring.segments;
+      var stepDur = barDur / n;
+      var maxDelay = stepDur * MAX_DELAY_FRAC;
+      for (var i = 0; i < n; i++) {
+        if (!steps[i]) continue;
+        var offset = 0;
+        if (swing > 0 && i % 2 === 1) offset += swing * maxDelay;
+        if (human > 0) offset += human * maxDelay * pseudo01(ring.id, i, layerIdx + 1);
+        if (offset > maxDelay) offset = maxDelay;
+        var hitAt = barStart + i * stepDur + offset;
+        playBuf(steps[i], hitAt);
+        noteSegHit(ring.id, i, hitAt);
+      }
+    });
+  }
+
+  function scheduler() {
+    if (!playing || !ctx) return;
+    var barDur = getBarDur();
+    var end = ctx.currentTime + LOOK_AHEAD;
+    while (nextBarTime < end) {
+      if (!layers[playCursor] || !layers[playCursor].enabled) {
+        var n = nextEnabled(playCursor);
+        if (n < 0) {
+          pause();
+          return;
+        }
+        playCursor = n;
+      }
+      scheduleBar(nextBarTime, playCursor);
+      nextBarTime += barDur;
+      var nxt = nextEnabled(playCursor);
+      playCursor = nxt < 0 ? playCursor : nxt;
+    }
+    scheduleTimer = setTimeout(scheduler, SCHEDULE_MS);
+  }
+
+  function activeLayerAt(time) {
+    var best = null;
+    for (var i = 0; i < barEvents.length; i++) {
+      if (barEvents[i].start <= time) best = barEvents[i];
+    }
+    return best;
+  }
+
+  function clearSegNeedleGlow() {
+    segHitFlashes = {};
+    Object.keys(segEls).forEach(function (k) {
+      var el = segEls[k];
+      el.classList.remove('lit', 'near-needle', 'hit-glow');
+      el.style.filter = '';
+      el.style.stroke = '';
+      el.style.strokeWidth = '';
+      el.removeAttribute('stroke');
+      el.removeAttribute('stroke-width');
+    });
+    clearHubStrikeGlow();
+  }
+
+  var hubHue = 75; // neon lime start
+  var hubHueLastT = 0;
+
+  function clearHubStrikeGlow() {
+    if (!hubBtn) return;
+    hubBtn.classList.remove('strike-lit');
+    hubBtn.style.removeProperty('--hub-strike');
+    hubBtn.style.removeProperty('--hub-hue');
+    hubBtn.style.filter = '';
+    hubBtn.style.boxShadow = '';
+    hubBtn.style.background = '';
+    hubBtn.style.color = '';
+    var strikeEl = document.getElementById('hubStrike');
+    if (strikeEl) strikeEl.style.background = '';
+    hubHueLastT = 0;
+  }
+
+  function sampleMusicForHub() {
+    if (analyser && analyserData) {
+      analyser.getByteFrequencyData(analyserData);
+    }
+    var bass = (typeof bassEnergy === 'function') ? bassEnergy() : 0;
+    var vol = (typeof musicVolume === 'function') ? musicVolume() : 0;
+    var mid = (typeof midEnergy === 'function') ? midEnergy() : 0;
+    return {
+      bass: bass,
+      vol: vol,
+      mid: mid,
+      energy: Math.max(bass, vol * 0.9, mid * 0.45)
+    };
+  }
+
+  function hslNeon(h, s, l, a) {
+    var base = 'hsl(' + (Math.round(h) % 360) + ' ' + Math.round(s * 100) + '% ' + Math.round(l * 100) + '%';
+    if (a == null || a >= 1) return base + ')';
+    return base + ' / ' + a + ')';
+  }
+
+  /** Advance neon hue from music; returns current music snapshot. */
+  function tickHubHue() {
+    var music = sampleMusicForHub();
+    var now = (ctx && ctx.currentTime != null) ? ctx.currentTime : performance.now() * 0.001;
+    if (!hubHueLastT) hubHueLastT = now;
+    var dt = Math.max(0, Math.min(0.05, now - hubHueLastT));
+    hubHueLastT = now;
+    var rate = 18 + music.energy * 140 + music.bass * 90;
+    hubHue = (hubHue + rate * dt) % 360;
+    return music;
+  }
+
+  function setSegNeonBorder(el, strength) {
+    if (!el) return;
+    var s = Math.max(0, Math.min(1, strength || 0));
+    if (s < 0.05) {
+      el.style.stroke = 'none';
+      el.style.strokeWidth = '0';
+      return;
+    }
+    el.style.stroke = hslNeon(hubHue, 1, 0.62, 0.55 + s * 0.45);
+    el.style.strokeWidth = String((2.2 + s * 3.5).toFixed(1));
+  }
+
+  function applyHubNeonAndStrike(hitFlash, nearBoost, music) {
+    if (!hubBtn || !playing) return;
+    music = music || sampleMusicForHub();
+    var flash = Math.max(0, Math.min(1, hitFlash || 0));
+    var near = Math.max(0, Math.min(1, nearBoost || 0));
+    var strike = Math.max(flash, near * 0.55, music.energy * 0.25);
+    var lit = 0.52 + music.energy * 0.12 + flash * 0.1;
+    var sat = 0.92 + music.energy * 0.08;
+
+    hubBtn.style.background = hslNeon(hubHue, sat, lit);
+    hubBtn.style.color = lit > 0.58 ? '#0a0a12' : '#f4f4ff';
+    hubBtn.style.setProperty('--hub-hue', String(Math.round(hubHue)));
+    hubBtn.style.boxShadow =
+      '0 -6px 22px hsla(' + Math.round(hubHue) + ' 100% 60% / 0.5), ' +
+      '0 0 28px hsla(' + Math.round(hubHue) + ' 100% 55% / 0.35)';
+
+    if (strike < 0.04) {
+      hubBtn.classList.remove('strike-lit');
+      hubBtn.style.removeProperty('--hub-strike');
+      return;
+    }
+    hubBtn.classList.add('strike-lit');
+    hubBtn.style.setProperty('--hub-strike', (0.22 + strike * 0.85).toFixed(3));
+    var strikeEl = document.getElementById('hubStrike');
+    if (strikeEl) {
+      strikeEl.style.background =
+        'radial-gradient(ellipse 95% 80% at 50% -10%, ' +
+        'hsla(' + Math.round(hubHue) + ' 100% 92% / 0.95) 0%, ' +
+        'hsla(' + Math.round((hubHue + 40) % 360) + ' 100% 70% / 0.55) 35%, ' +
+        'transparent 70%)';
+    }
+  }
+
+  function sizeFftCanvas() {
+    if (!fftCanvas) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.max(1, Math.floor(window.innerWidth * dpr));
+    var h = Math.max(1, Math.floor(window.innerHeight * dpr));
+    if (fftCanvas.width !== w || fftCanvas.height !== h) {
+      fftCanvas.width = w;
+      fftCanvas.height = h;
+    }
+  }
+
+  /** Morph rings center on the drum; drawn on full viewport (no crop box). */
+  function getMorphLayout(dpr) {
+    var wrapRect = circleWrap
+      ? circleWrap.getBoundingClientRect()
+      : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+    var scale = dpr || Math.min(window.devicePixelRatio || 1, 2);
+    return {
+      cx: (wrapRect.left + wrapRect.width * 0.5) * scale,
+      cy: (wrapRect.top + wrapRect.height * 0.5) * scale,
+      circleR: (Math.min(wrapRect.width, wrapRect.height) * 0.5) * scale
+    };
+  }
+
+  function sampleSpectrumRing(pointCount) {
+    var bins = analyserData.length;
+    var useBins = Math.min(64, Math.floor(bins * 0.45));
+    if (!fftSmooth || fftSmooth.length < pointCount) fftSmooth = new Float32Array(FFT_POINTS_MAX);
+    var out = fftSmooth;
+    var i;
+    for (i = 0; i < pointCount; i++) {
+      var t = i / pointCount;
+      var bi = Math.min(useBins - 1, Math.floor(t * useBins));
+      var v = (analyserData[bi] || 0) / 255;
+      var target = Math.pow(v, 0.95);
+      out[i] = out[i] * 0.35 + target * 0.65;
+    }
+    return out;
+  }
+
+  function bassEnergy() {
+    var n = Math.min(6, analyserData.length);
+    var sum = 0;
+    var i;
+    for (i = 1; i < n; i++) sum += analyserData[i];
+    return Math.pow(sum / ((n - 1) * 255), 1.1);
+  }
+
+  function midEnergy() {
+    var start = 8;
+    var end = Math.min(28, analyserData.length);
+    if (end <= start) return 0;
+    var sum = 0;
+    var i;
+    for (i = start; i < end; i++) sum += analyserData[i];
+    return sum / ((end - start) * 255);
+  }
+
+  /** Overall music loudness 0–1 from spectrum (drives halo opacity). */
+  function musicVolume() {
+    if (!analyserData || !analyserData.length) return 0;
+    var n = Math.min(analyserData.length, 96);
+    var sum = 0;
+    var i;
+    for (i = 0; i < n; i++) sum += analyserData[i];
+    var avg = sum / (n * 255);
+    // Soft floor so quiet passages dim, loud passages open up
+    return Math.max(0, Math.min(1, Math.pow(avg, 0.8)));
+  }
+
+  /** Closed Catmull-Rom → cubic beziers (soft morph outline). */
+  function traceSmoothClosedPath(c2d, verts, tension) {
+    var n = verts.length;
+    if (n < 3) return;
+    var t = tension == null ? 0.85 : tension;
+    c2d.moveTo(verts[0].x, verts[0].y);
+    var i;
+    for (i = 0; i < n; i++) {
+      var p0 = verts[(i - 1 + n) % n];
+      var p1 = verts[i];
+      var p2 = verts[(i + 1) % n];
+      var p3 = verts[(i + 2) % n];
+      c2d.bezierCurveTo(
+        p1.x + (p2.x - p0.x) * (t / 6),
+        p1.y + (p2.y - p0.y) * (t / 6),
+        p2.x - (p3.x - p1.x) * (t / 6),
+        p2.y - (p3.y - p1.y) * (t / 6),
+        p2.x,
+        p2.y
+      );
+    }
+    c2d.closePath();
+  }
+
+  function buildMorphVerts(cx, cy, baseR, amp, ring, points, spinOff, bass, time) {
+    var verts = [];
+    var i;
+    for (i = 0; i < points; i++) {
+      var ang = -Math.PI / 2 + (i / points) * Math.PI * 2 + spinOff;
+      var prev = ring[(i - 1 + points) % points];
+      var next = ring[(i + 1) % points];
+      var blend = ring[i] * 0.5 + prev * 0.25 + next * 0.25;
+      var breathe = 0.02 * bass * Math.sin(time * 4.2 + i * 0.7);
+      var r = baseR + blend * amp * (0.75 + bass * 0.55) + breathe * amp;
+      verts.push({
+        x: cx + Math.cos(ang) * r,
+        y: cy + Math.sin(ang) * r
+      });
+    }
+    return verts;
+  }
+
+  /** Soft morph halo rings that slowly push out; new inner replaces fading outer. */
+  function drawFftRing() {
+    if (!fftCtx2d || !fftCanvas || !analyser || !analyserData) return;
+    sizeFftCanvas();
+    analyser.getByteFrequencyData(analyserData);
+    if (!fftParticles.length) initFftParticles();
+
+    var time = (ctx && ctx.currentTime) ? ctx.currentTime : performance.now() * 0.001;
+    var aes = getVfxAesthetics(time);
+    var bass = bassEnergy();
+    var mid = midEnergy();
+    var vol = musicVolume();
+
+    if (stageEl) stageEl.classList.add('is-playing');
+    drawStarField(bass, mid, aes, time);
+
+    var w = fftCanvas.width;
+    var h = fftCanvas.height;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var layout = getMorphLayout(dpr);
+    var cx = layout.cx;
+    var cy = layout.cy;
+    var circleR = Math.max(40, layout.circleR);
+    var points = Math.max(14, Math.min(FFT_POINTS_MAX, aes.facets + 2));
+    var ring = sampleSpectrumRing(points);
+    var avg = 0;
+    var i;
+    for (i = 0; i < points; i++) avg += ring[i];
+    avg /= points;
+
+    var coreRgb = hslToRgb(aes.hue2, Math.min(0.5, aes.sat * 0.4), 0.9);
+    var midRgb = hslToRgb(aes.hue, Math.min(0.65, aes.sat * 0.65), 0.74);
+    var partRgb = hslToRgb(aes.hue2, 0.35, 0.92);
+
+    var fade = Math.max(0.45, Math.min(0.88, aes.ringTrail));
+    fftCtx2d.fillStyle = 'rgba(0, 0, 0, ' + fade + ')';
+    fftCtx2d.globalCompositeOperation = 'destination-out';
+    fftCtx2d.fillRect(0, 0, w, h);
+    fftCtx2d.globalCompositeOperation = 'lighter';
+    fftCtx2d.save();
+    fftCtx2d.lineJoin = 'round';
+    fftCtx2d.lineCap = 'round';
+
+    var pulse = 1 + bass * 0.28 + avg * 0.14 + vol * 0.18 + 0.04 * Math.sin(time * 2.8);
+    var bright = (0.06 + vol * 1.25) * (0.55 + bass * 0.7 + mid * 0.2 + aes.lit * 0.08);
+    var blurScale = (5.5 + aes.strokeWide * 3.2 + bass * 12 + vol * 6) * (dpr > 1.4 ? 1.12 : 1);
+    var spinSign = aes.ringSpin === 0 ? 0 : (aes.ringSpin > 0 ? 1 : -1);
+    var spinOff = time * aes.ringSpinSpeed * 40 * spinSign;
+
+    // Soft FFT wash under the expanding rings — wide inner glow with blurred edges
+    var washBase = circleR * 0.94 * pulse;
+    var washAmp = circleR * (0.08 + aes.morphScale * 0.08) * (0.7 + avg * 0.5);
+    var washVerts = buildMorphVerts(cx, cy, washBase, washAmp, ring, points, spinOff, bass, time);
+    fftCtx2d.shadowColor = rgbaStr(midRgb, Math.min(0.85, 0.55 * bright * (0.7 + bass * 0.6)));
+    fftCtx2d.shadowBlur = blurScale * (2.4 + bass * 1.2);
+    fftCtx2d.beginPath();
+    traceSmoothClosedPath(fftCtx2d, washVerts, 1.0);
+    fftCtx2d.fillStyle = rgbaStr(midRgb, Math.min(0.28, 0.12 * bright * (0.7 + bass * 0.8 + vol * 0.4)));
+    fftCtx2d.fill();
+    // Extra soft rim so the edge dissolves
+    fftCtx2d.shadowBlur = blurScale * (3.2 + bass * 1.4);
+    fftCtx2d.strokeStyle = rgbaStr(midRgb, Math.min(0.5, 0.28 * bright * (0.8 + bass)));
+    fftCtx2d.lineWidth = 10 + bass * 14 + vol * 6;
+    fftCtx2d.beginPath();
+    traceSmoothClosedPath(fftCtx2d, washVerts, 1.0);
+    fftCtx2d.stroke();
+    fftCtx2d.shadowBlur = 0;
+
+    // Slow morph rings: outer fades away, new one emerges inside (~2–3 at once)
+    maybeSpawnBaseHaloWing(circleR, aes);
+    drawBaseHaloWings(
+      fftCtx2d, cx, cy, circleR, ring, points, spinOff,
+      bass, vol, bright, blurScale, time, aes
+    );
+
+    // Sparse motes near the drum edge
+    var partN = Math.max(2, Math.min(FFT_PARTICLE_COUNT, aes.ringPartCount));
+    var mainBase = circleR * 0.94 * pulse;
+    for (i = 0; i < partN; i++) {
+      var p = fftParticles[i];
+      p.ang += p.spin * aes.partDirFlip * (0.002 + bass * 0.012 + aes.ringSpinSpeed * 7);
+      var sample = ring[i % points];
+      var orbit = Math.max(0.9, p.orbit * 0.95);
+      var pr = mainBase * orbit * (1 + sample * 0.12 + bass * 0.04 * Math.sin(time * 4 + p.phase));
+      var px = cx + Math.cos(p.ang) * pr;
+      var py = cy + Math.sin(p.ang) * pr;
+      var sz = p.size * aes.particleSize * (0.7 + bass * 0.75);
+      fftCtx2d.fillStyle = rgbaStr(partRgb, (0.08 + vol * 0.35) * (0.7 + bass * 0.5));
+      fftCtx2d.beginPath();
+      fftCtx2d.arc(px, py, Math.max(0.55, sz), 0, Math.PI * 2);
+      fftCtx2d.fill();
+    }
+
+    // Kick-synced neon energy ring (occasional, varied)
+    if (ctx && pendingKickBursts.length) {
+      var nowT = ctx.currentTime;
+      while (pendingKickBursts.length && pendingKickBursts[0] <= nowT + 0.03) {
+        pendingKickBursts.shift();
+        spawnEnergyBurst(cx, cy, circleR, aes, bass, vol);
+      }
+    }
+    drawEnergyBursts(fftCtx2d, bright);
+
+    fftCtx2d.shadowBlur = 0;
+    fftCtx2d.restore();
+    fftCtx2d.globalCompositeOperation = 'source-over';
+  }
+
+  function updatePlayhead() {
+    if (!discGroupEl) {
+      playheadRaf = requestAnimationFrame(updatePlayhead);
+      return;
+    }
+    if (!playing || !ctx) {
+      discGroupEl.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
+      if (circleWrap) circleWrap.classList.remove('is-playing');
+      clearSegNeedleGlow();
+      clearFftRing();
+      clearStarField();
+      shownPlayLayer = -1;
+      playheadRaf = requestAnimationFrame(updatePlayhead);
+      return;
+    }
+
+    if (circleWrap) circleWrap.classList.add('is-playing');
+    if (visualFxOn) {
+      drawFftRing();
+    } else {
+      clearFftRing();
+      clearStarField();
+      if (stageEl) stageEl.classList.remove('is-playing');
+    }
+
+    var now = ctx.currentTime;
+    var ev = activeLayerAt(now);
+    if (ev && ev.layer !== shownPlayLayer) {
+      shownPlayLayer = ev.layer;
+      if (!viewLocked) setViewLayer(ev.layer, { fromPlayhead: true });
+    }
+
+    var barDur = getBarDur();
+    var start = ev ? ev.start : barOrigin;
+    var elapsed = (now - start) % barDur;
+    if (elapsed < 0) elapsed += barDur;
+    var phase = elapsed / barDur;
+    // Disc spins under a fixed needle (CCW so current beat stays at 12 o'clock).
+    discGroupEl.setAttribute('transform', 'rotate(' + (-phase * 360) + ' ' + CX + ' ' + CY + ')');
+
+    var swingAmt = getSwing();
+    var needleAng = START_ANGLE + phase * Math.PI * 2;
+    var glowSpan = (50 * Math.PI) / 180;
+    var HIT_GLOW_SEC = 0.28;
+    var hubHitFlash = 0;
+    var hubNearBoost = 0;
+    var music = tickHubHue();
+
+    RINGS.forEach(function (ring) {
+      var n = ring.segments;
+      var angles = segmentAngles(n, swingAmt);
+      var i;
+      for (i = 0; i < n; i++) {
+        var key = ring.id + ':' + i;
+        var el = segEls[key];
+        if (!el) continue;
+        var mid = angles.starts[i] + angles.widths[i] * 0.5;
+        var delta = mid - needleAng;
+        while (delta > Math.PI) delta -= Math.PI * 2;
+        while (delta < -Math.PI) delta += Math.PI * 2;
+        var proxim = 1 - Math.min(1, Math.abs(delta) / glowSpan);
+        var filled = !!(pattern && pattern[ring.id][i]);
+
+        // Glow only when this painted segment actually plays (no pre-glow)
+        var hitAt = segHitFlashes[key];
+        var hitFlash = 0;
+        if (hitAt != null && filled) {
+          var age = now - hitAt;
+          if (age >= 0 && age < HIT_GLOW_SEC) {
+            hitFlash = 1 - age / HIT_GLOW_SEC;
+            hitFlash = hitFlash * hitFlash;
+          } else if (age >= HIT_GLOW_SEC) {
+            delete segHitFlashes[key];
+          }
+        }
+
+        if (hitFlash > hubHitFlash) hubHitFlash = hitFlash;
+        if (filled && proxim > hubNearBoost) hubNearBoost = proxim;
+
+        if (hitFlash > 0.02) {
+          el.classList.add('lit', 'hit-glow');
+          el.classList.remove('near-needle');
+          var glowPx = 4 + hitFlash * 14;
+          var glowA = 0.35 + hitFlash * 0.55;
+          el.style.filter =
+            'brightness(' + (1.45 + hitFlash * 1.1).toFixed(3) + ') ' +
+            'drop-shadow(0 0 ' + glowPx.toFixed(1) + 'px ' + hslNeon(hubHue, 1, 0.7, glowA) + ') ' +
+            'drop-shadow(0 0 ' + (glowPx * 1.8).toFixed(1) + 'px ' + hslNeon(hubHue, 1, 0.6, glowA * 0.55) + ')';
+          setSegNeonBorder(el, 0.75 + hitFlash * 0.25);
+        } else {
+          el.classList.remove('near-needle', 'lit', 'hit-glow');
+          el.style.filter = '';
+          setSegNeonBorder(el, 0);
+        }
+      }
+    });
+
+    applyHubNeonAndStrike(hubHitFlash, hubNearBoost, music);
+    playheadRaf = requestAnimationFrame(updatePlayhead);
+  }
+
+  async function play() {
+    var start = resolveStart(viewLayer);
+    if (start < 0) return;
+    await ensureAudio();
+    if (ctx.state === 'suspended') await ctx.resume();
+    playing = true;
+    hubBtn.classList.add('playing');
+    hubHue = 75;
+    hubHueLastT = 0;
+    hubIcon.innerHTML = ICON_PAUSE;
+    playCursor = start;
+    barEvents = [];
+    shownPlayLayer = -1;
+    viewLocked = false;
+    var t = ctx.currentTime + 0.06;
+    barOrigin = t;
+    nextBarTime = t;
+    setViewLayer(start, { fromPlayhead: true });
+    scheduler();
+  }
+
+  function pause() {
+    playing = false;
+    viewLocked = false;
+    hubBtn.classList.remove('playing');
+    clearHubStrikeGlow();
+    hubIcon.innerHTML = ICON_PLAY;
+    if (scheduleTimer) {
+      clearTimeout(scheduleTimer);
+      scheduleTimer = 0;
+    }
+    stopAllVoices();
+    barEvents = [];
+    shownPlayLayer = -1;
+    syncLayerUi();
+  }
+
+  async function togglePlay() {
+    if (playing) pause();
+    else await play();
+  }
+
+  function layerHasHits(layerIdx) {
+    var pat = layers[layerIdx] && layers[layerIdx].pattern;
+    if (!pat) return false;
+    for (var r = 0; r < RINGS.length; r++) {
+      var steps = pat[RINGS[r].id];
+      if (!steps) continue;
+      for (var i = 0; i < steps.length; i++) {
+        if (steps[i]) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Words painted on this wheel, in first-appearance order (outer→inner, then step). */
+  function wordsUsedInLayer(layerIdx) {
+    var pat = layers[layerIdx] && layers[layerIdx].pattern;
+    var seen = {};
+    var words = [];
+    if (!pat) return words;
+    RINGS.forEach(function (ring) {
+      var steps = pat[ring.id];
+      if (!steps) return;
+      for (var i = 0; i < steps.length; i++) {
+        var id = steps[i];
+        if (!id || seen[id]) continue;
+        var s = sampleById(id);
+        if (!s || s.type !== 'text') continue;
+        seen[id] = true;
+        var w = String(sayTexts[id] || '').trim();
+        if (w) words.push(w);
+      }
+    });
+    return words;
+  }
+
+  function sanitizeFilenamePart(s) {
+    return String(s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '')
+      .slice(0, 24);
+  }
+
+  function wavFilenameForViewLayer() {
+    var parts = wordsUsedInLayer(viewLayer)
+      .slice(0, 2)
+      .map(sanitizeFilenamePart)
+      .filter(Boolean);
+    var base = parts.length ? parts.join('_') : 'wheel';
+    return base + '_BPM_' + getBpm() + '.wav';
+  }
+
+  function copyBufferToContext(srcBuffer, dstCtx) {
+    var numCh = srcBuffer.numberOfChannels;
+    var len = srcBuffer.length;
+    var sr = srcBuffer.sampleRate;
+    var dst = dstCtx.createBuffer(numCh, len, sr);
+    for (var ch = 0; ch < numCh; ch++) {
+      dst.copyToChannel(srcBuffer.getChannelData(ch), ch, 0);
+    }
+    return dst;
+  }
+
+  function encodeWavFromBuffer(buffer) {
+    var numChannels = buffer.numberOfChannels;
+    var sampleRate = buffer.sampleRate;
+    var numFrames = buffer.length;
+    var bytesPerSample = 2;
+    var blockAlign = numChannels * bytesPerSample;
+    var dataSize = numFrames * blockAlign;
+    var arrayBuffer = new ArrayBuffer(44 + dataSize);
+    var view = new DataView(arrayBuffer);
+    function writeString(offset, text) {
+      for (var i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+    }
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+    var offset = 44;
+    for (var i = 0; i < numFrames; i++) {
+      for (var ch = 0; ch < numChannels; ch++) {
+        var s = buffer.getChannelData(ch)[i];
+        s = Math.max(-1, Math.min(1, s));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  }
+
+  function downloadBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  async function ensureLayerSampleBuffers(layerIdx) {
+    await ensureAudio();
+    var pat = layers[layerIdx] && layers[layerIdx].pattern;
+    if (!pat) return;
+    var needMaker = false;
+    var textIds = [];
+    RINGS.forEach(function (ring) {
+      var steps = pat[ring.id];
+      if (!steps) return;
+      for (var i = 0; i < steps.length; i++) {
+        var id = steps[i];
+        if (!id || soundBank[id]) continue;
+        var s = sampleById(id);
+        if (!s) continue;
+        if (s.type === 'maker') needMaker = true;
+        else if (s.type === 'text') textIds.push(id);
+      }
+    });
+    if (needMaker) await buildBank();
+    var budget = newNaturalTtsBudget();
+    for (var t = 0; t < textIds.length; t++) {
+      var tid = textIds[t];
+      if (soundBank[tid]) continue;
+      var text = String(sayTexts[tid] || '').trim();
+      if (text) soundBank[tid] = await prerenderSpeechToBuffer(text, tid, budget);
+    }
+  }
+
+  function buildOfflineExportGraph(octx) {
+    var oMaster = octx.createGain();
+    oMaster.gain.value = MASTER_GAIN;
+    var oPunch = octx.createGain();
+    oPunch.gain.value = 1;
+    oPunch.connect(oMaster);
+    var oDuck = octx.createGain();
+    oDuck.gain.value = 1;
+    oDuck.connect(oMaster);
+
+    var oMix = octx.createGain();
+    oMix.gain.value = 1;
+    oMaster.connect(oMix);
+
+    var reverbSend = octx.createBiquadFilter();
+    reverbSend.type = 'highpass';
+    reverbSend.frequency.value = REVERB_HP_HZ;
+    reverbSend.Q.value = 0.7;
+    oMaster.connect(reverbSend);
+
+    var oConvolver = octx.createConvolver();
+    oConvolver.normalize = true;
+    var durationSec = getReverbDurationSec();
+    oConvolver.buffer = createReverbIR(octx, durationSec, durationSec * 0.55);
+    reverbSend.connect(oConvolver);
+
+    var oWet = octx.createGain();
+    oWet.gain.value = getReverb();
+    oConvolver.connect(oWet);
+    oWet.connect(oMix);
+
+    oMix.connect(octx.destination);
+    return { punchBus: oPunch, duckGain: oDuck };
+  }
+
+  function scheduleOfflineDuck(duckNode, when) {
+    var g = duckNode.gain;
+    var t0 = Math.max(0, when);
+    try {
+      if (typeof g.cancelAndHoldAtTime === 'function') g.cancelAndHoldAtTime(t0);
+      else {
+        g.cancelScheduledValues(t0);
+        g.setValueAtTime(Math.min(g.value, 1), t0);
+      }
+    } catch (e) {
+      g.cancelScheduledValues(t0);
+      g.setValueAtTime(1, t0);
+    }
+    g.linearRampToValueAtTime(DUCK_DEPTH, t0 + DUCK_ATTACK);
+    g.linearRampToValueAtTime(DUCK_DEPTH, t0 + DUCK_ATTACK + DUCK_HOLD);
+    g.linearRampToValueAtTime(1, t0 + DUCK_ATTACK + DUCK_HOLD + DUCK_RELEASE);
+  }
+
+  function scheduleOfflineLayerBar(octx, bank, buses, barStart, layerIdx) {
+    var pat = layers[layerIdx] && layers[layerIdx].pattern;
+    if (!pat) return;
+    var barDur = getBarDur();
+    var human = getHumanize();
+    var swing = getSwing();
+
+    RINGS.forEach(function (ring) {
+      var steps = pat[ring.id];
+      if (!steps) return;
+      var n = ring.segments;
+      var stepDur = barDur / n;
+      var maxDelay = stepDur * MAX_DELAY_FRAC;
+      for (var i = 0; i < n; i++) {
+        if (!steps[i]) continue;
+        var sampleId = steps[i];
+        var buf = bank[sampleId];
+        if (!buf) continue;
+        var offset = 0;
+        if (swing > 0 && i % 2 === 1) offset += swing * maxDelay;
+        if (human > 0) offset += human * maxDelay * pseudo01(ring.id, i, layerIdx + 1);
+        if (offset > maxDelay) offset = maxDelay;
+        var hitAt = barStart + i * stepDur + offset;
+
+        var src = octx.createBufferSource();
+        src.buffer = buf;
+        var g = octx.createGain();
+        var s = sampleById(sampleId);
+        if (s && s.type === 'text') {
+          var mods = randomSayPlayMods(sampleId);
+          src.playbackRate.value = mods.playbackRate;
+          g.gain.value = mods.gain;
+        } else {
+          g.gain.value = 1;
+        }
+        src.connect(g);
+        g.connect(isSidechainKey(sampleId) ? buses.punchBus : buses.duckGain);
+        try {
+          src.start(Math.max(0, hitAt));
+        } catch (e) { /* skip */ }
+        if (isSidechainKey(sampleId)) scheduleOfflineDuck(buses.duckGain, hitAt);
+      }
+    });
+  }
+
+  var savingWav = false;
+
+  async function saveViewWheelWav() {
+    if (savingWav) return;
+    if (!layerHasHits(viewLayer)) {
+      alert('This wheel has no hits to save.');
+      return;
+    }
+    var OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!OfflineCtx) {
+      alert('WAV export is not supported in this browser.');
+      return;
+    }
+
+    savingWav = true;
+    try {
+      await ensureLayerSampleBuffers(viewLayer);
+
+      var barDur = getBarDur();
+      var tail = Math.min(1.6, getReverbDurationSec() + 0.35);
+      var durationSec = barDur + tail;
+      var sampleRate = 44100;
+      var numFrames = Math.ceil(durationSec * sampleRate);
+      var octx = new OfflineCtx(2, numFrames, sampleRate);
+      var buses = buildOfflineExportGraph(octx);
+
+      var bank = {};
+      Object.keys(soundBank).forEach(function (id) {
+        var src = soundBank[id];
+        if (!src || typeof src.getChannelData !== 'function') return;
+        bank[id] = copyBufferToContext(src, octx);
+      });
+
+      scheduleOfflineLayerBar(octx, bank, buses, 0, viewLayer);
+      var rendered = await octx.startRendering();
+      var blob = encodeWavFromBuffer(rendered);
+      downloadBlob(blob, wavFilenameForViewLayer());
+    } catch (err) {
+      console.error(err);
+      alert('Could not save WAV.');
+    } finally {
+      savingWav = false;
+    }
+  }
+
+  function closePanelMenu() {
+    if (!panelMenu) return;
+    panelMenu.classList.remove('open');
+    if (panelBurger) panelBurger.setAttribute('aria-expanded', 'false');
+  }
+
+  function setVisualFx(on) {
+    visualFxOn = !!on;
+    if (appRoot) appRoot.classList.toggle('visual-off', !visualFxOn);
+    if (visualOnBtn) {
+      visualOnBtn.classList.toggle('active', visualFxOn);
+      visualOnBtn.setAttribute('aria-pressed', visualFxOn ? 'true' : 'false');
+    }
+    if (visualOffBtn) {
+      visualOffBtn.classList.toggle('active', !visualFxOn);
+      visualOffBtn.setAttribute('aria-pressed', visualFxOn ? 'false' : 'true');
+    }
+    if (!visualFxOn) {
+      clearFftRing();
+      clearStarField();
+      if (stageEl) stageEl.classList.remove('is-playing');
+    }
+  }
+
+  function syncPanelMenuHighlight() {
+    if (!panelMenu) return;
+    // Hamburger visible = top panel closed → no menu item highlighted
+    var collapsed = !!(appRoot && appRoot.classList.contains('top-collapsed'));
+    panelMenu.querySelectorAll('.panel-opt').forEach(function (btn) {
+      btn.classList.toggle('active', !collapsed && btn.dataset.panel === activePanel);
+    });
+  }
+
+  function setTopCollapsed(collapsed) {
+    if (!appRoot) return;
+    appRoot.classList.toggle('top-collapsed', !!collapsed);
+    if (collapsed) closePanelMenu();
+    syncPanelMenuHighlight();
+  }
+
+  function setPanel(name) {
+    activePanel = name || 'edit';
+    document.querySelectorAll('.tab-panel').forEach(function (panel) {
+      panel.classList.toggle('active', panel.dataset.panel === activePanel);
+    });
+    setTopCollapsed(false);
+    syncPanelMenuHighlight();
+    closePanelMenu();
+  }
+
+  if (panelBurger && panelMenu) {
+    panelBurger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      syncPanelMenuHighlight();
+      var open = panelMenu.classList.toggle('open');
+      panelBurger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    panelMenu.addEventListener('click', function (e) {
+      var btn = e.target.closest('.panel-opt');
+      if (!btn) return;
+      e.stopPropagation();
+      if (btn.dataset.action === 'save-wav') {
+        closePanelMenu();
+        saveViewWheelWav().catch(function (err) { console.error(err); });
+        return;
+      }
+      if (!btn.dataset.panel) return;
+      setPanel(btn.dataset.panel);
+    });
+  }
+
+  if (topCloseBtn) {
+    topCloseBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setTopCollapsed(true);
+    });
+  }
+
+  if (visualOnBtn) {
+    visualOnBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setVisualFx(true);
+    });
+  }
+  if (visualOffBtn) {
+    visualOffBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setVisualFx(false);
+    });
+  }
+
+  hubBtn.addEventListener('click', function () {
+    togglePlay().catch(function (err) { console.error(err); });
+  });
+
+  layerTrigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (layerMenu.classList.contains('open')) closeLayerMenus();
+    else openLayerMenu();
+  });
+
+  paintTrigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    listenSample(paintSample).catch(function (err) { console.error(err); });
+    if (paintMenu.classList.contains('open')) closePaintMenu();
+    else openPaintMenu();
+  });
+
+  soundDesignBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    closePaintMenu();
+    openSoundEditor();
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!paintMenu.contains(e.target) && e.target !== paintTrigger && !paintTrigger.contains(e.target)) {
+      closePaintMenu();
+    }
+    if (!e.target.closest('.layer-pick')) closeLayerMenus();
+    if (!e.target.closest('.rand-group')) closeRandMenus();
+    if (!e.target.closest('.panel-menu-wrap')) closePanelMenu();
+  });
+
+  loadSampleBtn.addEventListener('click', function () {
+    triggerLoadSample(paintSample);
+  });
+
+  wavInput.addEventListener('change', function () {
+    var file = wavInput.files && wavInput.files[0];
+    var id = wavInput.dataset.target || paintSample;
+    if (file) loadWavFile(id, file).catch(function (err) { console.error(err); });
+  });
+
+  sayApplyBtn.addEventListener('click', function () {
+    applySayText(paintSample, sayInput.value).catch(function (err) { console.error(err); });
+  });
+
+  if (sayCancelBtn) {
+    sayCancelBtn.addEventListener('click', function () {
+      cancelSayEdit();
+    });
+  }
+
+  sayInput.addEventListener('input', function () {
+    var t = String(sayInput.value || '').slice(0, 20);
+    if (sayInput.value !== t) sayInput.value = t;
+    syncSayDirty();
+  });
+
+  sayInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (sayActions && !sayActions.hasAttribute('hidden')) {
+        applySayText(paintSample, sayInput.value).catch(function (err) { console.error(err); });
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelSayEdit();
+    }
+  });
+
+  randBtn.addEventListener('click', function () {
+    closeRandMenus();
+    runRandomise().catch(function (err) { console.error(err); });
+  });
+
+  if (randOptsBtn) {
+    randOptsBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      closeLayerMenus();
+      var open = randOptsMenu.classList.contains('open');
+      closeRandMenus();
+      if (!open) {
+        buildRandLayersList();
+        randOptsMenu.classList.add('open');
+        randOptsBtn.setAttribute('aria-expanded', 'true');
+      }
+    });
+  }
+  if (randOptsMenu) {
+    randOptsMenu.addEventListener('click', function (e) { e.stopPropagation(); });
+  }
+  var randLayersAll = document.getElementById('randLayersAll');
+  var randLayersThis = document.getElementById('randLayersThis');
+  var randLayersNone = document.getElementById('randLayersNone');
+  if (randLayersAll) {
+    randLayersAll.addEventListener('click', function (e) {
+      e.stopPropagation();
+      for (var j = 0; j < MAX_CIRCLES; j++) randLayerChecked[j] = true;
+      buildRandLayersList();
+    });
+  }
+  if (randLayersThis) {
+    randLayersThis.addEventListener('click', function (e) {
+      e.stopPropagation();
+      for (var j = 0; j < MAX_CIRCLES; j++) randLayerChecked[j] = (j === viewLayer);
+      buildRandLayersList();
+    });
+  }
+  if (randLayersNone) {
+    randLayersNone.addEventListener('click', function (e) {
+      e.stopPropagation();
+      for (var j = 0; j < MAX_CIRCLES; j++) randLayerChecked[j] = false;
+      buildRandLayersList();
+    });
+  }
+
+  soundClose.addEventListener('click', closeSoundEditor);
+  soundSheet.addEventListener('click', function (e) {
+    if (e.target === soundSheet) closeSoundEditor();
+  });
+
+  refreshBrowserVoices();
+  if (window.speechSynthesis) {
+    window.speechSynthesis.addEventListener('voiceschanged', function () {
+      refreshBrowserVoices();
+      if (!soundSheet.classList.contains('open')) return;
+      var s = sampleById(paintSample);
+      if (s && s.type === 'text') openSoundEditor();
+    });
+  }
+
+  (function initSoundBodyDrag() {
+    var dragging = false;
+    var startY = 0;
+    var startScroll = 0;
+    var pointerId = null;
+
+    function isInteractive(el) {
+      return !!(el && el.closest && el.closest('input, select, button, textarea, a, label.param-check'));
+    }
+
+    soundBody.addEventListener('pointerdown', function (e) {
+      if (e.button != null && e.button !== 0) return;
+      if (isInteractive(e.target)) return;
+      dragging = true;
+      pointerId = e.pointerId;
+      startY = e.clientY;
+      startScroll = soundBody.scrollTop;
+      soundBody.classList.add('is-dragging');
+      try { soundBody.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    });
+
+    soundBody.addEventListener('pointermove', function (e) {
+      if (!dragging || e.pointerId !== pointerId) return;
+      e.preventDefault();
+      soundBody.scrollTop = startScroll + (startY - e.clientY);
+    }, { passive: false });
+
+    function endDrag(e) {
+      if (!dragging) return;
+      if (e && pointerId != null && e.pointerId !== pointerId) return;
+      dragging = false;
+      pointerId = null;
+      soundBody.classList.remove('is-dragging');
+    }
+
+    soundBody.addEventListener('pointerup', endDrag);
+    soundBody.addEventListener('pointercancel', endDrag);
+    soundBody.addEventListener('lostpointercapture', endDrag);
+
+    soundBody.addEventListener('wheel', function (e) {
+      if (soundBody.scrollHeight <= soundBody.clientHeight) return;
+      soundBody.scrollTop += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+  })();
+
+  bpmEl.addEventListener('input', function () {
+    bpmVal.textContent = String(getBpm());
+    updateReverbIR();
+  });
+
+  humanEl.addEventListener('input', function () {
+    humanVal.textContent = Math.round(getHumanize() * 100) + '%';
+  });
+
+  swingEl.addEventListener('input', function () {
+    swingVal.textContent = Math.round(getSwing() * 100) + '%';
+    buildSvg();
+  });
+
+  reverbEl.addEventListener('input', function () {
+    reverbVal.textContent = Math.round(getReverb() * 100) + '%';
+    applySpaceSettings();
+  });
+
+  reverbDurEl.addEventListener('input', function () {
+    updateReverbIR();
+  });
+
+  stereoEl.addEventListener('input', function () {
+    stereoVal.textContent = Math.round(getStereo()) + '%';
+    applySpaceSettings();
+  });
+
+  initLayers();
+  setViewLayer(0, { skipPaint: true, fromPlayhead: true });
+  viewLocked = false;
+  seedWordTextsSync();
+  buildPaintMenu();
+  syncPaintSwatch();
+  buildSvg();
+  syncLayerUi();
+  syncPanelMenuHighlight();
+  humanVal.textContent = Math.round(getHumanize() * 100) + '%';
+  reverbVal.textContent = Math.round(getReverb() * 100) + '%';
+  stereoVal.textContent = Math.round(getStereo()) + '%';
+  updateReverbIR();
+  updatePlayhead();
+  sizeFftCanvas();
+  sizeStarCanvas();
+  initStarParticles();
+  window.addEventListener('resize', function () {
+    sizeFftCanvas();
+    sizeStarCanvas();
+  });
+  async function startApp() {
+    if (appStarted) return;
+    appStarted = true;
+    if (launchOverlay) launchOverlay.classList.add('hidden');
+    try {
+      await ensureAudio();
+      if (ctx && ctx.state === 'suspended') await ctx.resume();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  if (launchOverlay) {
+    launchOverlay.addEventListener('click', function () {
+      startApp().catch(function (err) { console.error(err); });
+    });
+    launchOverlay.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        startApp().catch(function (err) { console.error(err); });
+      }
+    });
+  }
+
+  seedWordBuffers().catch(function (err) { console.error(err); });
+})();

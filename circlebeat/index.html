@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Circle Beat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #111114;
+      --panel: #1a1a1f;
+      --ink: #eeeef2;
+      --muted: #8b8b96;
+      --play: #c8ff00;
+      --line: #2a2a32;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      color: var(--ink);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      background: #000;
+    }
+    #launchOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 18px;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 42%, #16161c 0%, #050506 55%, #000 100%);
+      cursor: pointer;
+      text-align: center;
+      padding: 24px;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    #launchOverlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #launchOverlay h1 {
+      margin: 0;
+      font-family: Sora, "IBM Plex Sans", sans-serif;
+      font-size: clamp(2.35rem, 8vw, 4rem);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      color: #f7f7fb;
+      line-height: 1.05;
+      font-stretch: normal;
+      transform: none;
+      animation: launchRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    #launchOverlay p {
+      margin: 0;
+      font-family: Sora, "IBM Plex Sans", sans-serif;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: rgba(238, 238, 242, 0.42);
+      animation: launchRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+    }
+    @keyframes launchRise {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .app {
+      height: 100%;
+      width: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 0;
+      position: relative;
+      background: var(--bg);
+    }
+
+    /* Hamburger only after top panel is closed */
+    .panel-menu-wrap {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      z-index: 50;
+      display: none;
+    }
+    .app.top-collapsed .panel-menu-wrap { display: block; }
+    .panel-burger {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      width: auto;
+      height: 30px;
+      padding: 0 10px 0 8px;
+      border: 0;
+      border-radius: 7px;
+      background: #222228;
+      color: var(--ink);
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+      font: 600 12px/1 Sora, "IBM Plex Sans", system-ui, sans-serif;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    .panel-burger:hover,
+    .panel-burger[aria-expanded="true"] { background: #2c2c34; }
+    .panel-burger svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+      flex-shrink: 0;
+    }
+    .panel-burger .brand {
+      color: var(--ink);
+      opacity: 0.92;
+    }
+    .panel-menu {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: calc(100% + 4px);
+      z-index: 51;
+      min-width: 148px;
+      padding: 6px;
+      border-radius: 8px;
+      background: #1e1e24;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .panel-menu.open { display: grid; gap: 2px; }
+    .panel-opt {
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      padding: 8px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+    .panel-opt:hover { background: #2a2a32; }
+    .panel-opt.active {
+      background: #2c2c34;
+      color: var(--play);
+    }
+    .panel-opt-sep {
+      height: 1px;
+      margin: 4px 6px;
+      background: var(--line);
+      pointer-events: none;
+    }
+
+    .top {
+      width: 100%;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      overflow: visible;
+      transition: max-height 0.28s ease, opacity 0.22s ease, border-color 0.22s ease;
+      max-height: none;
+      opacity: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 20;
+    }
+    .app.top-collapsed .top {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      border-bottom-color: transparent;
+      pointer-events: none;
+    }
+    .top-bar {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 10px;
+      min-height: 44px;
+      flex: 1;
+    }
+    .top-close-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      border-top: 1px solid var(--line);
+      background: #16161b;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .top-close-bar:hover { background: #1c1c22; }
+    .top-close-bar::before {
+      content: "";
+      display: block;
+      width: 44px;
+      height: 4px;
+      border-radius: 999px;
+      background: #4a4a56;
+    }
+    .top-close-bar:hover::before { background: #6a6a78; }
+    .tab-panels {
+      flex: 1;
+      min-width: 0;
+    }
+    .tab-panel {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tab-panel.active { display: flex; }
+    .tab-panel[data-panel="about"].active {
+      align-items: flex-start;
+      padding: 4px 2px 2px;
+    }
+    .about-content {
+      max-width: 52rem;
+      font-size: 0.8rem;
+      line-height: 1.55;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .about-content p {
+      margin: 0 0 0.55rem;
+    }
+    .about-content p:last-child { margin-bottom: 0; }
+    .about-content a {
+      color: var(--play);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .about-content a:hover { text-decoration: underline; }
+
+    /* Unified fixed-width slider chips — wrap on small screens */
+    .slide {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+      width: 148px;
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 7px;
+      background: #222228;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .slide-lab {
+      flex: 0 0 auto;
+      min-width: 2.8em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .slide input[type="range"] {
+      flex: 0 0 64px;
+      width: 64px;
+      height: 18px;
+      margin: 0;
+      appearance: none;
+      background: transparent;
+      outline: none;
+      cursor: pointer;
+      touch-action: none;
+    }
+    .slide input[type="range"]::-webkit-slider-runnable-track {
+      height: 3px;
+      background: #3a3a44;
+      border-radius: 2px;
+    }
+    .slide input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      margin-top: -4.5px;
+      background: var(--ink);
+      border: 0;
+      border-radius: 50%;
+      cursor: grab;
+    }
+    .slide input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+    .slide input[type="range"]::-moz-range-track {
+      height: 3px;
+      background: #3a3a44;
+      border-radius: 2px;
+    }
+    .slide input[type="range"]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      background: var(--ink);
+      border: 0;
+      border-radius: 50%;
+      cursor: grab;
+    }
+    .slide-val {
+      color: var(--ink);
+      min-width: 2.8ch;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      margin-left: auto;
+    }
+    .visual-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 8px;
+      background: #222228;
+      border: 1px solid var(--line);
+    }
+    .visual-toggle .slide-lab {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .fx-btn {
+      border: 0;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font: 600 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+    }
+    .fx-btn:hover { color: var(--ink); }
+    .fx-btn.active {
+      color: #111;
+      background: var(--play);
+    }
+    .app.visual-off,
+    .app.visual-off .stage {
+      background: #000;
+    }
+    .app.visual-off .star-field,
+    .app.visual-off .fft-ring {
+      opacity: 0 !important;
+      visibility: hidden;
+    }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 7px;
+      background: #222228;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .chip select, .chip input[type="text"] {
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      outline: none;
+      max-width: 110px;
+    }
+    .chip select { cursor: pointer; max-width: 148px; }
+    .chip select option { background: #1a1a1f; }
+    .rand-group {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 30px;
+      border-radius: 7px;
+      background: #222228;
+      flex-shrink: 0;
+    }
+    .rand-group .tool {
+      border-radius: 0;
+      background: transparent;
+      min-width: 30px;
+    }
+    .rand-group .tool:hover { background: #2c2c34; }
+    .rand-group .rand-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      min-width: 0;
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      color: var(--ink);
+    }
+    .rand-group .rand-btn svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    .rand-group .rand-btn .rand-ico {
+      flex-shrink: 0;
+      font-size: 15px;
+      line-height: 1;
+      color: var(--ink);
+    }
+    .rand-dd {
+      position: relative;
+      height: 100%;
+      border-left: 1px solid #2a2a32;
+    }
+    .rand-dd-btn {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: 700 16px/1 "IBM Plex Sans", system-ui, sans-serif;
+      letter-spacing: 0.04em;
+      height: 100%;
+      padding: 0 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .rand-dd-btn:hover { color: var(--ink); background: #2c2c34; }
+    .rand-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 4px);
+      z-index: 30;
+      min-width: 180px;
+      max-height: 320px;
+      overflow: auto;
+      padding: 6px;
+      border-radius: 8px;
+      background: #1e1e24;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      scrollbar-width: none;
+    }
+    .rand-menu::-webkit-scrollbar { display: none; }
+    .rand-menu.open { display: grid; gap: 2px; }
+    .rand-menu-head {
+      font: 600 10px/1 "IBM Plex Sans", system-ui, sans-serif;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 8px 8px 4px;
+    }
+    .rand-menu-head:not(:first-child) {
+      border-top: 1px solid #2a2a32;
+      margin-top: 4px;
+    }
+    .rand-menu .rand-opt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--ink);
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      padding: 8px 8px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .rand-menu .rand-opt:hover { background: #2a2a32; }
+    .rand-menu .rand-opt input {
+      accent-color: var(--play);
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .rand-menu .rand-menu-actions {
+      display: flex;
+      gap: 4px;
+      padding: 4px 2px 2px;
+      border-top: 1px solid #2a2a32;
+      margin-top: 4px;
+    }
+    .rand-menu .rand-menu-actions button {
+      flex: 1;
+      border: 0;
+      border-radius: 5px;
+      background: #2a2a32;
+      color: var(--muted);
+      font: 500 11px/1 "IBM Plex Sans", system-ui, sans-serif;
+      padding: 7px 4px;
+      cursor: pointer;
+    }
+    .rand-menu .rand-menu-actions button:hover { color: var(--ink); }
+
+    .paint {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 4px 0 4px;
+      height: 30px;
+      border-radius: 7px;
+      background: #222228;
+    }
+    .bucket-btn {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      font: 700 16px/1 "IBM Plex Sans", system-ui, sans-serif;
+      letter-spacing: 0.04em;
+    }
+    .bucket-btn:hover {
+      color: var(--ink);
+      background: #2c2c34;
+    }
+    .paint-trigger {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      cursor: pointer;
+      padding: 0 6px 0 0;
+      height: 100%;
+      max-width: 168px;
+    }
+    .paint-trigger .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .paint-trigger .lab {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .paint-menu {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: calc(100% + 4px);
+      z-index: 80;
+      width: 220px;
+      max-height: min(50vh, 280px);
+      overflow: auto;
+      padding: 4px;
+      border-radius: 8px;
+      background: #1e1e24;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      scrollbar-width: none;
+    }
+    .paint-menu::-webkit-scrollbar { display: none; }
+    .paint-menu.open { display: grid; gap: 2px; }
+    .paint-opt {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      color: var(--ink);
+      padding: 4px 4px 4px 8px;
+      border-radius: 5px;
+      text-align: left;
+    }
+    .paint-opt:hover, .paint-opt.active { background: #2a2a32; }
+    .paint-opt .dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .paint-opt .paint-name {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      text-align: left;
+      padding: 6px 2px;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .paint-opt .paint-play {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .paint-opt .paint-play:hover {
+      color: var(--ink);
+      background: #34343c;
+    }
+    .paint-opt .paint-play svg {
+      width: 12px;
+      height: 12px;
+      display: block;
+    }
+
+    .extra {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+    }
+    .extra.show { display: flex; }
+    .extra input[type="text"] {
+      height: 30px;
+      width: min(120px, 26vw);
+      border: 0;
+      border-radius: 7px;
+      background: #222228;
+      color: var(--ink);
+      padding: 0 8px;
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      outline: none;
+    }
+    .extra button, .tool {
+      height: 30px;
+      min-width: 30px;
+      padding: 0 9px;
+      border-radius: 7px;
+      border: 0;
+      background: #222228;
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+    }
+    .extra button:hover, .tool:hover { background: #2c2c34; }
+    .say-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .say-actions[hidden] { display: none !important; }
+    .tool svg { width: 15px; height: 15px; }
+
+    .knob {
+      flex: 1;
+      min-width: 120px;
+      max-width: 280px;
+      display: grid;
+      gap: 2px;
+    }
+    .knob .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .knob .row span:last-child {
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      min-width: 2.6ch;
+      text-align: right;
+    }
+    .knob input[type="range"] {
+      width: 100%;
+      height: 22px;
+      margin: 0;
+      appearance: none;
+      background: transparent;
+      outline: none;
+      cursor: pointer;
+      touch-action: none;
+    }
+    .knob input[type="range"]::-webkit-slider-runnable-track {
+      height: 3px;
+      background: #2c2c34;
+      border-radius: 2px;
+    }
+    .knob input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      margin-top: -5.5px;
+      background: var(--ink);
+      border: 0;
+      border-radius: 50%;
+      cursor: grab;
+    }
+    .knob input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+    .knob input[type="range"]::-moz-range-track {
+      height: 3px;
+      background: #2c2c34;
+      border-radius: 2px;
+    }
+    .knob input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: var(--ink);
+      border: 0;
+      border-radius: 50%;
+      cursor: grab;
+    }
+
+    .stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 0;
+      width: 100%;
+      padding: 6px 8px;
+      overflow: hidden;
+    }
+    .star-field {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+    .fft-ring {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+    .stage.is-playing .star-field,
+    .stage.is-playing .fft-ring { opacity: 1; }
+    .app > .top,
+    .app > .bottom,
+    .stage .circle-wrap { position: relative; z-index: 1; }
+    .bottom {
+      width: 100%;
+      background: var(--panel);
+      border-top: 1px solid var(--line);
+      position: relative;
+      z-index: 1;
+    }
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 8px 10px;
+      min-height: 44px;
+    }
+    .layer-pick {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 30px;
+      border-radius: 7px;
+      background: #222228;
+      flex-shrink: 0;
+    }
+    .layer-trigger {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      height: 100%;
+      padding: 0 10px;
+      cursor: pointer;
+      max-width: 200px;
+      border-radius: 7px;
+    }
+    .layer-trigger:hover { background: #2c2c34; }
+    .layer-trigger .lab {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .layer-trigger .chev {
+      width: 10px;
+      height: 10px;
+      flex-shrink: 0;
+      color: var(--muted);
+      display: block;
+    }
+    .layer-trigger:hover .chev { color: var(--ink); }
+    .layer-trigger[aria-expanded="true"] .chev {
+      transform: rotate(180deg);
+    }
+    .layer-menu {
+      display: none;
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 4px);
+      z-index: 30;
+      min-width: 180px;
+      max-height: 280px;
+      overflow: auto;
+      padding: 6px;
+      border-radius: 8px;
+      background: #1e1e24;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      scrollbar-width: none;
+    }
+    .layer-menu::-webkit-scrollbar { display: none; }
+    .layer-menu.open { display: grid; gap: 2px; }
+    .layer-opt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      padding: 7px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+    .layer-opt:hover,
+    .layer-opt.active { background: #2a2a32; }
+    .layer-opt input[type="checkbox"] {
+      accent-color: var(--play);
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .layer-opt .name {
+      flex: 1;
+      min-width: 0;
+    }
+    .layer-opt.off .name { color: var(--muted); }
+    .layer-menu-actions {
+      display: flex;
+      gap: 4px;
+      padding: 4px 2px 2px;
+      border-top: 1px solid #2a2a32;
+      margin-top: 4px;
+    }
+    .layer-menu-actions button {
+      flex: 1;
+      border: 0;
+      border-radius: 5px;
+      background: #2a2a32;
+      color: var(--muted);
+      font: 500 11px/1 "IBM Plex Sans", system-ui, sans-serif;
+      padding: 7px 4px;
+      cursor: pointer;
+    }
+    .layer-menu-actions button:hover { color: var(--ink); }
+    .circle-wrap {
+      position: relative;
+      width: min(92vmin, 720px);
+      height: min(92vmin, 720px);
+      overflow: visible;
+    }
+    .circle-wrap.disabled {
+      opacity: 0.38;
+      filter: grayscale(0.35);
+    }
+    .circle-wrap.disabled .seg { cursor: not-allowed; }
+    #ringSvg {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .seg {
+      cursor: crosshair;
+      transition: filter 60ms linear, stroke 45ms linear, stroke-width 45ms linear;
+      stroke: none;
+      vector-effect: non-scaling-stroke;
+    }
+    .seg:hover { filter: brightness(1.12); }
+    .seg.near-needle { /* brightness set inline while playing */ }
+    .seg.lit {
+      filter: brightness(1.55);
+    }
+    .seg.hit-glow {
+      transition: filter 40ms linear;
+    }
+    .circle-wrap.is-playing .disc {
+      filter: brightness(1.18) contrast(1.06);
+    }
+    .circle-wrap.is-playing #discBg {
+      fill: #1c1c22;
+    }
+    .hub {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 34%;
+      height: 34%;
+      border-radius: 50%;
+      border: 0;
+      background: #222228;
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      z-index: 2;
+      padding: 0;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .hub:hover { background: #2a2a32; }
+    .hub.playing:hover { /* color set by neon hue JS */ }
+    .hub:active { transform: translate(-50%, -50%) scale(0.97); }
+    .hub.playing {
+      color: #0a0a10;
+      background: #c8ff00;
+      box-shadow:
+        0 -6px 22px rgba(200, 255, 0, 0.45),
+        0 0 28px rgba(200, 255, 0, 0.28);
+      transition: box-shadow 45ms linear, background 45ms linear, color 45ms linear;
+    }
+    .hub-strike {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0;
+      background:
+        radial-gradient(ellipse 95% 80% at 50% -10%,
+          rgba(255, 255, 255, 0.95) 0%,
+          rgba(220, 255, 120, 0.55) 35%,
+          transparent 70%);
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 28%, rgba(0,0,0,0.45) 52%, transparent 78%);
+      mask-image: linear-gradient(to bottom, #000 0%, #000 28%, rgba(0,0,0,0.45) 52%, transparent 78%);
+      mix-blend-mode: screen;
+      transition: opacity 45ms linear;
+    }
+    .hub.playing.strike-lit .hub-strike {
+      opacity: var(--hub-strike, 0);
+    }
+    .hub.playing.strike-lit {
+      box-shadow:
+        0 -10px 28px rgba(255, 255, 255, calc(0.18 + var(--hub-strike, 0) * 0.5)),
+        0 -4px 36px hsla(var(--hub-hue, 75), 100%, 55%, calc(0.25 + var(--hub-strike, 0) * 0.5)),
+        0 8px 18px rgba(0, 0, 0, 0.18);
+    }
+    .hub svg {
+      position: relative;
+      z-index: 2;
+      width: 38%;
+      height: 38%;
+      display: block;
+    }
+    .needle { pointer-events: none; }
+    .circle-wrap.is-playing .needle-bloom {
+      opacity: 1;
+    }
+    .needle-bloom { opacity: 0.65; }
+    .needle-core {
+      mix-blend-mode: screen;
+    }
+
+    .sound-sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.45);
+      padding: 16px;
+      overflow: hidden;
+    }
+    .sound-sheet.open { display: flex; }
+    .sound-panel {
+      width: min(420px, 100%);
+      max-width: 100%;
+      max-height: min(70vh, 520px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--panel);
+      overflow: hidden;
+      min-height: 0;
+    }
+    .sound-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      min-width: 0;
+    }
+    .sound-head h2 {
+      margin: 0;
+      flex: 1;
+      min-width: 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sound-head .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .sound-head button {
+      border: 0;
+      background: #222228;
+      color: var(--ink);
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .sound-body {
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      display: grid;
+      gap: 8px;
+      padding-right: 2px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      overscroll-behavior: contain;
+      touch-action: none;
+      cursor: grab;
+    }
+    .sound-body::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+    .sound-body.is-dragging {
+      cursor: grabbing;
+      user-select: none;
+    }
+    .param {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .param .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 0;
+    }
+    .param .row span:first-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .param .row span:last-child {
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .param input[type="range"] {
+      width: 100%;
+      max-width: 100%;
+      height: 20px;
+      appearance: none;
+      background: transparent;
+      outline: none;
+      touch-action: none;
+      cursor: pointer;
+    }
+    .param input[type="range"]::-webkit-slider-runnable-track {
+      height: 3px;
+      background: #2c2c34;
+      border-radius: 2px;
+    }
+    .param input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      margin-top: -4.5px;
+      background: var(--ink);
+      border: 0;
+      border-radius: 50%;
+      cursor: grab;
+    }
+    .param input[type="range"]::-moz-range-track {
+      height: 3px;
+      background: #2c2c34;
+    }
+    .param input[type="range"]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      background: var(--ink);
+      border: 0;
+      border-radius: 50%;
+    }
+    .param select, .param input[type="text"] {
+      width: 100%;
+      max-width: 100%;
+      height: 30px;
+      border: 0;
+      border-radius: 6px;
+      background: #222228;
+      color: var(--ink);
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+    .param-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 0;
+    }
+    .param-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .param-actions button {
+      height: 32px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 8px;
+      background: #222228;
+      color: var(--ink);
+      cursor: pointer;
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="launchOverlay" role="button" tabindex="0" aria-label="Start Circle Beat">
+    <h1>Circle Beat</h1>
+    <p>Tap to start</p>
+  </div>
+
+  <div class="app top-collapsed" id="appRoot">
+    <div class="panel-menu-wrap" id="panelMenuWrap">
+      <button type="button" class="panel-burger" id="panelBurger" aria-haspopup="menu" aria-expanded="false" aria-label="Circle Beat menu" title="Circle Beat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16"/>
+        </svg>
+        <span class="brand">Circle Beat</span>
+      </button>
+      <div class="panel-menu" id="panelMenu" role="menu">
+        <button type="button" class="panel-opt" role="menuitem" data-panel="about">About</button>
+        <button type="button" class="panel-opt" role="menuitem" data-action="save-wav" id="saveWavBtn" title="Save this wheel as WAV">Save as WAV</button>
+        <div class="panel-opt-sep" aria-hidden="true"></div>
+        <button type="button" class="panel-opt" role="menuitem" data-panel="edit">Paint tool</button>
+        <button type="button" class="panel-opt" role="menuitem" data-panel="human">Human</button>
+        <button type="button" class="panel-opt" role="menuitem" data-panel="space">Space</button>
+        <button type="button" class="panel-opt" role="menuitem" data-panel="visual">Visual</button>
+      </div>
+    </div>
+
+    <header class="top" id="topPanel">
+      <div class="top-bar">
+        <div class="tab-panels">
+          <div class="tab-panel active" id="tabEdit" data-panel="edit" role="tabpanel">
+            <div class="paint">
+              <button type="button" class="bucket-btn" id="soundDesignBtn" title="Sound design" aria-label="Open sound design">...</button>
+              <button type="button" class="paint-trigger" id="paintTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose sound">
+                <i class="dot" id="paintDot"></i>
+                <span class="lab" id="paintLab">Word 1</span>
+              </button>
+              <div class="paint-menu" id="paintMenu" role="listbox"></div>
+            </div>
+            <div class="extra" id="sampleExtra">
+              <button type="button" id="loadSampleBtn">Load</button>
+            </div>
+            <div class="extra" id="textExtra">
+              <input type="text" id="sayInput" maxlength="20" placeholder="Word…" />
+              <span class="say-actions" id="sayActions" hidden>
+                <button type="button" id="sayApplyBtn">Save</button>
+                <button type="button" id="sayCancelBtn">Cancel</button>
+              </span>
+            </div>
+          </div>
+          <div class="tab-panel" id="tabHuman" data-panel="human" role="tabpanel">
+            <label class="slide" title="Tempo">
+              <span class="slide-lab">BPM</span>
+              <input type="range" id="bpm" min="50" max="130" value="120" step="1" />
+              <span class="slide-val" id="bpmVal">120</span>
+            </label>
+            <label class="slide" title="Humanize">
+              <span class="slide-lab">Human</span>
+              <input type="range" id="humanize" min="0" max="100" value="50" step="1" />
+              <span class="slide-val" id="humanVal">50%</span>
+            </label>
+            <label class="slide" title="Swing">
+              <span class="slide-lab">Swing</span>
+              <input type="range" id="swing" min="0" max="100" value="0" step="1" />
+              <span class="slide-val" id="swingVal">0%</span>
+            </label>
+          </div>
+          <div class="tab-panel" id="tabSpace" data-panel="space" role="tabpanel">
+            <label class="slide" title="Reverb">
+              <span class="slide-lab">Reverb</span>
+              <input type="range" id="reverb" min="0" max="100" value="50" step="1" />
+              <span class="slide-val" id="reverbVal">50%</span>
+            </label>
+            <label class="slide" title="Reverb duration">
+              <span class="slide-lab">Dur</span>
+              <input type="range" id="reverbDuration" min="0" max="100" value="50" step="1" />
+              <span class="slide-val" id="reverbDurationVal">1.00 s</span>
+            </label>
+            <label class="slide" title="Stereo">
+              <span class="slide-lab">Stereo</span>
+              <input type="range" id="stereo" min="0" max="100" value="20" step="1" />
+              <span class="slide-val" id="stereoVal">20%</span>
+            </label>
+          </div>
+          <div class="tab-panel" id="tabVisual" data-panel="visual" role="tabpanel">
+            <div class="visual-toggle" role="group" aria-label="Visual effects">
+              <span class="slide-lab">FX</span>
+              <button type="button" class="fx-btn active" id="visualOnBtn" aria-pressed="true">On</button>
+              <button type="button" class="fx-btn" id="visualOffBtn" aria-pressed="false">Off</button>
+            </div>
+          </div>
+          <div class="tab-panel" id="tabAbout" data-panel="about" role="tabpanel">
+            <div class="about-content">
+              <p>Circle Beat is a concentric drum painter — paint hits on spinning wheels, layer grooves, and play them back with words and synth drums. Developed by <a href="https://youtube.com/beatsaway" target="_blank" rel="noopener noreferrer">Beats Away</a>, a composer, music producer and sound designer.</p>
+              <p>Please <a href="https://buymeacoffee.com/beatsaway" target="_blank" rel="noopener noreferrer">support this project</a> for continuous updates and improvements.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="top-close-bar" id="topCloseBtn" aria-label="Close top panel" title="Close panel"></button>
+    </header>
+
+    <div class="stage" id="stage">
+      <canvas class="star-field" id="starField" aria-hidden="true"></canvas>
+      <canvas class="fft-ring" id="fftRing" aria-hidden="true"></canvas>
+      <div class="circle-wrap" id="circleWrap">
+        <svg id="ringSvg" viewBox="0 0 1000 1000" aria-label="Drum circle"></svg>
+        <button type="button" class="hub" id="hubBtn" aria-label="Play or pause" title="Play / pause">
+          <span class="hub-strike" id="hubStrike" aria-hidden="true"></span>
+          <svg id="hubIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <footer class="bottom">
+      <div class="bottom-bar">
+        <div class="layer-pick">
+          <button type="button" class="layer-trigger" id="layerTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose wheel">
+            <span class="lab" id="layerLab">Wheel 1</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="layer-menu" id="layerMenu" role="listbox"></div>
+        </div>
+        <div class="rand-group" title="Lucky Roll">
+          <button type="button" class="tool rand-btn" id="randBtn" aria-label="Lucky Roll">
+            <span class="rand-ico" aria-hidden="true">✦</span>
+            <span>Lucky Roll</span>
+          </button>
+          <div class="rand-dd">
+            <button type="button" class="rand-dd-btn" id="randOptsBtn" aria-haspopup="true" aria-expanded="false" title="Lucky Roll options">...</button>
+            <div class="rand-menu" id="randOptsMenu" role="menu">
+              <div class="rand-menu-head">Lucky Roll</div>
+              <label class="rand-opt"><input type="checkbox" id="randOptPatterns" checked /> Patterns</label>
+              <label class="rand-opt"><input type="checkbox" id="randOptSounds" checked /> Sounds</label>
+              <label class="rand-opt"><input type="checkbox" id="randOptWords" checked /> Words</label>
+              <label class="rand-opt"><input type="checkbox" id="randOptVoices" checked /> Voices</label>
+              <label class="rand-opt"><input type="checkbox" id="randOptBpm" checked /> BPM</label>
+              <label class="rand-opt"><input type="checkbox" id="randOptSpace" checked /> Space</label>
+              <div class="rand-menu-head">Affected layers</div>
+              <div id="randLayersList"></div>
+              <div class="rand-menu-actions">
+                <button type="button" id="randLayersAll">All</button>
+                <button type="button" id="randLayersThis">This</button>
+                <button type="button" id="randLayersNone">None</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="sound-sheet" id="soundSheet" aria-hidden="true">
+    <div class="sound-panel" role="dialog" aria-labelledby="soundTitle">
+      <div class="sound-head">
+        <i class="dot" id="soundDot"></i>
+        <h2 id="soundTitle">Kick</h2>
+        <button type="button" id="soundClose" aria-label="Close">×</button>
+      </div>
+      <div class="sound-body" id="soundBody"></div>
+    </div>
+  </div>
+
+  <input type="file" id="wavInput" accept="audio/*,.wav,.mp3,.ogg" hidden />
+
+  <script src="https://cdn.jsdelivr.net/npm/sam-js@0.3.1/dist/samjs.min.js" crossorigin="anonymous"></script>
+  <script src="maker/kick-synth.js"></script>
+  <script src="maker/snare-synth.js"></script>
+  <script src="maker/clap-synth.js"></script>
+  <script src="maker/hat-synth.js"></script>
+  <script src="maker/ride-synth.js"></script>
+  <script src="maker/cowbell-synth.js"></script>
+  <script src="maker/tom-synth.js"></script>
+  <script src="circle.js"></script>
+</body>
+</html>
