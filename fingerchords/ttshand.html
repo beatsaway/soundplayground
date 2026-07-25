@@ -38,24 +38,199 @@
         #overlay.hidden { display: none; }
         #overlay h1 { margin: 0 0 10px; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 600; }
         #overlay p { margin: 0; opacity: 0.55; font-size: 14px; }
-        #word-display {
+
+        .beat-panels {
             position: absolute;
-            bottom: 28px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 5;
-            pointer-events: none;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 8;
             display: flex;
-            gap: 48px;
-            font-size: clamp(1.6rem, 6vw, 2.8rem);
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-shadow: 0 2px 24px rgba(0, 0, 0, 0.8);
+            gap: 10px;
+            padding: 12px;
+            pointer-events: none;
         }
-        #word-display .side { text-align: center; min-width: 2.5em; opacity: 0.35; transition: opacity 0.12s ease; }
-        #word-display .side.active { opacity: 1; }
-        #word-display .label { font-size: 0.35em; opacity: 0.7; letter-spacing: 0.08em; margin-bottom: 4px; font-weight: 500; }
-        #word-display span { font-family: "PingFang HK", "PingFang SC", "Microsoft YaHei", "Noto Sans HK", sans-serif; }
+        .beat-col {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            pointer-events: auto;
+        }
+        .beat-col-label {
+            flex: 0 0 100%;
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.65;
+            font-weight: 600;
+            padding: 0 1px;
+            line-height: 1.2;
+        }
+        .beat-box {
+            position: relative;
+            flex: 1 1 0;
+            min-width: 44px;
+            max-width: 72px;
+            height: 44px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(0, 0, 0, 0.48);
+            color: #eee;
+            padding: 2px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+            user-select: none;
+        }
+        .beat-box:hover { border-color: rgba(20, 184, 166, 0.7); }
+        .beat-box.active {
+            border-color: #14b8a6;
+            background: rgba(20, 184, 166, 0.28);
+            box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.35), 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+        .beat-box.flash {
+            transform: scale(1.06);
+            background: rgba(20, 184, 166, 0.55);
+            box-shadow: 0 0 16px rgba(20, 184, 166, 0.45);
+        }
+        .beat-box .g-char {
+            display: block;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.1;
+            font-family: "PingFang HK", "PingFang SC", "Microsoft YaHei", "Noto Sans HK", sans-serif;
+        }
+        .beat-box .g-say {
+            display: block;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            opacity: 0.7;
+            line-height: 1.15;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .beat-box .g-hint {
+            display: none;
+        }
+
+        .edit-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 40;
+            display: flex;
+            width: 100%;
+            max-height: min(52vh, 360px);
+            background: #12121a;
+            flex-direction: column;
+            overflow: hidden;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+            transform: translateY(calc(-100% + 22px));
+            transition: transform 0.28s ease;
+            pointer-events: none;
+        }
+        .edit-modal.revealed {
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .edit-sheet {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 10px 12px 14px;
+            gap: 10px;
+        }
+        .edit-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .edit-title {
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: #14b8a6;
+        }
+        .edit-handle {
+            width: 44px;
+            height: 18px;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+        .edit-handle::before {
+            content: "";
+            width: 40px;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.28);
+        }
+        .edit-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .edit-field label {
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            opacity: 0.55;
+            font-weight: 700;
+        }
+        .edit-field input {
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.35);
+            color: #eee;
+            font: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 10px 12px;
+            outline: none;
+        }
+        .edit-field input:focus {
+            border-color: rgba(20, 184, 166, 0.7);
+        }
+        .edit-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .edit-actions button {
+            flex: 1;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #eee;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+        .edit-actions button.primary {
+            background: rgba(20, 184, 166, 0.22);
+            border-color: rgba(20, 184, 166, 0.55);
+            color: #14b8a6;
+        }
+        .edit-actions button:hover {
+            border-color: rgba(20, 184, 166, 0.7);
+        }
     </style>
 </head>
 <body>
@@ -66,9 +241,35 @@
             <h1>TTSHAND</h1>
             <p>Tap to start</p>
         </div>
-        <div id="word-display">
-            <div class="side" id="left-word"><div class="label">LEFT</div><span>—</span></div>
-            <div class="side" id="right-word"><div class="label">RIGHT</div><span>—</span></div>
+
+        <div class="edit-modal" id="editModal" aria-hidden="true">
+            <div class="edit-sheet">
+                <div class="edit-top">
+                    <div class="edit-title" id="editTitle">Edit</div>
+                    <button type="button" class="edit-handle" id="editHandle" aria-label="Close editor"></button>
+                </div>
+                <div class="edit-field">
+                    <label for="editChar">Display</label>
+                    <input id="editChar" type="text" maxlength="8" autocomplete="off" />
+                </div>
+                <div class="edit-field">
+                    <label for="editSay">Speak</label>
+                    <input id="editSay" type="text" maxlength="24" autocomplete="off" />
+                </div>
+                <div class="edit-actions">
+                    <button type="button" id="editListenBtn">Listen</button>
+                    <button type="button" class="primary" id="editDoneBtn">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="beat-panels">
+            <div class="beat-col" id="leftBeats">
+                <div class="beat-col-label">Left</div>
+            </div>
+            <div class="beat-col" id="rightBeats">
+                <div class="beat-col-label">Right</div>
+            </div>
         </div>
     </div>
 
@@ -77,8 +278,31 @@
         const canvasElement = document.getElementById('canvas');
         const canvasCtx = canvasElement.getContext('2d');
         const overlayEl = document.getElementById('overlay');
-        const leftWordEl = document.getElementById('left-word');
-        const rightWordEl = document.getElementById('right-word');
+        const leftBeatsEl = document.getElementById('leftBeats');
+        const rightBeatsEl = document.getElementById('rightBeats');
+        const editModal = document.getElementById('editModal');
+        const editHandle = document.getElementById('editHandle');
+        const editTitle = document.getElementById('editTitle');
+        const editChar = document.getElementById('editChar');
+        const editSay = document.getElementById('editSay');
+        const editListenBtn = document.getElementById('editListenBtn');
+        const editDoneBtn = document.getElementById('editDoneBtn');
+
+        const LEFT_SLOTS = [
+            { count: 1, gesture: 'Index' },
+            { count: 2, gesture: 'Victory' },
+            { count: 3, gesture: '3 fingers' },
+            { count: 4, gesture: '4 fingers' },
+            { count: 5, gesture: 'Palm' }
+        ];
+        const RIGHT_SLOTS = [
+            { count: 0, gesture: 'Fist' },
+            { count: 1, gesture: 'Index' },
+            { count: 2, gesture: 'Victory' },
+            { count: 3, gesture: '3 fingers' },
+            { count: 4, gesture: '4 fingers' },
+            { count: 5, gesture: 'Palm' }
+        ];
 
         // Speak romanization; display Chinese
         const LEFT_SAY = { 1: 'deal', 2: 'lay', 3: 'hole', 4: 'leng', 5: 'chai' };
@@ -90,6 +314,9 @@
         const PALM_LANDMARK_INDICES = [0, 5, 9, 13, 17];
         const HOLD_MS = 180;
 
+        const boxEls = {};
+        let editTarget = null; // { side, count }
+
         let audioCtx = null;
         let femaleVoice = null;
         let maleVoice = null;
@@ -100,6 +327,18 @@
         let pendingRight = null;
         let pendingLeftSince = 0;
         let pendingRightSince = 0;
+
+        function slotKey(side, count) {
+            return side + ':' + count;
+        }
+
+        function sayMap(side) {
+            return side === 'left' ? LEFT_SAY : RIGHT_SAY;
+        }
+
+        function charMap(side) {
+            return side === 'left' ? LEFT_CHARS : RIGHT_CHARS;
+        }
 
         function ensureAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -154,7 +393,6 @@
             window.speechSynthesis.onvoiceschanged = () => pickEnglishVoices();
         }
 
-        /** English romanization — male voice for both hands. */
         function speakSyllable(roman) {
             ensureAudio();
             if (!window.speechSynthesis || !roman) return;
@@ -172,26 +410,135 @@
             window.speechSynthesis.speak(u);
         }
 
+        function refreshBox(side, count) {
+            const key = slotKey(side, count);
+            const el = boxEls[key];
+            if (!el) return;
+            const charEl = el.querySelector('.g-char');
+            const sayEl = el.querySelector('.g-say');
+            charEl.textContent = charMap(side)[count] || '·';
+            sayEl.textContent = sayMap(side)[count] || '';
+        }
+
+        function setActiveBox(side, count) {
+            Object.keys(boxEls).forEach((k) => boxEls[k].classList.remove('active'));
+            if (side == null || count == null) return;
+            const el = boxEls[slotKey(side, count)];
+            if (!el) return;
+            el.classList.add('active');
+            el.classList.remove('flash');
+            void el.offsetWidth;
+            el.classList.add('flash');
+            setTimeout(() => el.classList.remove('flash'), 220);
+        }
+
+        function clearActiveSide(side) {
+            const prefix = side + ':';
+            Object.keys(boxEls).forEach((k) => {
+                if (k.startsWith(prefix)) boxEls[k].classList.remove('active');
+            });
+        }
+
+        function isEditRevealed() {
+            return editModal.classList.contains('revealed');
+        }
+
+        function collapseEdit() {
+            editModal.classList.remove('revealed');
+            editModal.setAttribute('aria-hidden', 'true');
+            editTarget = null;
+        }
+
+        function saveEditFields() {
+            if (!editTarget) return;
+            const { side, count } = editTarget;
+            const char = String(editChar.value || '').trim().slice(0, 8);
+            const say = String(editSay.value || '').trim().slice(0, 24);
+            if (char) charMap(side)[count] = char;
+            if (say) sayMap(side)[count] = say;
+            refreshBox(side, count);
+        }
+
+        function openEdit(side, count, gesture) {
+            editTarget = { side, count, gesture };
+            editTitle.textContent = (side === 'left' ? 'Left' : 'Right') + ' · ' + gesture;
+            editChar.value = charMap(side)[count] || '';
+            editSay.value = sayMap(side)[count] || '';
+            editModal.classList.add('revealed');
+            editModal.setAttribute('aria-hidden', 'false');
+            setTimeout(() => editChar.focus(), 50);
+        }
+
+        function buildBoxes() {
+            function addSlot(parent, side, slot) {
+                const key = slotKey(side, slot.count);
+                const box = document.createElement('button');
+                box.type = 'button';
+                box.className = 'beat-box';
+                box.dataset.key = key;
+                box.title = slot.gesture + ' — tap to edit';
+                box.innerHTML =
+                    '<span class="g-char"></span>' +
+                    '<span class="g-say"></span>' +
+                    '<span class="g-hint">' + slot.gesture + '</span>';
+                box.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (isEditRevealed() && editTarget && editTarget.side === side && editTarget.count === slot.count) {
+                        saveEditFields();
+                        collapseEdit();
+                        return;
+                    }
+                    saveEditFields();
+                    openEdit(side, slot.count, slot.gesture);
+                });
+                parent.appendChild(box);
+                boxEls[key] = box;
+                refreshBox(side, slot.count);
+            }
+            LEFT_SLOTS.forEach((slot) => addSlot(leftBeatsEl, 'left', slot));
+            RIGHT_SLOTS.forEach((slot) => addSlot(rightBeatsEl, 'right', slot));
+        }
+
+        editHandle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveEditFields();
+            collapseEdit();
+        });
+        editDoneBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveEditFields();
+            collapseEdit();
+        });
+        editListenBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const say = String(editSay.value || '').trim();
+            if (say) speakSyllable(say);
+        });
+        editChar.addEventListener('change', saveEditFields);
+        editSay.addEventListener('change', saveEditFields);
+        editChar.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); saveEditFields(); editSay.focus(); }
+        });
+        editSay.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); saveEditFields(); collapseEdit(); }
+        });
+
         function isFingerExtended(landmarks, tip, pip, mcp) {
-            // Tip above PIP (image Y grows downward) — works for upright hands
             return landmarks[tip].y < landmarks[pip].y - 0.02
                 && landmarks[pip].y < landmarks[mcp].y + 0.04;
         }
 
         function isThumbExtended(landmarks, isLeft) {
-            // Thumb: tip farther from palm center than IP joint
             const wrist = landmarks[0];
             const tip = landmarks[4];
             const ip = landmarks[3];
             const mcp = landmarks[2];
             const tipDist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
             const ipDist = Math.hypot(ip.x - wrist.x, ip.y - wrist.y);
-            // Also require tip outside MCP horizontally (handedness-aware)
             const outward = isLeft ? (tip.x > mcp.x + 0.02) : (tip.x < mcp.x - 0.02);
             return tipDist > ipDist * 1.05 && (outward || tipDist > Math.hypot(mcp.x - wrist.x, mcp.y - wrist.y) * 1.1);
         }
 
-        /** Count raised fingers 0–5 from landmarks. */
         function countFingers(landmarks, isLeft) {
             if (!landmarks || landmarks.length < 21) return 0;
             let n = 0;
@@ -208,7 +555,7 @@
             if (gestureName === 'Pointing_Up') return 1;
             if (gestureName === 'Victory') return 2;
             if (gestureName === 'Open_Palm') return 5;
-            if (gestureName === 'ILoveYou') return 3; // thumb+index+pinky ≈ treat as 3 cue
+            if (gestureName === 'ILoveYou') return 3;
             if (landmarks) {
                 const tipY = (i) => landmarks[i].y;
                 const three = tipY(8) < tipY(6) && tipY(12) < tipY(10) && tipY(16) < tipY(14)
@@ -222,28 +569,16 @@
         }
 
         function resolveFingerCount(gestureName, landmarks, isLeft) {
-            // Prefer named gestures so Fist / Index / Victory / Palm stay aligned.
             if (gestureName === 'Closed_Fist') return 0;
             if (gestureName === 'Pointing_Up') return 1;
             if (gestureName === 'Victory') return 2;
             if (gestureName === 'Open_Palm') return 5;
 
             const counted = countFingers(landmarks, isLeft);
-            if (counted === 0) return 0; // fist
+            if (counted === 0) return 0;
             if (counted === 3 || counted === 4) return counted;
             if (counted === 1 || counted === 2 || counted === 5) return counted;
             return gestureFallbackCount(gestureName, landmarks);
-        }
-
-        function updateSideDisplay(el, count, word) {
-            const span = el.querySelector('span');
-            if (count == null || !word) {
-                span.textContent = '—';
-                el.classList.remove('active');
-                return;
-            }
-            span.textContent = word;
-            el.classList.add('active');
         }
 
         function sideHasCount(side, count) {
@@ -253,32 +588,34 @@
         }
 
         function maybeSpeak(side, count) {
-            const chars = side === 'left' ? LEFT_CHARS : RIGHT_CHARS;
-            const say = side === 'left' ? LEFT_SAY : RIGHT_SAY;
+            const chars = charMap(side);
+            const say = sayMap(side);
             const last = side === 'left' ? lastLeft : lastRight;
             const pending = side === 'left' ? pendingLeft : pendingRight;
             const since = side === 'left' ? pendingLeftSince : pendingRightSince;
             const now = performance.now();
 
             if (!sideHasCount(side, count)) {
-                if (side === 'left') { pendingLeft = null; updateSideDisplay(leftWordEl, null, null); }
-                else { pendingRight = null; updateSideDisplay(rightWordEl, null, null); }
+                if (side === 'left') pendingLeft = null;
+                else pendingRight = null;
+                clearActiveSide(side);
                 return;
             }
 
             const hanzi = chars[count];
             const roman = say[count];
             if (!hanzi || !roman) {
-                if (side === 'left') { pendingLeft = null; updateSideDisplay(leftWordEl, null, null); }
-                else { pendingRight = null; updateSideDisplay(rightWordEl, null, null); }
+                if (side === 'left') pendingLeft = null;
+                else pendingRight = null;
+                clearActiveSide(side);
                 return;
             }
-            if (side === 'left') updateSideDisplay(leftWordEl, count, hanzi);
-            else updateSideDisplay(rightWordEl, count, hanzi);
 
             if (count === last) {
                 if (side === 'left') pendingLeft = null;
                 else pendingRight = null;
+                const el = boxEls[slotKey(side, count)];
+                if (el) el.classList.add('active');
                 return;
             }
 
@@ -293,6 +630,7 @@
             if (side === 'left') { lastLeft = count; pendingLeft = null; }
             else { lastRight = count; pendingRight = null; }
 
+            setActiveBox(side, count);
             speakSyllable(roman);
         }
 
@@ -447,6 +785,7 @@
             }
         }
 
+        buildBoxes();
         overlayEl.addEventListener('click', startApp);
     </script>
 </body>
