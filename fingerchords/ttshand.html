@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTSHAND</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0a0a0f;
+            font-family: system-ui, -apple-system, sans-serif;
+            color: #eee;
+        }
+        .container { position: relative; width: 100%; height: 100%; overflow: hidden; }
+        #webcam { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); pointer-events: none; }
+        #overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.72);
+            z-index: 10;
+            cursor: pointer;
+            text-align: center;
+            padding: 24px;
+        }
+        #overlay.hidden { display: none; }
+        #overlay h1 { margin: 0 0 10px; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 600; }
+        #overlay p { margin: 0; opacity: 0.55; font-size: 14px; }
+        #word-display {
+            position: absolute;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            pointer-events: none;
+            display: flex;
+            gap: 48px;
+            font-size: clamp(1.6rem, 6vw, 2.8rem);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-shadow: 0 2px 24px rgba(0, 0, 0, 0.8);
+        }
+        #word-display .side { text-align: center; min-width: 2.5em; opacity: 0.35; transition: opacity 0.12s ease; }
+        #word-display .side.active { opacity: 1; }
+        #word-display .label { font-size: 0.35em; opacity: 0.7; letter-spacing: 0.08em; margin-bottom: 4px; font-weight: 500; }
+        #word-display span { font-family: "PingFang HK", "PingFang SC", "Microsoft YaHei", "Noto Sans HK", sans-serif; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="canvas"></canvas>
+        <div id="overlay">
+            <h1>TTSHAND</h1>
+            <p>Tap to start</p>
+        </div>
+        <div id="word-display">
+            <div class="side" id="left-word"><div class="label">LEFT</div><span>—</span></div>
+            <div class="side" id="right-word"><div class="label">RIGHT</div><span>—</span></div>
+        </div>
+    </div>
+
+    <script type="module">
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const overlayEl = document.getElementById('overlay');
+        const leftWordEl = document.getElementById('left-word');
+        const rightWordEl = document.getElementById('right-word');
+
+        // Speak romanization; display Chinese
+        const LEFT_SAY = { 1: 'deal', 2: 'lay', 3: 'hole', 4: 'leng', 5: 'chai' };
+        const LEFT_CHARS = { 1: '屌', 2: '你', 3: '好', 4: '靚', 5: '仔' };
+        // Right: fist→index→victory→3→4→palm = 你好嗎卜街啦
+        const RIGHT_SAY = { 0: 'lay', 1: 'hole', 2: 'mar', 3: 'pork', 4: 'guy', 5: 'la' };
+        const RIGHT_CHARS = { 0: '你', 1: '好', 2: '嗎', 3: '卜', 4: '街', 5: '啦' };
+
+        const PALM_LANDMARK_INDICES = [0, 5, 9, 13, 17];
+        const HOLD_MS = 180;
+
+        let audioCtx = null;
+        let femaleVoice = null;
+        let maleVoice = null;
+        let appStarted = false;
+        let lastLeft = null;
+        let lastRight = null;
+        let pendingLeft = null;
+        let pendingRight = null;
+        let pendingLeftSince = 0;
+        let pendingRightSince = 0;
+
+        function ensureAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
+            return audioCtx;
+        }
+
+        function isFemaleHint(v) {
+            const n = (v.name || '').toLowerCase();
+            return /female|woman|girl|susan|karen|samantha|zira|hazel|moira|tessa|victoria|google us english female|microsoft.+female/.test(n);
+        }
+
+        function isMaleHint(v) {
+            const n = (v.name || '').toLowerCase();
+            return /male|man|david|mark|daniel|george|ravi|thomas|james|google us english male|microsoft.+male|alex(?!a)/.test(n)
+                && !isFemaleHint(v);
+        }
+
+        function isEnglishVoice(v) {
+            return (v.lang || '').toLowerCase().startsWith('en');
+        }
+
+        function langBonus(v) {
+            const lang = (v.lang || '').toLowerCase();
+            return (lang.startsWith('en-hk') || lang.startsWith('en-gb') ? 2 : 0)
+                + (lang.startsWith('en-us') ? 1 : 0);
+        }
+
+        function pickEnglishVoices() {
+            if (!window.speechSynthesis) return;
+            const voices = window.speechSynthesis.getVoices().filter(isEnglishVoice);
+            if (!voices.length) {
+                femaleVoice = null;
+                maleVoice = null;
+                return;
+            }
+            const byScore = (preferFn) => voices.slice().sort((a, b) => {
+                const score = (v) => (preferFn(v) ? 6 : 0) + langBonus(v);
+                return score(b) - score(a);
+            });
+            const femaleRanked = byScore(isFemaleHint);
+            const maleRanked = byScore(isMaleHint);
+            femaleVoice = femaleRanked.find(isFemaleHint) || femaleRanked[0] || null;
+            maleVoice = maleRanked.find(isMaleHint)
+                || maleRanked.find((v) => v !== femaleVoice)
+                || maleRanked[0]
+                || null;
+        }
+
+        if (window.speechSynthesis) {
+            pickEnglishVoices();
+            window.speechSynthesis.onvoiceschanged = () => pickEnglishVoices();
+        }
+
+        /** English romanization — male voice for both hands. */
+        function speakSyllable(roman) {
+            ensureAudio();
+            if (!window.speechSynthesis || !roman) return;
+            window.speechSynthesis.cancel();
+            if (!maleVoice && !femaleVoice) pickEnglishVoices();
+            const u = new SpeechSynthesisUtterance(roman);
+            u.lang = 'en-US';
+            u.rate = 1.05;
+            const voice = maleVoice || femaleVoice;
+            if (voice) {
+                u.voice = voice;
+                if (voice.lang) u.lang = voice.lang;
+            }
+            u.pitch = voice && isMaleHint(voice) ? 0.95 : 0.75;
+            window.speechSynthesis.speak(u);
+        }
+
+        function isFingerExtended(landmarks, tip, pip, mcp) {
+            // Tip above PIP (image Y grows downward) — works for upright hands
+            return landmarks[tip].y < landmarks[pip].y - 0.02
+                && landmarks[pip].y < landmarks[mcp].y + 0.04;
+        }
+
+        function isThumbExtended(landmarks, isLeft) {
+            // Thumb: tip farther from palm center than IP joint
+            const wrist = landmarks[0];
+            const tip = landmarks[4];
+            const ip = landmarks[3];
+            const mcp = landmarks[2];
+            const tipDist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+            const ipDist = Math.hypot(ip.x - wrist.x, ip.y - wrist.y);
+            // Also require tip outside MCP horizontally (handedness-aware)
+            const outward = isLeft ? (tip.x > mcp.x + 0.02) : (tip.x < mcp.x - 0.02);
+            return tipDist > ipDist * 1.05 && (outward || tipDist > Math.hypot(mcp.x - wrist.x, mcp.y - wrist.y) * 1.1);
+        }
+
+        /** Count raised fingers 0–5 from landmarks. */
+        function countFingers(landmarks, isLeft) {
+            if (!landmarks || landmarks.length < 21) return 0;
+            let n = 0;
+            if (isThumbExtended(landmarks, isLeft)) n++;
+            if (isFingerExtended(landmarks, 8, 6, 5)) n++;
+            if (isFingerExtended(landmarks, 12, 10, 9)) n++;
+            if (isFingerExtended(landmarks, 16, 14, 13)) n++;
+            if (isFingerExtended(landmarks, 20, 18, 17)) n++;
+            return n;
+        }
+
+        function gestureFallbackCount(gestureName, landmarks) {
+            if (gestureName === 'Closed_Fist') return 0;
+            if (gestureName === 'Pointing_Up') return 1;
+            if (gestureName === 'Victory') return 2;
+            if (gestureName === 'Open_Palm') return 5;
+            if (gestureName === 'ILoveYou') return 3; // thumb+index+pinky ≈ treat as 3 cue
+            if (landmarks) {
+                const tipY = (i) => landmarks[i].y;
+                const three = tipY(8) < tipY(6) && tipY(12) < tipY(10) && tipY(16) < tipY(14)
+                    && tipY(4) >= tipY(3) - 0.05 && tipY(20) >= tipY(18) - 0.05;
+                if (three) return 3;
+                const four = tipY(8) < tipY(6) && tipY(12) < tipY(10) && tipY(16) < tipY(14) && tipY(20) < tipY(18)
+                    && tipY(4) >= tipY(3) - 0.05;
+                if (four) return 4;
+            }
+            return null;
+        }
+
+        function resolveFingerCount(gestureName, landmarks, isLeft) {
+            // Prefer named gestures so Fist / Index / Victory / Palm stay aligned.
+            if (gestureName === 'Closed_Fist') return 0;
+            if (gestureName === 'Pointing_Up') return 1;
+            if (gestureName === 'Victory') return 2;
+            if (gestureName === 'Open_Palm') return 5;
+
+            const counted = countFingers(landmarks, isLeft);
+            if (counted === 0) return 0; // fist
+            if (counted === 3 || counted === 4) return counted;
+            if (counted === 1 || counted === 2 || counted === 5) return counted;
+            return gestureFallbackCount(gestureName, landmarks);
+        }
+
+        function updateSideDisplay(el, count, word) {
+            const span = el.querySelector('span');
+            if (count == null || !word) {
+                span.textContent = '—';
+                el.classList.remove('active');
+                return;
+            }
+            span.textContent = word;
+            el.classList.add('active');
+        }
+
+        function sideHasCount(side, count) {
+            if (count == null) return false;
+            if (side === 'right') return count >= 0 && count <= 5;
+            return count >= 1 && count <= 5;
+        }
+
+        function maybeSpeak(side, count) {
+            const chars = side === 'left' ? LEFT_CHARS : RIGHT_CHARS;
+            const say = side === 'left' ? LEFT_SAY : RIGHT_SAY;
+            const last = side === 'left' ? lastLeft : lastRight;
+            const pending = side === 'left' ? pendingLeft : pendingRight;
+            const since = side === 'left' ? pendingLeftSince : pendingRightSince;
+            const now = performance.now();
+
+            if (!sideHasCount(side, count)) {
+                if (side === 'left') { pendingLeft = null; updateSideDisplay(leftWordEl, null, null); }
+                else { pendingRight = null; updateSideDisplay(rightWordEl, null, null); }
+                return;
+            }
+
+            const hanzi = chars[count];
+            const roman = say[count];
+            if (!hanzi || !roman) {
+                if (side === 'left') { pendingLeft = null; updateSideDisplay(leftWordEl, null, null); }
+                else { pendingRight = null; updateSideDisplay(rightWordEl, null, null); }
+                return;
+            }
+            if (side === 'left') updateSideDisplay(leftWordEl, count, hanzi);
+            else updateSideDisplay(rightWordEl, count, hanzi);
+
+            if (count === last) {
+                if (side === 'left') pendingLeft = null;
+                else pendingRight = null;
+                return;
+            }
+
+            if (count !== pending) {
+                if (side === 'left') { pendingLeft = count; pendingLeftSince = now; }
+                else { pendingRight = count; pendingRightSince = now; }
+                return;
+            }
+
+            if (now - since < HOLD_MS) return;
+
+            if (side === 'left') { lastLeft = count; pendingLeft = null; }
+            else { lastRight = count; pendingRight = null; }
+
+            speakSyllable(roman);
+        }
+
+        function updateCanvasSize() {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+        }
+        window.addEventListener('resize', updateCanvasSize);
+        updateCanvasSize();
+
+        async function initWebcam() {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+            });
+            videoElement.srcObject = stream;
+            return new Promise((resolve) => {
+                videoElement.onloadedmetadata = () => {
+                    updateCanvasSize();
+                    resolve(videoElement);
+                };
+            });
+        }
+
+        function drawLandmarks(landmarks, isLeft) {
+            const w = canvasElement.width;
+            const h = canvasElement.height;
+            const lineWidth = Math.max(2, Math.min(5, Math.min(w, h) / 300));
+            const pointSize = Math.max(2, Math.min(8, Math.min(w, h) / 250));
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],
+                [0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]
+            ];
+            const handColor = isLeft ? 'rgba(140, 190, 255, 0.88)' : 'rgba(255, 190, 140, 0.88)';
+            canvasCtx.lineWidth = lineWidth;
+            canvasCtx.strokeStyle = handColor;
+            connections.forEach(([i, j]) => {
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(landmarks[i].x * w, landmarks[i].y * h);
+                canvasCtx.lineTo(landmarks[j].x * w, landmarks[j].y * h);
+                canvasCtx.stroke();
+            });
+            landmarks.forEach((lm) => {
+                canvasCtx.fillStyle = handColor;
+                canvasCtx.beginPath();
+                canvasCtx.arc(lm.x * w, lm.y * h, pointSize * 1.2, 0, 2 * Math.PI);
+                canvasCtx.fill();
+            });
+        }
+
+        function drawLabelOnPalm(landmarks, text, color) {
+            if (!landmarks || !text) return;
+            const w = canvasElement.width;
+            const h = canvasElement.height;
+            const palm = PALM_LANDMARK_INDICES.reduce((acc, idx) => ({
+                x: acc.x + landmarks[idx].x,
+                y: acc.y + landmarks[idx].y
+            }), { x: 0, y: 0 });
+            const n = PALM_LANDMARK_INDICES.length;
+            const cx = (palm.x / n) * w;
+            const cy = (palm.y / n) * h;
+            const fontSize = Math.min(44, Math.max(22, Math.min(w, h) * 0.065));
+            canvasCtx.font = `700 ${fontSize}px "PingFang HK", "PingFang SC", "Microsoft YaHei", "Noto Sans HK", system-ui, sans-serif`;
+            canvasCtx.textAlign = 'center';
+            canvasCtx.textBaseline = 'middle';
+            canvasCtx.fillStyle = color || 'rgba(255, 255, 255, 0.95)';
+            canvasCtx.save();
+            canvasCtx.translate(cx, cy);
+            canvasCtx.scale(-1, 1);
+            canvasCtx.translate(-cx, -cy);
+            canvasCtx.fillText(text, cx, cy);
+            canvasCtx.restore();
+        }
+
+        async function startMediaPipe() {
+            const mpVision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+            const { GestureRecognizer, FilesetResolver } = mpVision;
+            const vision = await FilesetResolver.forVisionTasks(
+                'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+            );
+            const gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task'
+                },
+                runningMode: 'VIDEO',
+                numHands: 2
+            });
+
+            await initWebcam();
+
+            let lastVideoTime = -1;
+            function processFrame() {
+                if (videoElement.readyState < 2) {
+                    requestAnimationFrame(processFrame);
+                    return;
+                }
+                const now = videoElement.currentTime * 1000;
+                if (now !== lastVideoTime) {
+                    lastVideoTime = now;
+                    const result = gestureRecognizer.recognizeForVideo(videoElement, now);
+                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                    let leftCount = null;
+                    let rightCount = null;
+                    let leftLm = null;
+                    let rightLm = null;
+
+                    if (result.landmarks && result.landmarks.length > 0) {
+                        for (let i = 0; i < result.landmarks.length; i++) {
+                            const landmarks = result.landmarks[i];
+                            const handedness = result.handedness && result.handedness[i] && result.handedness[i][0];
+                            const isLeft = handedness ? handedness.categoryName === 'Left' : (i === 0);
+                            drawLandmarks(landmarks, isLeft);
+
+                            const gesture = result.gestures && result.gestures[i] && result.gestures[i][0];
+                            const name = gesture ? gesture.categoryName : 'None';
+                            const count = resolveFingerCount(name, landmarks, isLeft);
+
+                            if (isLeft) {
+                                leftCount = count;
+                                leftLm = landmarks;
+                            } else {
+                                rightCount = count;
+                                rightLm = landmarks;
+                            }
+                        }
+                    }
+
+                    maybeSpeak('left', leftCount);
+                    maybeSpeak('right', rightCount);
+
+                    if (leftLm && leftCount >= 1 && leftCount <= 5) {
+                        drawLabelOnPalm(leftLm, LEFT_CHARS[leftCount], 'rgba(180, 220, 255, 0.98)');
+                    }
+                    if (rightLm && rightCount != null && rightCount >= 0 && rightCount <= 5) {
+                        drawLabelOnPalm(rightLm, RIGHT_CHARS[rightCount], 'rgba(255, 210, 170, 0.98)');
+                    }
+                }
+                requestAnimationFrame(processFrame);
+            }
+            processFrame();
+        }
+
+        async function startApp() {
+            if (appStarted) return;
+            appStarted = true;
+            overlayEl.classList.add('hidden');
+            ensureAudio();
+            try {
+                await startMediaPipe();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        overlayEl.addEventListener('click', startApp);
+    </script>
+</body>
+</html>
