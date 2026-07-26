@@ -1287,7 +1287,7 @@
         <button type="button" class="panel-opt" role="menuitem" data-action="save-wav" id="saveWavBtn" title="Save this wheel as WAV">Save as WAV</button>
         <div class="panel-opt-sep" aria-hidden="true"></div>
         <button type="button" class="panel-opt" role="menuitem" data-panel="edit">Paint tool</button>
-        <button type="button" class="panel-opt" role="menuitem" data-panel="human">Human</button>
+        <button type="button" class="panel-opt" role="menuitem" data-panel="groove">Groove</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="space">Space</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="lucky">Producer</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="visual">Visual</button>
@@ -1317,14 +1317,14 @@
               </span>
             </div>
           </div>
-          <div class="tab-panel" id="tabHuman" data-panel="human" role="tabpanel">
+          <div class="tab-panel" id="tabGroove" data-panel="groove" role="tabpanel">
             <label class="slide" title="Tempo">
               <span class="slide-lab">BPM</span>
               <input type="range" id="bpm" min="50" max="130" value="120" step="1" />
               <span class="slide-val" id="bpmVal">120</span>
             </label>
-            <label class="slide" title="Humanize">
-              <span class="slide-lab">Human</span>
+            <label class="slide" title="Organic timing">
+              <span class="slide-lab">Organic</span>
               <input type="range" id="humanize" min="0" max="100" value="50" step="1" />
               <span class="slide-val" id="humanVal">50%</span>
             </label>
@@ -1336,6 +1336,7 @@
             <label class="chip" title="Swing to which note subdivision">
               <span class="slide-lab">To</span>
               <select id="swingNote" aria-label="Swing note">
+                <option value="4">1/4</option>
                 <option value="8">1/8</option>
                 <option value="16" selected>1/16</option>
                 <option value="32">1/32</option>

@@ -592,9 +592,10 @@
     return Math.max(0, Math.min(1, (parseFloat(swingEl.value) || 0) / 100));
   }
 
-  /** Swing subdivision: notes per bar (8 = 1/8, 16 = 1/16, 32 = 1/32). */
+  /** Swing subdivision: notes per bar (4 = 1/4, 8 = 1/8, 16 = 1/16, 32 = 1/32). */
   function getSwingNoteDiv() {
     var v = swingNoteEl ? String(swingNoteEl.value) : '16';
+    if (v === '4') return 4;
     if (v === '8') return 8;
     if (v === '32') return 32;
     return 16;
