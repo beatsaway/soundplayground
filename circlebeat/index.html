@@ -489,6 +489,13 @@
       background: #2a2a32;
       color: var(--ink);
     }
+    .paint-active-ico {
+      display: none;
+      font-size: 13px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .paint-chip.is-active .paint-active-ico { display: inline; }
     .paint-chip-lab {
       appearance: none;
       border: 0;
@@ -1389,7 +1396,7 @@
           <button type="button" class="panel-opt" role="menuitem" data-action="load-code" title="Load project from code text">Load code</button>
         </div>
         <div class="panel-opt-sep" aria-hidden="true"></div>
-        <button type="button" class="panel-opt" role="menuitem" data-panel="edit">Paint tool</button>
+        <button type="button" class="panel-opt" role="menuitem" data-panel="edit">Edit</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="groove">Groove</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="space">Space</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="lucky">Producer</button>
@@ -1403,6 +1410,7 @@
           <div class="tab-panel active" id="tabEdit" data-panel="edit" role="tabpanel">
             <div class="chip paint-chip is-active" data-paint-group="word">
               <button type="button" class="paint-chip-lab" data-paint-edit="word" title="Sound design for word">Word</button>
+              <span class="paint-active-ico" aria-hidden="true">🎨</span>
               <button type="button" class="paint-chip-trigger" id="paintWordTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose word">
                 <i class="dot" id="paintWordDot"></i>
                 <span class="lab" id="paintWordLab">Word 1</span>
@@ -1410,6 +1418,7 @@
             </div>
             <div class="chip paint-chip" data-paint-group="drum">
               <button type="button" class="paint-chip-lab" data-paint-edit="drum" title="Sound design for drum">Drum</button>
+              <span class="paint-active-ico" aria-hidden="true">🎨</span>
               <button type="button" class="paint-chip-trigger" id="paintDrumTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose drum">
                 <i class="dot" id="paintDrumDot"></i>
                 <span class="lab" id="paintDrumLab">Kick</span>
@@ -1417,6 +1426,7 @@
             </div>
             <div class="chip paint-chip" data-paint-group="sample">
               <button type="button" class="paint-chip-lab" data-paint-edit="sample" title="Sound design for sample">Sample</button>
+              <span class="paint-active-ico" aria-hidden="true">🎨</span>
               <button type="button" class="paint-chip-trigger" id="paintSampleTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose sample">
                 <i class="dot" id="paintSampleDot"></i>
                 <span class="lab" id="paintSampleLab">Sample 1</span>
