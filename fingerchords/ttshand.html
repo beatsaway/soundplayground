@@ -129,13 +129,13 @@
             z-index: 40;
             display: flex;
             width: 100%;
-            max-height: min(52vh, 360px);
+            max-height: min(40vh, 220px);
             background: #12121a;
             flex-direction: column;
             overflow: hidden;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-            transform: translateY(calc(-100% + 22px));
+            transform: translateY(-100%);
             transition: transform 0.28s ease;
             pointer-events: none;
         }
@@ -147,24 +147,58 @@
             display: flex;
             flex-direction: column;
             min-height: 0;
-            padding: 10px 12px 14px;
-            gap: 10px;
-        }
-        .edit-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            padding: 6px 10px 10px;
             gap: 8px;
         }
+        .edit-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 22px;
+        }
+        .edit-mode {
+            flex: 0 0 auto;
+            appearance: none;
+            -webkit-appearance: none;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 4px;
+            background-color: #f2f4f7;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2312121a' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+            color: #12121a;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding: 3px 22px 3px 8px;
+            outline: none;
+            cursor: pointer;
+            line-height: 1.2;
+        }
+        .edit-mode:focus {
+            border-color: #14b8a6;
+            box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.45);
+        }
+        .edit-mode option {
+            background-color: #f2f4f7;
+            color: #12121a;
+        }
         .edit-title {
-            font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-            color: #14b8a6;
+            flex: 1;
+            min-width: 0;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            color: rgba(255, 255, 255, 0.55);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .edit-handle {
-            width: 44px;
-            height: 18px;
+            flex: 0 0 auto;
+            width: 36px;
+            height: 16px;
             border: 0;
             background: transparent;
             cursor: pointer;
@@ -175,61 +209,102 @@
         }
         .edit-handle::before {
             content: "";
-            width: 40px;
-            height: 4px;
+            width: 32px;
+            height: 3px;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.28);
+        }
+        .edit-body {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 6px 8px;
         }
         .edit-field {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
+            flex: 0 0 auto;
         }
         .edit-field label {
-            font-size: 10px;
+            font-size: 9px;
             letter-spacing: 0.06em;
             text-transform: uppercase;
-            opacity: 0.55;
+            opacity: 0.5;
             font-weight: 700;
         }
         .edit-field input {
-            width: 100%;
+            width: 88px;
+            max-width: 88px;
             border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 8px;
+            border-radius: 6px;
             background: rgba(0, 0, 0, 0.35);
             color: #eee;
             font: inherit;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            padding: 10px 12px;
+            padding: 6px 8px;
             outline: none;
+        }
+        .edit-field input#editSay {
+            width: 110px;
+            max-width: 110px;
         }
         .edit-field input:focus {
             border-color: rgba(20, 184, 166, 0.7);
         }
-        .edit-actions {
+        .edit-sample-row {
             display: flex;
+            align-items: center;
             gap: 8px;
+            flex: 1 1 160px;
+            min-width: 0;
+            min-height: 30px;
         }
-        .edit-actions button {
-            flex: 1;
+        .edit-sample-row.hidden,
+        .edit-text-row.hidden {
+            display: none;
+        }
+        .edit-text-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+        .edit-load-btn,
+        .edit-listen-btn {
+            flex: 0 0 auto;
             border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 8px;
+            border-radius: 6px;
             background: rgba(255, 255, 255, 0.06);
             color: #eee;
             font: inherit;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
-            padding: 10px 12px;
+            padding: 6px 10px;
             cursor: pointer;
         }
-        .edit-actions button.primary {
-            background: rgba(20, 184, 166, 0.22);
-            border-color: rgba(20, 184, 166, 0.55);
-            color: #14b8a6;
-        }
-        .edit-actions button:hover {
+        .edit-load-btn:hover,
+        .edit-listen-btn:hover {
             border-color: rgba(20, 184, 166, 0.7);
+        }
+        .edit-listen-btn.hidden {
+            display: none;
+        }
+        .edit-sample-name {
+            flex: 1;
+            min-width: 0;
+            font-size: 11px;
+            font-weight: 600;
+            opacity: 0.55;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .edit-sample-name.has-file {
+            opacity: 0.9;
+            color: #14b8a6;
+            flex: 0 1 auto;
         }
     </style>
 </head>
@@ -244,21 +319,31 @@
 
         <div class="edit-modal" id="editModal" aria-hidden="true">
             <div class="edit-sheet">
-                <div class="edit-top">
+                <div class="edit-header">
+                    <select class="edit-mode" id="editMode" aria-label="Audio mode">
+                        <option value="text">Text audio</option>
+                        <option value="sample">Sample</option>
+                    </select>
                     <div class="edit-title" id="editTitle">Edit</div>
                     <button type="button" class="edit-handle" id="editHandle" aria-label="Close editor"></button>
                 </div>
-                <div class="edit-field">
-                    <label for="editChar">Display</label>
-                    <input id="editChar" type="text" maxlength="8" autocomplete="off" />
-                </div>
-                <div class="edit-field">
-                    <label for="editSay">Speak</label>
-                    <input id="editSay" type="text" maxlength="24" autocomplete="off" />
-                </div>
-                <div class="edit-actions">
-                    <button type="button" id="editListenBtn">Listen</button>
-                    <button type="button" class="primary" id="editDoneBtn">Done</button>
+                <div class="edit-body">
+                    <div class="edit-field">
+                        <label for="editChar">Display</label>
+                        <input id="editChar" type="text" maxlength="8" autocomplete="off" />
+                    </div>
+                    <div class="edit-text-row" id="textModeFields">
+                        <div class="edit-field">
+                            <label for="editSay">Speak</label>
+                            <input id="editSay" type="text" maxlength="24" autocomplete="off" />
+                        </div>
+                        <button type="button" class="edit-listen-btn" id="editListenBtn">Listen</button>
+                    </div>
+                    <div class="edit-sample-row hidden" id="sampleModeFields">
+                        <button type="button" class="edit-load-btn" id="editLoadBtn">Load</button>
+                        <input type="file" id="editWavInput" accept="audio/wav,.wav,audio/*" hidden />
+                        <span class="edit-sample-name" id="editSampleName">No file</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -283,12 +368,18 @@
         const editModal = document.getElementById('editModal');
         const editHandle = document.getElementById('editHandle');
         const editTitle = document.getElementById('editTitle');
+        const editMode = document.getElementById('editMode');
         const editChar = document.getElementById('editChar');
         const editSay = document.getElementById('editSay');
         const editListenBtn = document.getElementById('editListenBtn');
-        const editDoneBtn = document.getElementById('editDoneBtn');
+        const textModeFields = document.getElementById('textModeFields');
+        const sampleModeFields = document.getElementById('sampleModeFields');
+        const editLoadBtn = document.getElementById('editLoadBtn');
+        const editWavInput = document.getElementById('editWavInput');
+        const editSampleName = document.getElementById('editSampleName');
 
         const LEFT_SLOTS = [
+            { count: 0, gesture: 'Fist' },
             { count: 1, gesture: 'Index' },
             { count: 2, gesture: 'Victory' },
             { count: 3, gesture: '3 fingers' },
@@ -305,8 +396,9 @@
         ];
 
         // Speak romanization; display Chinese
-        const LEFT_SAY = { 1: 'deal', 2: 'lay', 3: 'hole', 4: 'leng', 5: 'chai' };
-        const LEFT_CHARS = { 1: '屌', 2: '你', 3: '好', 4: '靚', 5: '仔' };
+        // Left: fist→index→victory→3→4→palm = 屌你好靚仔呀
+        const LEFT_SAY = { 0: 'deal', 1: 'lay', 2: 'hole', 3: 'leng', 4: 'chai', 5: 'ah' };
+        const LEFT_CHARS = { 0: '屌', 1: '你', 2: '好', 3: '靚', 4: '仔', 5: '呀' };
         // Right: fist→index→victory→3→4→palm = 你好嗎卜街啦
         const RIGHT_SAY = { 0: 'lay', 1: 'hole', 2: 'mar', 3: 'pork', 4: 'guy', 5: 'la' };
         const RIGHT_CHARS = { 0: '你', 1: '好', 2: '嗎', 3: '卜', 4: '街', 5: '啦' };
@@ -315,7 +407,9 @@
         const HOLD_MS = 180;
 
         const boxEls = {};
+        const slotAudio = {}; // key -> { mode, sampleName, sampleBuffer }
         let editTarget = null; // { side, count }
+        let activeSampleSource = null;
 
         let audioCtx = null;
         let femaleVoice = null;
@@ -340,10 +434,50 @@
             return side === 'left' ? LEFT_CHARS : RIGHT_CHARS;
         }
 
+        function getSlotAudio(side, count) {
+            const key = slotKey(side, count);
+            if (!slotAudio[key]) {
+                slotAudio[key] = { mode: 'text', sampleName: '', sampleBuffer: null };
+            }
+            return slotAudio[key];
+        }
+
         function ensureAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
             return audioCtx;
+        }
+
+        function stopSample() {
+            if (activeSampleSource) {
+                try { activeSampleSource.stop(); } catch (_) {}
+                activeSampleSource = null;
+            }
+        }
+
+        function playSampleBuffer(buffer) {
+            if (!buffer) return;
+            const ctx = ensureAudio();
+            stopSample();
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            const src = ctx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(ctx.destination);
+            src.onended = () => {
+                if (activeSampleSource === src) activeSampleSource = null;
+            };
+            activeSampleSource = src;
+            src.start(0);
+        }
+
+        function playSlotSound(side, count) {
+            const audio = getSlotAudio(side, count);
+            if (audio.mode === 'sample') {
+                playSampleBuffer(audio.sampleBuffer);
+                return;
+            }
+            const roman = sayMap(side)[count];
+            if (roman) speakSyllable(roman);
         }
 
         function isFemaleHint(v) {
@@ -396,6 +530,7 @@
         function speakSyllable(roman) {
             ensureAudio();
             if (!window.speechSynthesis || !roman) return;
+            stopSample();
             window.speechSynthesis.cancel();
             if (!maleVoice && !femaleVoice) pickEnglishVoices();
             const u = new SpeechSynthesisUtterance(roman);
@@ -416,8 +551,13 @@
             if (!el) return;
             const charEl = el.querySelector('.g-char');
             const sayEl = el.querySelector('.g-say');
+            const audio = getSlotAudio(side, count);
             charEl.textContent = charMap(side)[count] || '·';
-            sayEl.textContent = sayMap(side)[count] || '';
+            if (audio.mode === 'sample') {
+                sayEl.textContent = audio.sampleName || 'sample';
+            } else {
+                sayEl.textContent = sayMap(side)[count] || '';
+            }
         }
 
         function setActiveBox(side, count) {
@@ -449,24 +589,76 @@
             editTarget = null;
         }
 
+        function updateSampleNameUi(name) {
+            if (name) {
+                editSampleName.textContent = name;
+                editSampleName.classList.add('has-file');
+            } else {
+                editSampleName.textContent = 'No file';
+                editSampleName.classList.remove('has-file');
+            }
+            placeListenBtn(editMode.value === 'sample', !!name);
+        }
+
+        function placeListenBtn(isSample, hasFile) {
+            if (isSample) {
+                if (hasFile) {
+                    sampleModeFields.appendChild(editListenBtn);
+                    editListenBtn.classList.remove('hidden');
+                } else {
+                    editListenBtn.classList.add('hidden');
+                }
+            } else {
+                textModeFields.appendChild(editListenBtn);
+                editListenBtn.classList.remove('hidden');
+            }
+        }
+
+        function syncModeUi(mode) {
+            const isSample = mode === 'sample';
+            textModeFields.classList.toggle('hidden', isSample);
+            sampleModeFields.classList.toggle('hidden', !isSample);
+            editMode.value = isSample ? 'sample' : 'text';
+            const hasFile = !!(editTarget && getSlotAudio(editTarget.side, editTarget.count).sampleName);
+            placeListenBtn(isSample, hasFile);
+        }
+
+        function resetSideLatch(side) {
+            if (side === 'left') {
+                lastLeft = null;
+                pendingLeft = null;
+            } else {
+                lastRight = null;
+                pendingRight = null;
+            }
+        }
+
         function saveEditFields() {
             if (!editTarget) return;
             const { side, count } = editTarget;
+            const audio = getSlotAudio(side, count);
             const char = String(editChar.value || '').trim().slice(0, 8);
             const say = String(editSay.value || '').trim().slice(0, 24);
             if (char) charMap(side)[count] = char;
             if (say) sayMap(side)[count] = say;
+            audio.mode = editMode.value === 'sample' ? 'sample' : 'text';
             refreshBox(side, count);
         }
 
         function openEdit(side, count, gesture) {
             editTarget = { side, count, gesture };
+            const audio = getSlotAudio(side, count);
             editTitle.textContent = (side === 'left' ? 'Left' : 'Right') + ' · ' + gesture;
             editChar.value = charMap(side)[count] || '';
             editSay.value = sayMap(side)[count] || '';
+            syncModeUi(audio.mode);
+            updateSampleNameUi(audio.sampleName);
             editModal.classList.add('revealed');
             editModal.setAttribute('aria-hidden', 'false');
-            setTimeout(() => editChar.focus(), 50);
+            setTimeout(() => {
+                if (audio.mode === 'sample') editLoadBtn.focus();
+                else editChar.focus();
+            }, 50);
         }
 
         function buildBoxes() {
@@ -504,92 +696,131 @@
             saveEditFields();
             collapseEdit();
         });
-        editDoneBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            saveEditFields();
-            collapseEdit();
-        });
         editListenBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            saveEditFields();
+            if (!editTarget) return;
+            const { side, count } = editTarget;
+            const audio = getSlotAudio(side, count);
+            if (audio.mode === 'sample') {
+                playSampleBuffer(audio.sampleBuffer);
+                return;
+            }
             const say = String(editSay.value || '').trim();
             if (say) speakSyllable(say);
+        });
+        editMode.addEventListener('change', () => {
+            if (!editTarget) return;
+            const mode = editMode.value === 'sample' ? 'sample' : 'text';
+            const audio = getSlotAudio(editTarget.side, editTarget.count);
+            audio.mode = mode;
+            syncModeUi(mode);
+            updateSampleNameUi(audio.sampleName);
+            refreshBox(editTarget.side, editTarget.count);
+            resetSideLatch(editTarget.side);
+        });
+        editLoadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            editWavInput.click();
+        });
+        editWavInput.addEventListener('change', async () => {
+            const file = editWavInput.files && editWavInput.files[0];
+            editWavInput.value = '';
+            if (!file || !editTarget) return;
+            try {
+                const ctx = ensureAudio();
+                const raw = await file.arrayBuffer();
+                const buffer = await ctx.decodeAudioData(raw.slice(0));
+                const audio = getSlotAudio(editTarget.side, editTarget.count);
+                audio.mode = 'sample';
+                audio.sampleName = file.name;
+                audio.sampleBuffer = buffer;
+                syncModeUi('sample');
+                updateSampleNameUi(file.name);
+                refreshBox(editTarget.side, editTarget.count);
+                resetSideLatch(editTarget.side);
+            } catch (err) {
+                console.error('Failed to load wav', err);
+                updateSampleNameUi('');
+            }
         });
         editChar.addEventListener('change', saveEditFields);
         editSay.addEventListener('change', saveEditFields);
         editChar.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); saveEditFields(); editSay.focus(); }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEditFields();
+                if (editMode.value === 'sample') editLoadBtn.focus();
+                else editSay.focus();
+            }
         });
         editSay.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); saveEditFields(); collapseEdit(); }
         });
 
-        function isFingerExtended(landmarks, tip, pip, mcp) {
-            return landmarks[tip].y < landmarks[pip].y - 0.02
-                && landmarks[pip].y < landmarks[mcp].y + 0.04;
+        // Non-thumb finger up: tip clearly above PIP (camera Y grows downward)
+        function isFingerUp(landmarks, tip, pip) {
+            return landmarks[tip].y < landmarks[pip].y - 0.015;
         }
 
-        function isThumbExtended(landmarks, isLeft) {
-            const wrist = landmarks[0];
+        // Thumb out (for 4): tip far from palm center. Folded thumb sits near palm → 3.
+        function isThumbOut(landmarks) {
             const tip = landmarks[4];
-            const ip = landmarks[3];
             const mcp = landmarks[2];
-            const tipDist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
-            const ipDist = Math.hypot(ip.x - wrist.x, ip.y - wrist.y);
-            const outward = isLeft ? (tip.x > mcp.x + 0.02) : (tip.x < mcp.x - 0.02);
-            return tipDist > ipDist * 1.05 && (outward || tipDist > Math.hypot(mcp.x - wrist.x, mcp.y - wrist.y) * 1.1);
-        }
-
-        function countFingers(landmarks, isLeft) {
-            if (!landmarks || landmarks.length < 21) return 0;
-            let n = 0;
-            if (isThumbExtended(landmarks, isLeft)) n++;
-            if (isFingerExtended(landmarks, 8, 6, 5)) n++;
-            if (isFingerExtended(landmarks, 12, 10, 9)) n++;
-            if (isFingerExtended(landmarks, 16, 14, 13)) n++;
-            if (isFingerExtended(landmarks, 20, 18, 17)) n++;
-            return n;
-        }
-
-        function gestureFallbackCount(gestureName, landmarks) {
-            if (gestureName === 'Closed_Fist') return 0;
-            if (gestureName === 'Pointing_Up') return 1;
-            if (gestureName === 'Victory') return 2;
-            if (gestureName === 'Open_Palm') return 5;
-            if (gestureName === 'ILoveYou') return 3;
-            if (landmarks) {
-                const tipY = (i) => landmarks[i].y;
-                const three = tipY(8) < tipY(6) && tipY(12) < tipY(10) && tipY(16) < tipY(14)
-                    && tipY(4) >= tipY(3) - 0.05 && tipY(20) >= tipY(18) - 0.05;
-                if (three) return 3;
-                const four = tipY(8) < tipY(6) && tipY(12) < tipY(10) && tipY(16) < tipY(14) && tipY(20) < tipY(18)
-                    && tipY(4) >= tipY(3) - 0.05;
-                if (four) return 4;
+            let px = 0, py = 0;
+            for (const i of PALM_LANDMARK_INDICES) {
+                px += landmarks[i].x;
+                py += landmarks[i].y;
             }
-            return null;
+            px /= PALM_LANDMARK_INDICES.length;
+            py /= PALM_LANDMARK_INDICES.length;
+            const tipPalm = Math.hypot(tip.x - px, tip.y - py);
+            const mcpPalm = Math.hypot(mcp.x - px, mcp.y - py) || 0.05;
+            return tipPalm > mcpPalm * 1.45;
         }
 
-        function resolveFingerCount(gestureName, landmarks, isLeft) {
+        function resolveFingerCount(gestureName, landmarks) {
+            if (!landmarks || landmarks.length < 21) {
+                if (gestureName === 'Closed_Fist') return 0;
+                if (gestureName === 'Pointing_Up') return 1;
+                if (gestureName === 'Victory') return 2;
+                if (gestureName === 'Open_Palm') return 5;
+                return null;
+            }
+
+            const thumb = isThumbOut(landmarks);
+            const index = isFingerUp(landmarks, 8, 6);
+            const middle = isFingerUp(landmarks, 12, 10);
+            const ring = isFingerUp(landmarks, 16, 14);
+            const pinky = isFingerUp(landmarks, 20, 18);
+
+            // 3 / 4 FIRST — do not let MediaPipe Victory/Open_Palm override these
+            // 3: index+middle+ring up, thumb + pinky down
+            // 4: only pinky down (thumb out)
+            if (index && middle && ring && !pinky) {
+                return thumb ? 4 : 3;
+            }
+
             if (gestureName === 'Closed_Fist') return 0;
             if (gestureName === 'Pointing_Up') return 1;
             if (gestureName === 'Victory') return 2;
             if (gestureName === 'Open_Palm') return 5;
 
-            const counted = countFingers(landmarks, isLeft);
-            if (counted === 0) return 0;
-            if (counted === 3 || counted === 4) return counted;
-            if (counted === 1 || counted === 2 || counted === 5) return counted;
-            return gestureFallbackCount(gestureName, landmarks);
+            if (index && middle && !ring && !pinky && !thumb) return 2;
+            if (index && !middle && !ring && !pinky) return 1;
+            if (thumb && index && middle && ring && pinky) return 5;
+            if (!thumb && !index && !middle && !ring && !pinky) return 0;
+
+            return (thumb ? 1 : 0) + (index ? 1 : 0) + (middle ? 1 : 0) + (ring ? 1 : 0) + (pinky ? 1 : 0);
         }
 
         function sideHasCount(side, count) {
             if (count == null) return false;
-            if (side === 'right') return count >= 0 && count <= 5;
-            return count >= 1 && count <= 5;
+            return count >= 0 && count <= 5;
         }
 
         function maybeSpeak(side, count) {
             const chars = charMap(side);
-            const say = sayMap(side);
             const last = side === 'left' ? lastLeft : lastRight;
             const pending = side === 'left' ? pendingLeft : pendingRight;
             const since = side === 'left' ? pendingLeftSince : pendingRightSince;
@@ -603,8 +834,7 @@
             }
 
             const hanzi = chars[count];
-            const roman = say[count];
-            if (!hanzi || !roman) {
+            if (!hanzi) {
                 if (side === 'left') pendingLeft = null;
                 else pendingRight = null;
                 clearActiveSide(side);
@@ -631,7 +861,7 @@
             else { lastRight = count; pendingRight = null; }
 
             setActiveBox(side, count);
-            speakSyllable(roman);
+            playSlotSound(side, count);
         }
 
         function updateCanvasSize() {
@@ -746,7 +976,7 @@
 
                             const gesture = result.gestures && result.gestures[i] && result.gestures[i][0];
                             const name = gesture ? gesture.categoryName : 'None';
-                            const count = resolveFingerCount(name, landmarks, isLeft);
+                            const count = resolveFingerCount(name, landmarks);
 
                             if (isLeft) {
                                 leftCount = count;
@@ -761,7 +991,7 @@
                     maybeSpeak('left', leftCount);
                     maybeSpeak('right', rightCount);
 
-                    if (leftLm && leftCount >= 1 && leftCount <= 5) {
+                    if (leftLm && leftCount != null && leftCount >= 0 && leftCount <= 5) {
                         drawLabelOnPalm(leftLm, LEFT_CHARS[leftCount], 'rgba(180, 220, 255, 0.98)');
                     }
                     if (rightLm && rightCount != null && rightCount >= 0 && rightCount <= 5) {
