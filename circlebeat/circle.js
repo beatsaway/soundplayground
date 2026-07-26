@@ -143,6 +143,8 @@
   var LOOK_AHEAD = 0.12;
   var SCHEDULE_MS = 25;
   var MAX_DELAY_FRAC = 0.10;
+  /** Max offbeat delay as a fraction of the swing-note unit (1.0 ≈ full shuffle). */
+  var SWING_MAX_DELAY_FRAC = 0.42;
   var REVERB_HP_HZ = 267;
   var STEREO_CROSSOVER_HZ = 267;
   var MASTER_GAIN = 0.85;
@@ -217,6 +219,7 @@
   var humanVal = document.getElementById('humanVal');
   var swingEl = document.getElementById('swing');
   var swingVal = document.getElementById('swingVal');
+  var swingNoteEl = document.getElementById('swingNote');
   var reverbEl = document.getElementById('reverb');
   var reverbVal = document.getElementById('reverbVal');
   var reverbDurEl = document.getElementById('reverbDuration');
@@ -252,12 +255,25 @@
   var randOptsBtn = document.getElementById('randOptsBtn');
   var randOptsMenu = document.getElementById('randOptsMenu');
   var randLayersList = document.getElementById('randLayersList');
+  var randOptLive = document.getElementById('randOptLive');
   var randOptPatterns = document.getElementById('randOptPatterns');
   var randOptSounds = document.getElementById('randOptSounds');
   var randOptWords = document.getElementById('randOptWords');
   var randOptVoices = document.getElementById('randOptVoices');
   var randOptBpm = document.getElementById('randOptBpm');
   var randOptSpace = document.getElementById('randOptSpace');
+  /**
+   * Live Lucky Roll queue — nothing here touches the current wheel until the
+   * next bar is scheduled. Shape:
+   * { patterns, makerParams, buffers, sayTexts, sayVoices, bpm, space, globalsApplied }
+   */
+  var livePendingRoll = null;
+  /** Audio-time when the view should rebuild after a Live pattern swap. */
+  var liveRedrawAt = null;
+  /** Deferred tempo/space from a Live roll, applied at bar start. */
+  var liveTempoAt = null;
+  var liveTempoBpm = null;
+  var liveTempoSpace = null;
   var luckyEuclidDensEl = document.getElementById('luckyEuclidDens');
   var luckyEuclidDensVal = document.getElementById('luckyEuclidDensVal');
   var luckyEuclidGoldenEl = document.getElementById('luckyEuclidGolden');
@@ -574,6 +590,22 @@
 
   function getSwing() {
     return Math.max(0, Math.min(1, (parseFloat(swingEl.value) || 0) / 100));
+  }
+
+  /** Swing subdivision: notes per bar (8 = 1/8, 16 = 1/16, 32 = 1/32). */
+  function getSwingNoteDiv() {
+    var v = swingNoteEl ? String(swingNoteEl.value) : '16';
+    if (v === '8') return 8;
+    if (v === '32') return 32;
+    return 16;
+  }
+
+  /** True when this ring step lands on a swung offbeat of the chosen note grid. */
+  function stepIsSwingOffbeat(stepIdx, ringSegments, swingDiv) {
+    if (!(ringSegments > 0) || !(swingDiv > 0)) return false;
+    var phase = stepIdx / ringSegments;
+    var slot = Math.floor(phase * swingDiv + 1e-9) % swingDiv;
+    return (slot % 2) === 1;
   }
 
   function getReverb() {
@@ -1979,10 +2011,11 @@
     return params;
   }
 
-  function randomizeMakerSound(id) {
+  /** Roll new maker params without writing them into live state. */
+  function rollMakerSoundParams(id) {
     var ranges = MAKER_RANGES[id];
     var roundKeys = MAKER_ROUND_KEYS[id] || [];
-    if (!ranges) return;
+    if (!ranges) return null;
     var params = Object.assign({}, makerSoundParams[id] || MAKER_DEFAULTS[id]);
     Object.keys(ranges).forEach(function (key) {
       var pair = ranges[key];
@@ -2003,7 +2036,12 @@
       if (Math.random() > 0.5) params.addSecondPair = Math.random() > 0.5;
     }
     if (id === 'kick' || id === 'snare') enforceCoreDrumEnergyFloor(id, params);
-    makerSoundParams[id] = params;
+    return params;
+  }
+
+  function randomizeMakerSound(id) {
+    var params = rollMakerSoundParams(id);
+    if (params) makerSoundParams[id] = params;
   }
 
   async function randomizeAllSounds() {
@@ -2212,7 +2250,7 @@
     }
   }
 
-  function randomizeBpm() {
+  function pickRandomBpm() {
     // Producer Speed biases the usual tempo band (50–130 BPM).
     var speed = getLuckySpeed();
     var minBpm = 50;
@@ -2222,10 +2260,17 @@
     var lo = Math.max(minBpm, Math.round(target - spread));
     var hi = Math.min(maxBpm, Math.round(target + spread));
     if (hi < lo) hi = lo;
-    var v = lo + Math.floor(Math.random() * (hi - lo + 1));
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+  }
+
+  function applyBpmValue(v) {
     bpmEl.value = String(v);
     bpmVal.textContent = String(v);
     updateReverbIR();
+  }
+
+  function randomizeBpm() {
+    applyBpmValue(pickRandomBpm());
   }
 
   /** Random in [min,max], biased toward lower values (power > 1). */
@@ -2234,15 +2279,182 @@
     return Math.round(min + t * (max - min));
   }
 
-  function randomizeSpace() {
+  function pickRandomSpace() {
     // Prefer shorter / less wet; stereo always stays under 10 when randomised.
-    reverbEl.value = String(lowBiasInt(5, 100, 2.2));
-    reverbDurEl.value = String(lowBiasInt(5, 100, 2.5));
-    stereoEl.value = String(lowBiasInt(0, 9, 1.4));
+    return {
+      reverb: lowBiasInt(5, 100, 2.2),
+      reverbDur: lowBiasInt(5, 100, 2.5),
+      stereo: lowBiasInt(0, 9, 1.4)
+    };
+  }
+
+  function applySpaceValues(space) {
+    if (!space) return;
+    reverbEl.value = String(space.reverb);
+    reverbDurEl.value = String(space.reverbDur);
+    stereoEl.value = String(space.stereo);
     reverbVal.textContent = Math.round(getReverb() * 100) + '%';
     stereoVal.textContent = Math.round(getStereo()) + '%';
     applySpaceSettings();
     updateReverbIR();
+  }
+
+  function randomizeSpace() {
+    applySpaceValues(pickRandomSpace());
+  }
+
+  function liveRollHasWork(roll) {
+    if (!roll) return false;
+    if (!roll.globalsApplied) {
+      if (roll.makerParams || roll.buffers || roll.sayTexts || roll.sayVoices ||
+          roll.bpm != null || roll.space) return true;
+    }
+    if (roll.patterns && Object.keys(roll.patterns).length) return true;
+    return false;
+  }
+
+  function pendingLiveBarDur() {
+    if (livePendingRoll && !livePendingRoll.globalsApplied && livePendingRoll.bpm != null) {
+      return (60 / livePendingRoll.bpm) * 4;
+    }
+    if (liveTempoAt != null && liveTempoBpm != null) {
+      return (60 / liveTempoBpm) * 4;
+    }
+    return getBarDur();
+  }
+
+  /**
+   * Apply queued Live roll for the wheel about to be scheduled.
+   * Patterns for other wheels stay queued. View / tempo wait until bar start
+   * so the currently playing wheel is not replaced early.
+   */
+  function applyLivePendingForLayer(layerIdx, opts) {
+    opts = opts || {};
+    if (!livePendingRoll) return;
+    var roll = livePendingRoll;
+    var touchedView = false;
+    var barStart = opts.barStart;
+
+    if (!roll.globalsApplied) {
+      if (roll.makerParams) {
+        Object.keys(roll.makerParams).forEach(function (id) {
+          makerSoundParams[id] = roll.makerParams[id];
+        });
+      }
+      if (roll.buffers) {
+        Object.keys(roll.buffers).forEach(function (id) {
+          soundBank[id] = roll.buffers[id];
+        });
+      }
+      if (roll.sayTexts) {
+        Object.keys(roll.sayTexts).forEach(function (id) {
+          sayTexts[id] = roll.sayTexts[id];
+        });
+        refreshPaintLabels();
+        syncPaintExtras();
+      }
+      if (roll.sayVoices) {
+        Object.keys(roll.sayVoices).forEach(function (id) {
+          sayVoiceParams[id] = roll.sayVoices[id];
+        });
+      }
+      // Defer tempo/space to exact bar start (keeps current wheel's clock stable).
+      if (barStart != null && (roll.bpm != null || roll.space)) {
+        liveTempoAt = barStart;
+        liveTempoBpm = roll.bpm;
+        liveTempoSpace = roll.space;
+      } else {
+        if (roll.bpm != null) applyBpmValue(roll.bpm);
+        if (roll.space) applySpaceValues(roll.space);
+      }
+      roll.globalsApplied = true;
+      roll.makerParams = null;
+      roll.buffers = null;
+      roll.sayTexts = null;
+      roll.sayVoices = null;
+      roll.bpm = null;
+      roll.space = null;
+    }
+
+    if (roll.patterns && Object.prototype.hasOwnProperty.call(roll.patterns, layerIdx)) {
+      if (layers[layerIdx]) layers[layerIdx].pattern = roll.patterns[layerIdx];
+      delete roll.patterns[layerIdx];
+      if (layerIdx === viewLayer) touchedView = true;
+    }
+
+    if (opts.applyAllPatterns && roll.patterns) {
+      Object.keys(roll.patterns).forEach(function (key) {
+        var idx = +key;
+        if (layers[idx]) layers[idx].pattern = roll.patterns[key];
+        if (idx === viewLayer) touchedView = true;
+      });
+      roll.patterns = {};
+    }
+
+    if (opts.forceRedraw) {
+      liveRedrawAt = null;
+      if (liveTempoBpm != null) applyBpmValue(liveTempoBpm);
+      if (liveTempoSpace) applySpaceValues(liveTempoSpace);
+      liveTempoAt = null;
+      liveTempoBpm = null;
+      liveTempoSpace = null;
+      pattern = layers[viewLayer].pattern;
+      buildSvg();
+      refreshSegFills();
+    } else if (touchedView && barStart != null) {
+      // Rebuild when this bar becomes active — keeps current wheel looking intact.
+      liveRedrawAt = barStart;
+    }
+
+    if (!liveRollHasWork(roll)) livePendingRoll = null;
+  }
+
+  function flushLivePendingRoll() {
+    if (!livePendingRoll && liveRedrawAt == null && liveTempoAt == null) return;
+    if (livePendingRoll) {
+      applyLivePendingForLayer(viewLayer, { applyAllPatterns: true, forceRedraw: true });
+    } else {
+      if (liveTempoBpm != null) applyBpmValue(liveTempoBpm);
+      if (liveTempoSpace) applySpaceValues(liveTempoSpace);
+      liveTempoAt = null;
+      liveTempoBpm = null;
+      liveTempoSpace = null;
+      if (liveRedrawAt != null) {
+        liveRedrawAt = null;
+        pattern = layers[viewLayer].pattern;
+        buildSvg();
+        refreshSegFills();
+      }
+    }
+  }
+
+  function tickLiveRedraw(now) {
+    if (liveTempoAt != null && now >= liveTempoAt) {
+      if (liveTempoBpm != null) applyBpmValue(liveTempoBpm);
+      if (liveTempoSpace) applySpaceValues(liveTempoSpace);
+      liveTempoAt = null;
+      liveTempoBpm = null;
+      liveTempoSpace = null;
+    }
+    if (liveRedrawAt == null || now < liveRedrawAt) return;
+    liveRedrawAt = null;
+    pattern = layers[viewLayer].pattern;
+    buildSvg();
+    refreshSegFills();
+  }
+
+  async function buildLiveRollBuffers(makerParamsById) {
+    var buffers = {};
+    if (!makerParamsById) return buffers;
+    await ensureAudio();
+    await Promise.all(SAMPLES.filter(function (s) {
+      return s.type === 'maker' && makerParamsById[s.maker];
+    }).map(function (s) {
+      return renderVoice(s.maker, s.open, makerParamsById[s.maker]).then(function (buf) {
+        buffers[s.id] = buf;
+      });
+    }));
+    return buffers;
   }
 
   async function runRandomise() {
@@ -2256,6 +2468,122 @@
     if (!doPatterns && !doSounds && !doWords && !doVoices && !doBpm && !doSpace) return;
 
     var wasPlaying = playing;
+    var live = !!(randOptLive && randOptLive.checked);
+    var deferAll = live && wasPlaying;
+
+    if (deferAll) {
+      var roll = {
+        patterns: null,
+        makerParams: null,
+        buffers: null,
+        sayTexts: null,
+        sayVoices: null,
+        bpm: null,
+        space: null,
+        globalsApplied: false
+      };
+
+      if (doBpm) roll.bpm = pickRandomBpm();
+      if (doSpace) roll.space = pickRandomSpace();
+
+      if (doWords) {
+        var words = WORD_BANK.slice();
+        shuffleInPlace(words);
+        var textIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
+        roll.sayTexts = {};
+        var wi;
+        for (wi = 0; wi < textIds.length; wi++) {
+          roll.sayTexts[textIds[wi]] = words[wi % words.length];
+        }
+      }
+
+      if (doVoices) {
+        roll.sayVoices = {};
+        SAMPLES.forEach(function (s) {
+          if (s.type !== 'text') return;
+          var prev = getSayVoiceParams(s.id);
+          roll.sayVoices[s.id] = {
+            engine: 'sam',
+            voiceSeed: 'sam-' + Math.floor(Math.random() * 1e9),
+            pitchVar: prev.pitchVar || 0,
+            volVar: prev.volVar || 0
+          };
+        });
+      }
+
+      if (doPatterns && indices.length) {
+        if (!doWords) await ensureWordsForRandom();
+        var baseSeed = (Date.now() ^ ((Math.random() * 0x100000000) >>> 0)) >>> 0;
+        var consistency = getLuckyConsistency();
+        var masterPlan = consistency > 0
+          ? buildLuckyFillPlan(createStructRng(baseSeed))
+          : null;
+        roll.patterns = {};
+        indices.forEach(function (idx) {
+          var plan;
+          if (consistency >= 0.999 && masterPlan) {
+            plan = masterPlan;
+          } else if (consistency <= 0.001 || !masterPlan) {
+            plan = buildLuckyFillPlan(createStructRng(hashSeed(baseSeed, idx + 1)));
+          } else {
+            var alt = buildLuckyFillPlan(createStructRng(hashSeed(baseSeed, idx + 1)));
+            plan = blendLuckyFillPlans(
+              masterPlan,
+              alt,
+              consistency,
+              createStructRng(hashSeed(baseSeed, idx + 99))
+            );
+          }
+          var nextPat = emptyPattern();
+          applyLuckyFillPlan(nextPat, plan);
+          roll.patterns[idx] = nextPat;
+        });
+      }
+
+      if (doSounds && indices.length) {
+        var usedMap = {};
+        indices.forEach(function (idx) {
+          var pat = (roll.patterns && roll.patterns[idx]) || layers[idx].pattern;
+          makersUsedInPattern(pat).forEach(function (m) { usedMap[m] = true; });
+        });
+        var used = Object.keys(usedMap);
+        if (!used.length) used = makerIds.slice();
+        roll.makerParams = {};
+        used.forEach(function (id) {
+          var p = rollMakerSoundParams(id);
+          if (p) roll.makerParams[id] = p;
+        });
+        roll.buffers = await buildLiveRollBuffers(roll.makerParams);
+      }
+
+      // Pre-render word buffers using pending voice seeds / texts without touching live bank.
+      if ((doWords || doVoices) && (roll.sayTexts || roll.sayVoices)) {
+        await ensureAudio();
+        if (!roll.buffers) roll.buffers = {};
+        var sayIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
+        var si;
+        for (si = 0; si < sayIds.length; si++) {
+          var sid = sayIds[si];
+          var text = roll.sayTexts
+            ? roll.sayTexts[sid]
+            : String(sayTexts[sid] || '').trim();
+          if (!text) continue;
+          var savedVoice = sayVoiceParams[sid];
+          if (roll.sayVoices && roll.sayVoices[sid]) {
+            sayVoiceParams[sid] = Object.assign({}, roll.sayVoices[sid]);
+          }
+          try {
+            roll.buffers[sid] = await prerenderSpeechToBuffer(text, sid);
+          } catch (e) {
+            console.error(e);
+          }
+          sayVoiceParams[sid] = savedVoice;
+        }
+      }
+
+      livePendingRoll = roll;
+      return;
+    }
 
     if (doBpm) randomizeBpm();
     if (doSpace) randomizeSpace();
@@ -2265,29 +2593,28 @@
 
     if (doPatterns && indices.length) {
       if (!doWords) await ensureWordsForRandom();
-      var baseSeed = (Date.now() ^ ((Math.random() * 0x100000000) >>> 0)) >>> 0;
-      var consistency = getLuckyConsistency();
-      var masterPlan = consistency > 0
-        ? buildLuckyFillPlan(createStructRng(baseSeed))
+      var baseSeed2 = (Date.now() ^ ((Math.random() * 0x100000000) >>> 0)) >>> 0;
+      var consistency2 = getLuckyConsistency();
+      var masterPlan2 = consistency2 > 0
+        ? buildLuckyFillPlan(createStructRng(baseSeed2))
         : null;
       indices.forEach(function (idx) {
         var plan;
-        if (consistency >= 0.999 && masterPlan) {
-          plan = masterPlan;
-        } else if (consistency <= 0.001 || !masterPlan) {
-          plan = buildLuckyFillPlan(createStructRng(hashSeed(baseSeed, idx + 1)));
+        if (consistency2 >= 0.999 && masterPlan2) {
+          plan = masterPlan2;
+        } else if (consistency2 <= 0.001 || !masterPlan2) {
+          plan = buildLuckyFillPlan(createStructRng(hashSeed(baseSeed2, idx + 1)));
         } else {
-          var alt = buildLuckyFillPlan(createStructRng(hashSeed(baseSeed, idx + 1)));
+          var alt2 = buildLuckyFillPlan(createStructRng(hashSeed(baseSeed2, idx + 1)));
           plan = blendLuckyFillPlans(
-            masterPlan,
-            alt,
-            consistency,
-            createStructRng(hashSeed(baseSeed, idx + 99))
+            masterPlan2,
+            alt2,
+            consistency2,
+            createStructRng(hashSeed(baseSeed2, idx + 99))
           );
         }
         applyLuckyFillPlan(layers[idx].pattern, plan);
       });
-      // Keep viewLayer pattern pointer in sync, then force a full redraw.
       pattern = layers[viewLayer].pattern;
       buildSvg();
       refreshSegFills();
@@ -2297,7 +2624,6 @@
       await randomizeSoundsForLayers(indices);
     }
 
-    // Always play after Lucky Roll; if already playing, restart from the top.
     if (wasPlaying) pause();
     await play();
   }
@@ -2597,15 +2923,16 @@
     });
   }
 
-  function segmentAngles(n, swingAmt) {
+  function segmentAngles(n, swingAmt, swingDiv) {
     var s = Math.max(0, Math.min(1, swingAmt));
+    var div = swingDiv || getSwingNoteDiv();
     var base = (Math.PI * 2) / n;
-    var skew = base * s * 0.28;
+    var skew = base * s * 0.55;
     var widths = [];
     var i;
     for (i = 0; i < n; i++) {
-      if (i % 2 === 0) widths.push(base + skew);
-      else widths.push(Math.max(base * 0.2, base - skew));
+      if (!stepIsSwingOffbeat(i, n, div)) widths.push(base + skew);
+      else widths.push(Math.max(base * 0.12, base - skew));
     }
     var sum = 0;
     for (i = 0; i < n; i++) sum += widths[i];
@@ -2642,13 +2969,14 @@
     discGroupEl.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
 
     var swingAmt = getSwing();
+    var swingDiv = getSwingNoteDiv();
     var gap = (SEG_GAP_DEG * Math.PI) / 180;
     var pat = pattern || emptyPattern();
 
     RINGS.forEach(function (ring, li) {
       var rr = ringRadii(li);
       var n = ring.segments;
-      var angles = segmentAngles(n, swingAmt);
+      var angles = segmentAngles(n, swingAmt, swingDiv);
       for (var i = 0; i < n; i++) {
         var a0 = angles.starts[i] + gap / 2;
         var a1 = angles.starts[i] + angles.widths[i] - gap / 2;
@@ -2725,7 +3053,7 @@
   }
 
   function litIndexAtPhase(n, phase, swingAmt) {
-    var angles = segmentAngles(n, swingAmt);
+    var angles = segmentAngles(n, swingAmt, getSwingNoteDiv());
     var target = phase * Math.PI * 2;
     var acc = 0;
     for (var i = 0; i < n; i++) {
@@ -3134,11 +3462,11 @@
     audioReady = true;
   }
 
-  function renderVoice(makerId, openHat) {
+  function renderVoice(makerId, openHat, paramsOverride) {
     var OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     var len = Math.ceil(BANK_SR * BANK_DUR);
     var offline = new OfflineCtx(1, len, BANK_SR);
-    var params = Object.assign({}, makerSoundParams[makerId] || MAKER_DEFAULTS[makerId]);
+    var params = Object.assign({}, paramsOverride || makerSoundParams[makerId] || MAKER_DEFAULTS[makerId]);
     var dest = offline.destination;
     if (makerId === 'kick') window.playKickTest(offline, dest, params, 0);
     else if (makerId === 'snare') window.playSnareTest(offline, dest, params, 0);
@@ -3339,12 +3667,15 @@
     }
   }
 
-  function scheduleBar(barStart, layerIdx) {
+  function scheduleBar(barStart, layerIdx, barDurOverride) {
     var pat = layers[layerIdx] && layers[layerIdx].pattern;
     if (!pat) return;
-    var barDur = getBarDur();
+    var barDur = barDurOverride != null ? barDurOverride : getBarDur();
     var human = getHumanize();
     var swing = getSwing();
+    var swingDiv = getSwingNoteDiv();
+    var swingUnitDur = barDur / swingDiv;
+    var swingMaxDelay = swingUnitDur * SWING_MAX_DELAY_FRAC;
     barEvents.push({ start: barStart, layer: layerIdx });
     if (barEvents.length > 64) barEvents.splice(0, barEvents.length - 32);
 
@@ -3353,13 +3684,14 @@
       if (!steps) return;
       var n = ring.segments;
       var stepDur = barDur / n;
-      var maxDelay = stepDur * MAX_DELAY_FRAC;
+      var humanMaxDelay = stepDur * MAX_DELAY_FRAC;
       for (var i = 0; i < n; i++) {
         if (!steps[i]) continue;
         var offset = 0;
-        if (swing > 0 && i % 2 === 1) offset += swing * maxDelay;
-        if (human > 0) offset += human * maxDelay * pseudo01(ring.id, i, layerIdx + 1);
-        if (offset > maxDelay) offset = maxDelay;
+        if (swing > 0 && stepIsSwingOffbeat(i, n, swingDiv)) offset += swing * swingMaxDelay;
+        if (human > 0) offset += human * humanMaxDelay * pseudo01(ring.id, i, layerIdx + 1);
+        var cap = swingMaxDelay + humanMaxDelay;
+        if (offset > cap) offset = cap;
         var hitAt = barStart + i * stepDur + offset;
         playBuf(steps[i], hitAt);
         noteSegHit(ring.id, i, hitAt);
@@ -3369,7 +3701,6 @@
 
   function scheduler() {
     if (!playing || !ctx) return;
-    var barDur = getBarDur();
     var end = ctx.currentTime + LOOK_AHEAD;
     while (nextBarTime < end) {
       if (!layers[playCursor] || !layers[playCursor].enabled) {
@@ -3380,7 +3711,10 @@
         }
         playCursor = n;
       }
-      scheduleBar(nextBarTime, playCursor);
+      // Live Lucky Roll: install next-wheel content just before it is scheduled.
+      var barDur = pendingLiveBarDur();
+      applyLivePendingForLayer(playCursor, { barStart: nextBarTime });
+      scheduleBar(nextBarTime, playCursor, barDur);
       nextBarTime += barDur;
       var nxt = nextEnabled(playCursor);
       playCursor = nxt < 0 ? playCursor : nxt;
@@ -3859,6 +4193,7 @@
     }
 
     var now = ctx.currentTime;
+    tickLiveRedraw(now);
     var ev = activeLayerAt(now);
     if (ev && ev.layer !== shownPlayLayer) {
       shownPlayLayer = ev.layer;
@@ -3874,6 +4209,7 @@
     discGroupEl.setAttribute('transform', 'rotate(' + (-phase * 360) + ' ' + CX + ' ' + CY + ')');
 
     var swingAmt = getSwing();
+    var swingDiv = getSwingNoteDiv();
     var needleAng = START_ANGLE + phase * Math.PI * 2;
     var glowSpan = (50 * Math.PI) / 180;
     var HIT_GLOW_SEC = 0.28;
@@ -3883,7 +4219,7 @@
 
     RINGS.forEach(function (ring) {
       var n = ring.segments;
-      var angles = segmentAngles(n, swingAmt);
+      var angles = segmentAngles(n, swingAmt, swingDiv);
       var i;
       for (i = 0; i < n; i++) {
         var key = ring.id + ':' + i;
@@ -3967,6 +4303,8 @@
       clearTimeout(scheduleTimer);
       scheduleTimer = 0;
     }
+    // Apply any queued Live roll so the stopped view matches what was coming next.
+    flushLivePendingRoll();
     stopAllVoices();
     barEvents = [];
     shownPlayLayer = -1;
@@ -4177,22 +4515,26 @@
     var barDur = getBarDur();
     var human = getHumanize();
     var swing = getSwing();
+    var swingDiv = getSwingNoteDiv();
+    var swingUnitDur = barDur / swingDiv;
+    var swingMaxDelay = swingUnitDur * SWING_MAX_DELAY_FRAC;
 
     RINGS.forEach(function (ring) {
       var steps = pat[ring.id];
       if (!steps) return;
       var n = ring.segments;
       var stepDur = barDur / n;
-      var maxDelay = stepDur * MAX_DELAY_FRAC;
+      var humanMaxDelay = stepDur * MAX_DELAY_FRAC;
       for (var i = 0; i < n; i++) {
         if (!steps[i]) continue;
         var sampleId = steps[i];
         var buf = bank[sampleId];
         if (!buf) continue;
         var offset = 0;
-        if (swing > 0 && i % 2 === 1) offset += swing * maxDelay;
-        if (human > 0) offset += human * maxDelay * pseudo01(ring.id, i, layerIdx + 1);
-        if (offset > maxDelay) offset = maxDelay;
+        if (swing > 0 && stepIsSwingOffbeat(i, n, swingDiv)) offset += swing * swingMaxDelay;
+        if (human > 0) offset += human * humanMaxDelay * pseudo01(ring.id, i, layerIdx + 1);
+        var cap = swingMaxDelay + humanMaxDelay;
+        if (offset > cap) offset = cap;
         var hitAt = barStart + i * stepDur + offset;
 
         var src = octx.createBufferSource();
@@ -4535,6 +4877,12 @@
     swingVal.textContent = Math.round(getSwing() * 100) + '%';
     buildSvg();
   });
+
+  if (swingNoteEl) {
+    swingNoteEl.addEventListener('change', function () {
+      buildSvg();
+    });
+  }
 
   reverbEl.addEventListener('input', function () {
     reverbVal.textContent = Math.round(getReverb() * 100) + '%';

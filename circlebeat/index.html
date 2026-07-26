@@ -1333,6 +1333,14 @@
               <input type="range" id="swing" min="0" max="100" value="0" step="1" />
               <span class="slide-val" id="swingVal">0%</span>
             </label>
+            <label class="chip" title="Swing to which note subdivision">
+              <span class="slide-lab">To</span>
+              <select id="swingNote" aria-label="Swing note">
+                <option value="8">1/8</option>
+                <option value="16" selected>1/16</option>
+                <option value="32">1/32</option>
+              </select>
+            </label>
           </div>
           <div class="tab-panel" id="tabSpace" data-panel="space" role="tabpanel">
             <label class="slide" title="Reverb">
@@ -1458,6 +1466,7 @@
                 <span>Producer</span>
                 <select id="randProducer" aria-label="Producer preset"></select>
               </label>
+              <label class="rand-opt"><input type="checkbox" id="randOptLive" /> Live</label>
               <label class="rand-opt"><input type="checkbox" id="randOptPatterns" checked /> Patterns</label>
               <label class="rand-opt"><input type="checkbox" id="randOptSounds" checked /> Sounds</label>
               <label class="rand-opt"><input type="checkbox" id="randOptWords" checked /> Words</label>
