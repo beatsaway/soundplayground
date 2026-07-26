@@ -382,6 +382,67 @@
     }
     .chip select { cursor: pointer; max-width: 148px; }
     .chip select option { background: #1a1a1f; }
+    .slide-lab.is-help {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-color: transparent;
+      text-underline-offset: 2px;
+    }
+    .slide-lab.is-help:hover,
+    .slide-lab.is-help:focus-visible {
+      color: var(--ink);
+      text-decoration-color: var(--muted);
+      outline: none;
+    }
+    .lucky-tip {
+      position: fixed;
+      z-index: 120;
+      display: none;
+      max-width: min(320px, calc(100vw - 24px));
+      padding: 10px 30px 10px 12px;
+      border-radius: 8px;
+      background: #f5e6a8;
+      color: #2a2410;
+      border: 1px solid #e0c96a;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 450;
+    }
+    .lucky-tip.open { display: block; }
+    .lucky-tip-title {
+      display: block;
+      margin: 0 0 4px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .lucky-tip-body {
+      margin: 0;
+      color: #3d3418;
+    }
+    .lucky-tip-close {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: #5a4e28;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .lucky-tip-close:hover { background: rgba(0, 0, 0, 0.08); color: #1a1608; }
     .rand-group {
       position: relative;
       display: flex;
@@ -486,6 +547,31 @@
       flex-shrink: 0;
       cursor: pointer;
     }
+    .rand-menu .rand-opt-select {
+      justify-content: space-between;
+      cursor: default;
+    }
+    .rand-menu .rand-opt-select:hover { background: transparent; }
+    .rand-menu .rand-opt-select span {
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .rand-menu .rand-opt-select select {
+      flex: 1;
+      min-width: 0;
+      max-width: 140px;
+      margin-left: 8px;
+      height: 26px;
+      border: 0;
+      border-radius: 5px;
+      background: #2a2a32;
+      color: var(--ink);
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      padding: 0 6px;
+      cursor: pointer;
+      outline: none;
+    }
+    .rand-menu .rand-opt-select select option { background: #1a1a1f; }
     .rand-menu .rand-menu-actions {
       display: flex;
       gap: 4px;
@@ -931,8 +1017,9 @@
       left: 50%;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: 34%;
-      height: 34%;
+      /* Keep inside INNER_HUB so the innermost ring stays visible */
+      width: 27%;
+      height: 27%;
       border-radius: 50%;
       border: 0;
       background: #222228;
@@ -985,8 +1072,8 @@
     .hub svg {
       position: relative;
       z-index: 2;
-      width: 38%;
-      height: 38%;
+      width: 42%;
+      height: 42%;
       display: block;
     }
     .needle { pointer-events: none; }
@@ -1202,6 +1289,7 @@
         <button type="button" class="panel-opt" role="menuitem" data-panel="edit">Paint tool</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="human">Human</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="space">Space</button>
+        <button type="button" class="panel-opt" role="menuitem" data-panel="lucky">Producer</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="visual">Visual</button>
       </div>
     </div>
@@ -1270,6 +1358,57 @@
               <button type="button" class="fx-btn" id="visualOffBtn" aria-pressed="false">Off</button>
             </div>
           </div>
+          <div class="tab-panel" id="tabLucky" data-panel="lucky" role="tabpanel">
+            <label class="chip" title="Producer style — Lucky Roll preset">
+              <span class="slide-lab">Producer</span>
+              <select id="luckyProducer" aria-label="Producer preset"></select>
+            </label>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="dens">Dens</button>
+              <input type="range" id="luckyEuclidDens" min="10" max="80" value="32" step="1" aria-label="Density" />
+              <span class="slide-val" id="luckyEuclidDensVal">32%</span>
+            </div>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="golden">Golden</button>
+              <input type="range" id="luckyEuclidGolden" min="0" max="100" value="25" step="1" aria-label="Golden" />
+              <span class="slide-val" id="luckyEuclidGoldenVal">25%</span>
+            </div>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="skip">Skip</button>
+              <input type="range" id="luckySkip" min="0" max="100" value="27" step="1" aria-label="Skip" />
+              <span class="slide-val" id="luckySkipVal">27%</span>
+            </div>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="sounds">Sounds</button>
+              <input type="range" id="luckySounds" min="3" max="8" value="7" step="1" aria-label="Sounds" />
+              <span class="slide-val" id="luckySoundsVal">7</span>
+            </div>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="reuse">Reuse</button>
+              <input type="range" id="luckyReuse" min="0" max="100" value="94" step="1" aria-label="Reuse" />
+              <span class="slide-val" id="luckyReuseVal">94%</span>
+            </div>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="consistency">Match</button>
+              <input type="range" id="luckyConsistency" min="0" max="100" value="100" step="1" aria-label="Consistency" />
+              <span class="slide-val" id="luckyConsistencyVal">100%</span>
+            </div>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="words">Words</button>
+              <input type="range" id="luckyWordsVol" min="0" max="200" value="34" step="1" aria-label="Word loudness" />
+              <span class="slide-val" id="luckyWordsVolVal">34%</span>
+            </div>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="humanity">Humanity</button>
+              <input type="range" id="luckyHumanity" min="0" max="100" value="27" step="1" aria-label="Humanity" />
+              <span class="slide-val" id="luckyHumanityVal">27%</span>
+            </div>
+            <div class="slide">
+              <button type="button" class="slide-lab is-help" data-lucky-help="speed">Speed</button>
+              <input type="range" id="luckySpeed" min="0" max="100" value="35" step="1" aria-label="Speed" />
+              <span class="slide-val" id="luckySpeedVal">35%</span>
+            </div>
+          </div>
           <div class="tab-panel" id="tabAbout" data-panel="about" role="tabpanel">
             <div class="about-content">
               <p>Circle Beat is a concentric drum painter — paint hits on spinning wheels, layer grooves, and play them back with words and synth drums. Developed by <a href="https://youtube.com/beatsaway" target="_blank" rel="noopener noreferrer">Beats Away</a>, a composer, music producer and sound designer.</p>
@@ -1315,6 +1454,10 @@
             <button type="button" class="rand-dd-btn" id="randOptsBtn" aria-haspopup="true" aria-expanded="false" title="Lucky Roll options">...</button>
             <div class="rand-menu" id="randOptsMenu" role="menu">
               <div class="rand-menu-head">Lucky Roll</div>
+              <label class="rand-opt rand-opt-select">
+                <span>Producer</span>
+                <select id="randProducer" aria-label="Producer preset"></select>
+              </label>
               <label class="rand-opt"><input type="checkbox" id="randOptPatterns" checked /> Patterns</label>
               <label class="rand-opt"><input type="checkbox" id="randOptSounds" checked /> Sounds</label>
               <label class="rand-opt"><input type="checkbox" id="randOptWords" checked /> Words</label>
@@ -1347,6 +1490,12 @@
   </div>
 
   <input type="file" id="wavInput" accept="audio/*,.wav,.mp3,.ogg" hidden />
+
+  <div class="lucky-tip" id="luckyTip" role="status" aria-live="polite" hidden>
+    <button type="button" class="lucky-tip-close" id="luckyTipClose" aria-label="Close tip">×</button>
+    <strong class="lucky-tip-title" id="luckyTipTitle"></strong>
+    <p class="lucky-tip-body" id="luckyTipBody"></p>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sam-js@0.3.1/dist/samjs.min.js" crossorigin="anonymous"></script>
   <script src="maker/kick-synth.js"></script>

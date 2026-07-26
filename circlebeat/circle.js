@@ -7,33 +7,39 @@
   'use strict';
 
   var MAX_CIRCLES = 20;
+  /** Two thin rings per subdivision (48 / 32 / 24 / 16). */
   var RINGS = [
-    { id: 'r48', segments: 48 },
-    { id: 'r24', segments: 24 },
-    { id: 'r32', segments: 32 },
-    { id: 'r16', segments: 16 }
+    { id: 'r48a', segments: 48 },
+    { id: 'r48b', segments: 48 },
+    { id: 'r32a', segments: 32 },
+    { id: 'r32b', segments: 32 },
+    { id: 'r24a', segments: 24 },
+    { id: 'r24b', segments: 24 },
+    { id: 'r16a', segments: 16 },
+    { id: 'r16b', segments: 16 }
   ];
 
+  /** Warm / magenta / green — no blues (blues reserved for drums). */
   var SAY_COLORS = [
-    '#ff6a00', '#c43dff', '#00c2ff', '#ff2d8a', '#1eea4a',
-    '#ffd000', '#3d6bff', '#ff3b1a', '#a34dff'
+    '#ff6a00', '#c43dff', '#ff2d8a', '#1eea4a', '#ffd000',
+    '#ff3b1a', '#a34dff', '#e85d04', '#7b2cbf'
   ];
   var SAMPLE_COLORS = [
-    '#d4894a', '#9a6cbc', '#4a9cba', '#c46a8e', '#5aaa6a',
-    '#c4a84a', '#6a7aba', '#c4745a', '#8a6aaa'
+    '#d4894a', '#9a6cbc', '#c46a8e', '#5aaa6a', '#c4a84a',
+    '#c4745a', '#8a6aaa', '#d4a574', '#b56576'
   ];
   var SAY_PATTERN = 'dots';
   var SAMPLE_PATTERN = 'diag';
-  // Grayscale drums + distinct overlays so they stay readable.
+  // Blue-family drums + distinct overlays so they stay readable.
   var DRUM_META = {
-    kick: { color: '#1a1a1a', pattern: 'dotsBig' },
-    tom: { color: '#323232', pattern: 'stripesH' },
-    ride: { color: '#4a4a4a', pattern: 'stripesV' },
-    clap: { color: '#6e6e6e', pattern: 'cross' },
-    cowbell: { color: '#8c8c8c', pattern: 'checkers' },
-    snare: { color: '#b4b4b4', pattern: 'rings' },
-    hatOpen: { color: '#d4d4d4', pattern: 'dash' },
-    hatClosed: { color: '#f0f0f0', pattern: 'grid' }
+    kick: { color: '#0b1f4a', pattern: 'dotsBig' },
+    tom: { color: '#123a7a', pattern: 'stripesH' },
+    ride: { color: '#1a4f9c', pattern: 'stripesV' },
+    clap: { color: '#2563b8', pattern: 'cross' },
+    cowbell: { color: '#3b82c4', pattern: 'checkers' },
+    snare: { color: '#4f9ad4', pattern: 'rings' },
+    hatOpen: { color: '#7ec8f0', pattern: 'dash' },
+    hatClosed: { color: '#b8e0ff', pattern: 'grid' }
   };
 
   var SAMPLES = [
@@ -79,14 +85,6 @@
     say1: null, say2: null, say3: null, say4: null, say5: null,
     say6: null, say7: null, say8: null, say9: null
   };
-  var browserVoices = [];
-  /** Natural TTS voices (StreamElements) — sampled into AudioBuffers like SAM. */
-  var NATURAL_TTS_VOICES = [
-    'Brian', 'Amy', 'Emma', 'Joanna', 'Matthew', 'Justin',
-    'Ivy', 'Salli', 'Joey', 'Kendra', 'Kimberly', 'Nicole'
-  ];
-  /** Max API attempts per user click / action (then fall back to SAM). */
-  var NATURAL_TTS_MAX_TRIES = 3;
   var sampleNames = {
     sample1: '', sample2: '', sample3: '', sample4: '', sample5: '',
     sample6: '', sample7: '', sample8: '', sample9: ''
@@ -157,8 +155,8 @@
   var CX = 500;
   var CY = 500;
   var OUTER = 470;
-  var INNER_HUB = 170;
-  var RING_GAP = 6;
+  var INNER_HUB = 140;
+  var RING_GAP = 3;
   var SEG_GAP_DEG = 1.8;
   var START_ANGLE = -Math.PI / 2;
 
@@ -204,6 +202,8 @@
   var barEvents = [];
   var shownPlayLayer = -1;
   var viewLocked = false;
+  /** Stop rewind: { fromDeg, t0, durMs } — spins disc back to 0°. */
+  var discRewind = null;
   /** Painted segment hit flashes: key "ring:i" → audio time of hit. */
   var segHitFlashes = {};
 
@@ -258,6 +258,30 @@
   var randOptVoices = document.getElementById('randOptVoices');
   var randOptBpm = document.getElementById('randOptBpm');
   var randOptSpace = document.getElementById('randOptSpace');
+  var luckyEuclidDensEl = document.getElementById('luckyEuclidDens');
+  var luckyEuclidDensVal = document.getElementById('luckyEuclidDensVal');
+  var luckyEuclidGoldenEl = document.getElementById('luckyEuclidGolden');
+  var luckyEuclidGoldenVal = document.getElementById('luckyEuclidGoldenVal');
+  var luckySkipEl = document.getElementById('luckySkip');
+  var luckySkipVal = document.getElementById('luckySkipVal');
+  var luckySoundsEl = document.getElementById('luckySounds');
+  var luckySoundsVal = document.getElementById('luckySoundsVal');
+  var luckyReuseEl = document.getElementById('luckyReuse');
+  var luckyReuseVal = document.getElementById('luckyReuseVal');
+  var luckyConsistencyEl = document.getElementById('luckyConsistency');
+  var luckyConsistencyVal = document.getElementById('luckyConsistencyVal');
+  var luckyWordsVolEl = document.getElementById('luckyWordsVol');
+  var luckyWordsVolVal = document.getElementById('luckyWordsVolVal');
+  var luckyHumanityEl = document.getElementById('luckyHumanity');
+  var luckyHumanityVal = document.getElementById('luckyHumanityVal');
+  var luckySpeedEl = document.getElementById('luckySpeed');
+  var luckySpeedVal = document.getElementById('luckySpeedVal');
+  var luckyProducerEl = document.getElementById('luckyProducer');
+  var randProducerEl = document.getElementById('randProducer');
+  var luckyTipEl = document.getElementById('luckyTip');
+  var luckyTipTitleEl = document.getElementById('luckyTipTitle');
+  var luckyTipBodyEl = document.getElementById('luckyTipBody');
+  var luckyTipCloseEl = document.getElementById('luckyTipClose');
   var soundSheet = document.getElementById('soundSheet');
   var soundBody = document.getElementById('soundBody');
   var soundTitle = document.getElementById('soundTitle');
@@ -291,6 +315,261 @@
 
   function getHumanize() {
     return Math.max(0, Math.min(1, (parseFloat(humanEl.value) || 0) / 100));
+  }
+
+  /** Lucky Roll producer presets. */
+  var LUCKY_PRODUCERS = [
+    { id: 'default', name: 'David', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
+    { id: 'jacky', name: 'Jacky', dens: 39, golden: 56, skip: 95, sounds: 5, reuse: 94, words: 34, humanity: 27, speed: 35 },
+    { id: 'minimal', name: 'Minimal', dens: 28, golden: 55, skip: 45, sounds: 3, reuse: 12, words: 90, humanity: 20, speed: 32 },
+    { id: 'dense', name: 'Dense', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
+    { id: 'ghost', name: 'Ghost', dens: 48, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 110, humanity: 85, speed: 44 },
+    { id: 'custom', name: 'Custom', dens: null, golden: null, skip: null, sounds: null, reuse: null, words: null, humanity: null, speed: null }
+  ];
+
+  var LUCKY_HELP = {
+    dens: {
+      title: 'Dens',
+      body: 'Max Euclidean density (how many hits per ring before skip). Higher = busier patterns. Sets the ceiling; Golden picks inside that range.'
+    },
+    golden: {
+      title: 'Golden',
+      body: 'How often pulse counts lean toward the golden-ratio density (~61.8%), still capped by Dens. Complements Dens — not the same as Skip.'
+    },
+    skip: {
+      title: 'Skip',
+      body: 'After Euclidean hits are placed, chance to drop some. Second stage only. Kick/snare stay mostly protected.'
+    },
+    sounds: {
+      title: 'Sounds',
+      body: 'How many distinct sounds to place first (kick/snare/hat, then extras). Reuse only applies to rings left after this.'
+    },
+    reuse: {
+      title: 'Reuse',
+      body: 'For leftover rings only (after Sounds are filled), chance to copy an already-used sound. If Sounds fills every ring, Reuse does nothing.'
+    },
+    consistency: {
+      title: 'Match',
+      body: 'When several wheels Lucky Roll together, how similar their structures are. 100% = same rings/sounds/pulse plans (Skip can still differ). 0% = each wheel independent.'
+    },
+    words: {
+      title: 'Words',
+      body: 'Overall loudness of word (SAM) hits in the mix. 100% is normal; producers who like vocal hooks go higher.'
+    },
+    humanity: {
+      title: 'Humanity',
+      body: 'How likely this producer uses word sounds in a Lucky Roll. 0% = drums/samples only; 100% = words always eligible for free slots.'
+    },
+    speed: {
+      title: 'Speed',
+      body: 'How fast this producer usually goes when Lucky Roll sets BPM. Lower = slower tempos; higher = faster.'
+    }
+  };
+
+  function producerById(id) {
+    for (var i = 0; i < LUCKY_PRODUCERS.length; i++) {
+      if (LUCKY_PRODUCERS[i].id === id) return LUCKY_PRODUCERS[i];
+    }
+    return LUCKY_PRODUCERS[0];
+  }
+
+  function readLuckySettings() {
+    return {
+      dens: Math.round(getLuckyEuclidMaxDens() * 100),
+      golden: Math.round(getLuckyEuclidGoldenBias() * 100),
+      skip: Math.round(getLuckySkipStrength() * 100),
+      sounds: getLuckySoundCount(),
+      reuse: Math.round(getLuckyReuseChance() * 100),
+      words: Math.round(getLuckyWordsVol() * 100),
+      humanity: Math.round(getLuckyHumanity() * 100),
+      speed: Math.round(getLuckySpeed() * 100)
+    };
+  }
+
+  function settingsMatchProducer(p, s) {
+    if (!p || p.dens == null) return false;
+    return p.dens === s.dens && p.golden === s.golden && p.skip === s.skip &&
+      p.sounds === s.sounds && p.reuse === s.reuse &&
+      p.words === s.words && p.humanity === s.humanity && p.speed === s.speed;
+  }
+
+  function matchLuckyProducerId() {
+    var s = readLuckySettings();
+    var i;
+    for (i = 0; i < LUCKY_PRODUCERS.length; i++) {
+      var p = LUCKY_PRODUCERS[i];
+      if (p.id === 'custom') continue;
+      if (settingsMatchProducer(p, s)) return p.id;
+    }
+    return 'custom';
+  }
+
+  function applyLuckyProducer(id, opts) {
+    opts = opts || {};
+    var p = producerById(id);
+    if (!p || p.dens == null) {
+      syncProducerSelects('custom');
+      return;
+    }
+    if (luckyEuclidDensEl) luckyEuclidDensEl.value = String(p.dens);
+    if (luckyEuclidGoldenEl) luckyEuclidGoldenEl.value = String(p.golden);
+    if (luckySkipEl) luckySkipEl.value = String(p.skip);
+    if (luckySoundsEl) luckySoundsEl.value = String(p.sounds);
+    if (luckyReuseEl) luckyReuseEl.value = String(p.reuse);
+    if (luckyWordsVolEl && p.words != null) luckyWordsVolEl.value = String(p.words);
+    if (luckyHumanityEl && p.humanity != null) luckyHumanityEl.value = String(p.humanity);
+    if (luckySpeedEl && p.speed != null) luckySpeedEl.value = String(p.speed);
+    syncLuckyRollUi({ skipMatch: true, producerId: p.id });
+  }
+
+  /** Named producers only; Custom appears solely when sliders don't match a preset. */
+  function fillProducerSelect(sel, currentId) {
+    if (!sel) return;
+    sel.innerHTML = '';
+    if (currentId === 'custom') {
+      var customOpt = document.createElement('option');
+      customOpt.value = 'custom';
+      customOpt.textContent = 'Custom';
+      sel.appendChild(customOpt);
+    }
+    LUCKY_PRODUCERS.forEach(function (p) {
+      if (p.id === 'custom') return;
+      var opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+    sel.value = currentId === 'custom' ? 'custom' : (producerById(currentId).id || 'default');
+    if (sel.value !== currentId && currentId !== 'custom') sel.value = 'default';
+  }
+
+  function syncProducerSelects(forcedId) {
+    var id = forcedId || matchLuckyProducerId();
+    fillProducerSelect(luckyProducerEl, id);
+    fillProducerSelect(randProducerEl, id);
+  }
+
+  function buildLuckyProducerSelect() {
+    syncProducerSelects(matchLuckyProducerId());
+  }
+
+  function onProducerSelectChange(sel) {
+    if (!sel) return;
+    var id = sel.value;
+    if (!id || id === 'custom') return;
+    applyLuckyProducer(id);
+  }
+
+  function hideLuckyTip() {
+    if (!luckyTipEl) return;
+    luckyTipEl.classList.remove('open');
+    luckyTipEl.hidden = true;
+  }
+
+  function showLuckyHelp(key, anchorEl) {
+    var info = LUCKY_HELP[key];
+    if (!luckyTipEl || !info) return;
+    if (luckyTipTitleEl) luckyTipTitleEl.textContent = info.title;
+    if (luckyTipBodyEl) luckyTipBodyEl.textContent = info.body;
+    luckyTipEl.hidden = false;
+    luckyTipEl.classList.add('open');
+
+    var pad = 10;
+    var tipW = luckyTipEl.offsetWidth || 280;
+    var tipH = luckyTipEl.offsetHeight || 80;
+    var left = pad;
+    var top = pad + 48;
+    if (anchorEl && anchorEl.getBoundingClientRect) {
+      var r = anchorEl.getBoundingClientRect();
+      left = Math.min(window.innerWidth - tipW - pad, Math.max(pad, r.left));
+      top = r.bottom + 8;
+      if (top + tipH > window.innerHeight - pad) {
+        top = Math.max(pad, r.top - tipH - 8);
+      }
+    }
+    luckyTipEl.style.left = Math.round(left) + 'px';
+    luckyTipEl.style.top = Math.round(top) + 'px';
+  }
+
+  /** Parse slider number; 0 is valid (do not use `|| default`). */
+  function readSliderNumber(el, fallback) {
+    if (!el) return fallback;
+    var raw = parseFloat(el.value);
+    return Number.isFinite(raw) ? raw : fallback;
+  }
+
+  function getLuckyEuclidMaxDens() {
+    return Math.max(0.1, Math.min(0.8, readSliderNumber(luckyEuclidDensEl, 32) / 100));
+  }
+
+  function getLuckyEuclidGoldenBias() {
+    return Math.max(0, Math.min(1, readSliderNumber(luckyEuclidGoldenEl, 25) / 100));
+  }
+
+  function getLuckySkipStrength() {
+    return Math.max(0, Math.min(1, readSliderNumber(luckySkipEl, 27) / 100));
+  }
+
+  function getLuckySoundCount() {
+    var n = Math.round(readSliderNumber(luckySoundsEl, 7));
+    return Math.max(3, Math.min(RINGS.length, n));
+  }
+
+  function getLuckyReuseChance() {
+    return Math.max(0, Math.min(1, readSliderNumber(luckyReuseEl, 94) / 100));
+  }
+
+  function getLuckyConsistency() {
+    return Math.max(0, Math.min(1, readSliderNumber(luckyConsistencyEl, 100) / 100));
+  }
+
+  function getLuckyWordsVol() {
+    return Math.max(0, Math.min(2, readSliderNumber(luckyWordsVolEl, 34) / 100));
+  }
+
+  function getLuckyHumanity() {
+    return Math.max(0, Math.min(1, readSliderNumber(luckyHumanityEl, 27) / 100));
+  }
+
+  function getLuckySpeed() {
+    return Math.max(0, Math.min(1, readSliderNumber(luckySpeedEl, 35) / 100));
+  }
+
+  function syncLuckyRollUi(opts) {
+    opts = opts || {};
+    // Label from raw slider values so 0% never snaps via falsy checks.
+    if (luckyEuclidDensVal) luckyEuclidDensVal.textContent = Math.round(readSliderNumber(luckyEuclidDensEl, 32)) + '%';
+    if (luckyEuclidGoldenVal) luckyEuclidGoldenVal.textContent = Math.round(readSliderNumber(luckyEuclidGoldenEl, 25)) + '%';
+    if (luckySkipVal) luckySkipVal.textContent = Math.round(readSliderNumber(luckySkipEl, 27)) + '%';
+    if (luckySoundsVal) luckySoundsVal.textContent = String(getLuckySoundCount());
+    if (luckyReuseVal) luckyReuseVal.textContent = Math.round(readSliderNumber(luckyReuseEl, 94)) + '%';
+    if (luckyConsistencyVal) luckyConsistencyVal.textContent = Math.round(readSliderNumber(luckyConsistencyEl, 100)) + '%';
+    if (luckyWordsVolVal) luckyWordsVolVal.textContent = Math.round(readSliderNumber(luckyWordsVolEl, 34)) + '%';
+    if (luckyHumanityVal) luckyHumanityVal.textContent = Math.round(readSliderNumber(luckyHumanityEl, 27)) + '%';
+    if (luckySpeedVal) luckySpeedVal.textContent = Math.round(readSliderNumber(luckySpeedEl, 35)) + '%';
+    if (!opts.skipMatch) {
+      syncProducerSelects();
+    } else if (opts.producerId) {
+      syncProducerSelects(opts.producerId);
+    }
+  }
+
+  /** Seeded 0..1 RNG (Mulberry32) for Lucky Roll structure — Skip stays Math.random. */
+  function createStructRng(seed) {
+    var s = (seed >>> 0) || 1;
+    return function () {
+      s = (s + 0x6D2B79F5) | 0;
+      var t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function hashSeed(a, b) {
+    var x = (a ^ Math.imul(b + 0x9E3779B9, 0x85EBCA6B)) >>> 0;
+    x = Math.imul(x ^ (x >>> 16), 0x7FEB352D) >>> 0;
+    x = Math.imul(x ^ (x >>> 15), 0x846CA68B) >>> 0;
+    return (x ^ (x >>> 16)) >>> 0;
   }
 
   function getSwing() {
@@ -1680,6 +1959,26 @@
     return round ? Math.round(r) : parseFloat(r.toFixed(3));
   }
 
+  /** Floor punch keys so randomized kick/snare never whisper. */
+  function enforceCoreDrumEnergyFloor(id, params) {
+    if (!params) return params;
+    function floorKey(key, minVal) {
+      if (params[key] == null || params[key] < minVal) params[key] = minVal;
+    }
+    if (id === 'kick') {
+      floorKey('bodyLevel', 0.68);
+      floorKey('clickNoiseLevel', 0.22);
+      floorKey('clickOscLevel', 0.16);
+      floorKey('decayBase', 0.28);
+    } else if (id === 'snare') {
+      floorKey('noiseLevel', 0.75);
+      floorKey('crackLevel', 0.85);
+      floorKey('toneLevel', 0.4);
+      floorKey('decayN', 0.14);
+    }
+    return params;
+  }
+
   function randomizeMakerSound(id) {
     var ranges = MAKER_RANGES[id];
     var roundKeys = MAKER_ROUND_KEYS[id] || [];
@@ -1703,6 +2002,7 @@
       if (Math.random() > 0.5) params.osc2Type = ['sine', 'triangle', 'sawtooth', 'square'][Math.floor(Math.random() * 4)];
       if (Math.random() > 0.5) params.addSecondPair = Math.random() > 0.5;
     }
+    if (id === 'kick' || id === 'snare') enforceCoreDrumEnergyFloor(id, params);
     makerSoundParams[id] = params;
   }
 
@@ -1788,15 +2088,13 @@
   async function seedWordBuffers() {
     var textIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
     try {
-      await waitForBrowserVoices(1800);
       await ensureAudio();
-      var budget = newNaturalTtsBudget();
       var i;
       for (i = 0; i < textIds.length; i++) {
         var id = textIds[i];
         if (soundBank[id] || !String(sayTexts[id] || '').trim()) continue;
         try {
-          soundBank[id] = await prerenderSpeechToBuffer(sayTexts[id], id, budget);
+          soundBank[id] = await prerenderSpeechToBuffer(sayTexts[id], id);
         } catch (e) {
           console.error(e);
         }
@@ -1816,7 +2114,6 @@
     await ensureAudio();
     var words = WORD_BANK.slice();
     shuffleInPlace(words);
-    var budget = newNaturalTtsBudget();
     var i;
     for (i = 0; i < emptyIds.length; i++) {
       var id = emptyIds[i];
@@ -1824,7 +2121,7 @@
       sayTexts[id] = text;
       getSayVoiceParams(id);
       try {
-        soundBank[id] = await prerenderSpeechToBuffer(text, id, budget);
+        soundBank[id] = await prerenderSpeechToBuffer(text, id);
       } catch (e) {
         console.error(e);
       }
@@ -1879,38 +2176,32 @@
     refreshPaintLabels();
     syncPaintExtras();
     await ensureAudio();
-    var budget = newNaturalTtsBudget();
     for (i = 0; i < textIds.length; i++) {
       var id = textIds[i];
       try {
-        soundBank[id] = await prerenderSpeechToBuffer(sayTexts[id], id, budget);
+        soundBank[id] = await prerenderSpeechToBuffer(sayTexts[id], id);
       } catch (e) {
         console.error(e);
       }
     }
   }
 
-  /** Pick a random TTS voice per word slot and re-render buffers. */
+  /** Reroll SAM voice colour per word slot and re-render buffers. */
   async function randomizeVoices() {
     var textIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
     var i;
     for (i = 0; i < textIds.length; i++) {
       var p = getSayVoiceParams(textIds[i]);
-      if (isBrowserTtsAvailable() && NATURAL_TTS_VOICES.length) {
-        p.engine = 'browser';
-        p.voiceURI = NATURAL_TTS_VOICES[Math.floor(Math.random() * NATURAL_TTS_VOICES.length)];
-      } else {
-        p.engine = 'sam';
-      }
+      p.engine = 'sam';
+      p.voiceSeed = 'sam-' + Math.floor(Math.random() * 1e9);
     }
     await ensureAudio();
-    var budget = newNaturalTtsBudget();
     for (i = 0; i < textIds.length; i++) {
       var id = textIds[i];
       var text = String(sayTexts[id] || '').trim();
       if (!text) continue;
       try {
-        soundBank[id] = await prerenderSpeechToBuffer(text, id, budget);
+        soundBank[id] = await prerenderSpeechToBuffer(text, id);
       } catch (e) {
         console.error(e);
       }
@@ -1922,8 +2213,16 @@
   }
 
   function randomizeBpm() {
-    // Prefer slower tempos; still allows up to 130.
-    var v = lowBiasInt(50, 130, 2.2);
+    // Producer Speed biases the usual tempo band (50–130 BPM).
+    var speed = getLuckySpeed();
+    var minBpm = 50;
+    var maxBpm = 130;
+    var target = minBpm + speed * (maxBpm - minBpm);
+    var spread = 16 + (1 - Math.abs(speed - 0.5) * 2) * 6;
+    var lo = Math.max(minBpm, Math.round(target - spread));
+    var hi = Math.min(maxBpm, Math.round(target + spread));
+    if (hi < lo) hi = lo;
+    var v = lo + Math.floor(Math.random() * (hi - lo + 1));
     bpmEl.value = String(v);
     bpmVal.textContent = String(v);
     updateReverbIR();
@@ -1966,8 +2265,27 @@
 
     if (doPatterns && indices.length) {
       if (!doWords) await ensureWordsForRandom();
+      var baseSeed = (Date.now() ^ ((Math.random() * 0x100000000) >>> 0)) >>> 0;
+      var consistency = getLuckyConsistency();
+      var masterPlan = consistency > 0
+        ? buildLuckyFillPlan(createStructRng(baseSeed))
+        : null;
       indices.forEach(function (idx) {
-        randomFillPattern(layers[idx].pattern);
+        var plan;
+        if (consistency >= 0.999 && masterPlan) {
+          plan = masterPlan;
+        } else if (consistency <= 0.001 || !masterPlan) {
+          plan = buildLuckyFillPlan(createStructRng(hashSeed(baseSeed, idx + 1)));
+        } else {
+          var alt = buildLuckyFillPlan(createStructRng(hashSeed(baseSeed, idx + 1)));
+          plan = blendLuckyFillPlans(
+            masterPlan,
+            alt,
+            consistency,
+            createStructRng(hashSeed(baseSeed, idx + 99))
+          );
+        }
+        applyLuckyFillPlan(layers[idx].pattern, plan);
       });
       // Keep viewLayer pattern pointer in sync, then force a full redraw.
       pattern = layers[viewLayer].pattern;
@@ -2038,89 +2356,28 @@
   }
 
   function defaultSayVoiceParams() {
-    // Prefer Browser TTS (sampled buffer); SAM after retries fail.
     return {
-      engine: 'browser',
-      voiceURI: 'Brian',
+      engine: 'sam',
+      voiceSeed: 'sam-' + Math.floor(Math.random() * 1e9),
       pitchVar: 0,
-      volVar: 0.33
+      volVar: 0
     };
   }
 
   function getSayVoiceParams(sampleId) {
     if (!sayVoiceParams[sampleId]) sayVoiceParams[sampleId] = defaultSayVoiceParams();
     var p = sayVoiceParams[sampleId];
-    if (!p.engine) p.engine = 'browser';
-    if (!p.voiceURI) p.voiceURI = 'Brian';
+    p.engine = 'sam';
+    if (!p.voiceSeed) p.voiceSeed = p.voiceURI || ('sam-' + sampleId);
     return p;
   }
 
-  function isBrowserTtsAvailable() {
-    return typeof fetch === 'function';
-  }
-
-  function newNaturalTtsBudget() {
-    return { left: NATURAL_TTS_MAX_TRIES };
-  }
-
-  function waitForBrowserVoices(ms) {
-    ms = ms || 1500;
-    refreshBrowserVoices();
-    if (browserVoices.length) return Promise.resolve(browserVoices);
-    if (!window.speechSynthesis) return Promise.resolve([]);
-    return new Promise(function (resolve) {
-      var done = false;
-      var finish = function () {
-        if (done) return;
-        done = true;
-        window.speechSynthesis.removeEventListener('voiceschanged', onChange);
-        clearTimeout(tid);
-        resolve(refreshBrowserVoices());
-      };
-      var onChange = function () { finish(); };
-      var tid = setTimeout(finish, ms);
-      window.speechSynthesis.addEventListener('voiceschanged', onChange);
-      refreshBrowserVoices();
-      if (browserVoices.length) finish();
-    });
-  }
-
-  function refreshBrowserVoices() {
-    if (!window.speechSynthesis) {
-      browserVoices = [];
-      return browserVoices;
-    }
-    browserVoices = window.speechSynthesis.getVoices() || [];
-    return browserVoices;
-  }
-
-  function findBrowserVoice(voiceURI) {
-    if (!voiceURI) return null;
-    var list = browserVoices.length ? browserVoices : refreshBrowserVoices();
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].voiceURI === voiceURI) return list[i];
-    }
-    return null;
-  }
-
-  function naturalTtsVoiceForSample(sampleId) {
-    var p = getSayVoiceParams(sampleId);
-    var id = String(p.voiceURI || 'Brian');
-    if (NATURAL_TTS_VOICES.indexOf(id) !== -1) return id;
-    var bv = findBrowserVoice(id);
-    var name = ((bv && bv.name) || id).toLowerCase();
-    if (/female|woman|zira|susan|samantha|hazel|karen|moira|tessa|victoria|salli|amy|emma|ivy|joanna|kendra|kimberly|nicole/.test(name)) {
-      return 'Amy';
-    }
-    return 'Brian';
-  }
-
   function randomSayPlayMods(sampleId) {
-    var p = getSayVoiceParams(sampleId);
-    var volMul = 1 + (Math.random() * 2 - 1) * (p.volVar || 0) * 0.12;
+    // Overall word loudness comes from Lucky Roll → Words (producer panel).
+    var base = getLuckyWordsVol();
     return {
       playbackRate: 1,
-      gain: Math.max(0.85, Math.min(1.15, volMul)),
+      gain: Math.max(0, Math.min(2.4, base)),
       semitones: 0
     };
   }
@@ -2128,8 +2385,6 @@
   function buildTextForm(sampleId) {
     var params = getSayVoiceParams(sampleId);
     var word = String(sayTexts[sampleId] || '').trim();
-    var browserOk = isBrowserTtsAvailable();
-    if (params.engine === 'browser' && !browserOk) params.engine = 'sam';
 
     var hint = document.createElement('div');
     hint.className = 'param';
@@ -2138,112 +2393,32 @@
       '</span></div>';
     soundBody.appendChild(hint);
 
-    var styleWrap = document.createElement('div');
-    styleWrap.className = 'param';
-    var styleRow = document.createElement('div');
-    styleRow.className = 'row';
-    styleRow.innerHTML = '<span>Style</span><span></span>';
-    styleWrap.appendChild(styleRow);
-    var styleSel = document.createElement('select');
-    styleSel.setAttribute('aria-label', 'Voice style');
-    var optBrowser = document.createElement('option');
-    optBrowser.value = 'browser';
-    optBrowser.textContent = browserOk ? 'Browser TTS' : 'Browser TTS (unavailable)';
-    optBrowser.disabled = !browserOk;
-    var optSam = document.createElement('option');
-    optSam.value = 'sam';
-    optSam.textContent = 'SAM (robot)';
-    styleSel.appendChild(optBrowser);
-    styleSel.appendChild(optSam);
-    styleSel.value = params.engine === 'browser' && browserOk ? 'browser' : 'sam';
-    styleWrap.appendChild(styleSel);
-    soundBody.appendChild(styleWrap);
+    var styleHint = document.createElement('div');
+    styleHint.className = 'param';
+    styleHint.innerHTML = '<div class="row"><span>Style</span><span>SAM (robot)</span></div>';
+    soundBody.appendChild(styleHint);
 
-    var voiceWrap = document.createElement('div');
-    voiceWrap.className = 'param';
-    var voiceRow = document.createElement('div');
-    voiceRow.className = 'row';
-    voiceRow.innerHTML = '<span>Voice</span><span></span>';
-    voiceWrap.appendChild(voiceRow);
-    var voiceSel = document.createElement('select');
-    voiceSel.setAttribute('aria-label', 'TTS voice');
-    var currentVoice = naturalTtsVoiceForSample(sampleId);
-    NATURAL_TTS_VOICES.forEach(function (name) {
-      var opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      if (name === currentVoice) opt.selected = true;
-      voiceSel.appendChild(opt);
-    });
-    voiceWrap.appendChild(voiceSel);
-    soundBody.appendChild(voiceWrap);
-
-    function syncStyleUi() {
-      var useBrowser = styleSel.value === 'browser';
-      voiceWrap.style.display = useBrowser ? '' : 'none';
-      voiceSel.disabled = !useBrowser;
-    }
-    syncStyleUi();
-
-    function rerenderWord() {
-      if (word) applySayText(sampleId, word).catch(function (e) { console.error(e); });
-    }
-
-    styleSel.addEventListener('change', function () {
-      if (styleSel.value === 'browser' && !isBrowserTtsAvailable()) {
-        styleSel.value = 'sam';
-        params.engine = 'sam';
-        syncStyleUi();
-        return;
-      }
-      params.engine = styleSel.value;
-      syncStyleUi();
-      rerenderWord();
-    });
-
-    voiceSel.addEventListener('change', function () {
-      params.voiceURI = voiceSel.value;
-      if (params.engine === 'browser') rerenderWord();
-    });
-
-    function addVarSlider(key, label, formatFn) {
-      var wrap = document.createElement('div');
-      wrap.className = 'param';
-      var row = document.createElement('div');
-      row.className = 'row';
-      var lab = document.createElement('span');
-      lab.textContent = label;
-      var val = document.createElement('span');
-      val.textContent = formatFn(params[key] || 0);
-      row.appendChild(lab);
-      row.appendChild(val);
-      var input = document.createElement('input');
-      input.type = 'range';
-      input.min = '0';
-      input.max = '100';
-      input.step = '1';
-      input.value = String(Math.round((params[key] || 0) * 100));
-      input.addEventListener('input', function () {
-        params[key] = parseInt(input.value, 10) / 100;
-        val.textContent = formatFn(params[key]);
-      });
-      wrap.appendChild(row);
-      wrap.appendChild(input);
-      soundBody.appendChild(wrap);
-    }
-
-    addVarSlider('volVar', 'Volume variation', function (n) {
-      return '±' + Math.round(n * 50) + '%';
-    });
+    var volHint = document.createElement('div');
+    volHint.className = 'param';
+    volHint.innerHTML = '<div class="row"><span>Loudness</span><span>Producer → Words</span></div>';
+    soundBody.appendChild(volHint);
 
     var actions = document.createElement('div');
     actions.className = 'param-actions';
+    var rerollBtn = document.createElement('button');
+    rerollBtn.type = 'button';
+    rerollBtn.textContent = 'Reroll voice';
+    rerollBtn.addEventListener('click', function () {
+      params.voiceSeed = 'sam-' + Math.floor(Math.random() * 1e9);
+      if (word) applySayText(sampleId, word).catch(function (e) { console.error(e); });
+    });
     var previewBtn = document.createElement('button');
     previewBtn.type = 'button';
     previewBtn.textContent = 'Listen';
     previewBtn.addEventListener('click', function () {
       listenSample(sampleId).catch(function (e) { console.error(e); });
     });
+    actions.appendChild(rerollBtn);
     actions.appendChild(previewBtn);
     soundBody.appendChild(actions);
   }
@@ -2326,7 +2501,7 @@
         playBuf(sampleId, ctx.currentTime + 0.01);
         return;
       }
-      var buf = await prerenderSpeechToBuffer(text, sampleId, newNaturalTtsBudget());
+      var buf = await prerenderSpeechToBuffer(text, sampleId);
       playRawBuffer(buf, sampleId);
       return;
     }
@@ -2630,7 +2805,8 @@
     clearSegPress();
   }
 
-  function pickRingPreferFewerSegments(availableIds) {
+  function pickRingPreferFewerSegments(availableIds, rand) {
+    rand = rand || Math.random;
     if (!availableIds.length) return null;
     var weights = [];
     var total = 0;
@@ -2646,7 +2822,7 @@
       weights.push(w);
       total += w;
     }
-    var r = Math.random() * total;
+    var r = rand() * total;
     var acc = 0;
     for (i = 0; i < availableIds.length; i++) {
       acc += weights[i];
@@ -2655,96 +2831,124 @@
     return availableIds[availableIds.length - 1];
   }
 
-  function randomFillPattern(pat) {
-    // Always wipe + reshape so prior paint cannot block a new fill.
-    RINGS.forEach(function (ring) {
-      pat[ring.id] = Array(ring.segments).fill(null);
-    });
+  /**
+   * Build structural Lucky Roll plan (rings / sounds / pulses / rot).
+   * Skip is applied later via Math.random so Match=100% wheels can still vary slightly.
+   */
+  function buildLuckyFillPlan(rand) {
+    rand = rand || Math.random;
+    var plan = [];
+    var remaining = RINGS.map(function (r) { return r.id; });
+    var usedOrder = [];
+    var usedSet = {};
+    var soundTarget = getLuckySoundCount();
+    var reuseChance = getLuckyReuseChance();
 
-    var ringIds = RINGS.map(function (r) { return r.id; });
-    var remaining = ringIds.slice();
-    var usedSounds = {};
-
-    // Kick prefers rings with fewer segments; snare/hat take other rings.
-    var coreOrder = CORE_DRUM_IDS.slice();
-    var c;
-    for (c = 0; c < coreOrder.length && remaining.length; c++) {
-      var coreId = coreOrder[c];
-      var coreRingId = (coreId === 'kick')
-        ? pickRingPreferFewerSegments(remaining)
-        : remaining[Math.floor(Math.random() * remaining.length)];
-      var ri = remaining.indexOf(coreRingId);
-      if (ri !== -1) remaining.splice(ri, 1);
-      var coreArr = pat[coreRingId];
-      var n = coreArr.length;
-      applyEuclid(coreArr, coreId, randomPulses(n), Math.floor(Math.random() * n));
-      usedSounds[coreId] = coreRingId;
+    function ringSteps(ringId) {
+      for (var i = 0; i < RINGS.length; i++) {
+        if (RINGS[i].id === ringId) return RINGS[i].segments;
+      }
+      return 16;
     }
 
-    // Extra drums/samples first, then at most 1–2 words (sparse)
-    var wordPool = [];
-    var otherPool = [];
+    function placeOnRing(ringId, soundId) {
+      var steps = ringSteps(ringId);
+      var pulses = (soundId === 'kick' || soundId === 'snare')
+        ? randomPulsesCore(steps, rand)
+        : randomPulses(steps, rand);
+      var rot = Math.floor(rand() * steps);
+      plan.push({ ringId: ringId, soundId: soundId, pulses: pulses, rot: rot });
+      if (!usedSet[soundId]) {
+        usedSet[soundId] = true;
+        usedOrder.push(soundId);
+      }
+    }
+
+    function takeRing(preferFew) {
+      if (!remaining.length) return null;
+      var ringId = preferFew
+        ? pickRingPreferFewerSegments(remaining, rand)
+        : remaining[Math.floor(rand() * remaining.length)];
+      var ri = remaining.indexOf(ringId);
+      if (ri !== -1) remaining.splice(ri, 1);
+      return ringId;
+    }
+
+    var coreOrder = CORE_DRUM_IDS.slice();
+    var c;
+    for (c = 0; c < coreOrder.length && remaining.length && usedOrder.length < soundTarget; c++) {
+      var coreId = coreOrder[c];
+      var coreRingId = takeRing(coreId === 'kick' || coreId === 'snare');
+      if (!coreRingId) break;
+      placeOnRing(coreRingId, coreId);
+    }
+
+    var fillPool = [];
+    var humanity = getLuckyHumanity();
     SAMPLES.forEach(function (s) {
-      if (usedSounds[s.id]) return;
+      if (usedSet[s.id]) return;
       if (s.type === 'text') {
         if (!String(sayTexts[s.id] || '').trim()) return;
-        wordPool.push(s.id);
+        // Humanity: how likely this producer picks word sounds for free slots.
+        if (rand() >= humanity) return;
+        fillPool.push(s.id);
         return;
       }
       if (s.type === 'sample' && !soundBank[s.id]) return;
-      otherPool.push(s.id);
+      fillPool.push(s.id);
     });
-    shuffleInPlace(wordPool);
-    shuffleInPlace(otherPool);
+    shuffleInPlace(fillPool, rand);
 
-    var extraCount = Math.min(otherPool.length, 2 + Math.floor(Math.random() * 4)); // 2..5
-    var e;
-    for (e = 0; e < extraCount; e++) {
-      var soundId = otherPool[e];
-      var ringId = pickRingWithMostEmpty(pat, ringIds);
-      if (!ringId) break;
-      var arr = pat[ringId];
-      var empties = countEmpty(arr);
-      if (empties === 0) break;
-      var pulses = Math.max(1, Math.min(empties, randomPulses(empties)));
-      applyEuclidOnEmpty(arr, soundId, pulses, Math.floor(Math.random() * empties));
-      usedSounds[soundId] = ringId;
+    while (remaining.length && usedOrder.length < soundTarget && fillPool.length) {
+      var freshId = fillPool.shift();
+      var freshRing = takeRing(false);
+      if (!freshRing) break;
+      placeOnRing(freshRing, freshId);
     }
 
-    // Words: only 1–2 total, few hits each (avoid word spam)
-    var wordCount = Math.min(wordPool.length, 1 + Math.floor(Math.random() * 2)); // 1 or 2
-    var w;
-    for (w = 0; w < wordCount; w++) {
-      var wordId = wordPool[w];
-      var wordRing = pickRingWithMostEmpty(pat, ringIds);
-      if (!wordRing) break;
-      var wordArr = pat[wordRing];
-      var wordEmpty = countEmpty(wordArr);
-      if (wordEmpty === 0) break;
-      var wordPulses = Math.min(wordEmpty, 1 + (Math.random() < 0.35 ? 1 : 0)); // 1, sometimes 2
-      applyEuclidOnEmpty(wordArr, wordId, wordPulses, Math.floor(Math.random() * wordEmpty));
-      usedSounds[wordId] = wordRing;
+    while (remaining.length && usedOrder.length) {
+      var leftRing = takeRing(false);
+      if (!leftRing) break;
+      if (rand() >= reuseChance) continue;
+      var reuseId = usedOrder[Math.floor(rand() * usedOrder.length)];
+      placeOnRing(leftRing, reuseId);
+    }
+
+    return plan;
+  }
+
+  function applyLuckyFillPlan(pat, plan) {
+    RINGS.forEach(function (ring) {
+      pat[ring.id] = Array(ring.segments).fill(null);
+    });
+    if (!plan || !plan.length) return;
+    var i;
+    for (i = 0; i < plan.length; i++) {
+      var item = plan[i];
+      if (!pat[item.ringId]) continue;
+      applyEuclid(pat[item.ringId], item.soundId, item.pulses, item.rot);
     }
   }
 
-  function pickRingWithMostEmpty(pat, ringIds) {
-    var bestId = null;
-    var bestEmpty = 0;
-    var candidates = [];
-    var i;
-    for (i = 0; i < ringIds.length; i++) {
-      var id = ringIds[i];
-      var empty = countEmpty(pat[id]);
-      if (empty <= 0) continue;
-      if (empty > bestEmpty) {
-        bestEmpty = empty;
-        candidates = [id];
-      } else if (empty === bestEmpty) {
-        candidates.push(id);
-      }
-    }
-    if (!candidates.length) return null;
-    return candidates[Math.floor(Math.random() * candidates.length)];
+  /** Per-ring blend of master vs alternate plan by Match (consistency). */
+  function blendLuckyFillPlans(master, alt, consistency, rand) {
+    rand = rand || Math.random;
+    var byMaster = {};
+    var byAlt = {};
+    (master || []).forEach(function (p) { byMaster[p.ringId] = p; });
+    (alt || []).forEach(function (p) { byAlt[p.ringId] = p; });
+    var out = [];
+    RINGS.forEach(function (ring) {
+      var keepMaster = rand() < consistency;
+      var pick = keepMaster ? byMaster[ring.id] : byAlt[ring.id];
+      if (!pick) pick = byMaster[ring.id] || byAlt[ring.id];
+      if (pick) out.push(pick);
+    });
+    return out;
+  }
+
+  function randomFillPattern(pat, structRng) {
+    applyLuckyFillPlan(pat, buildLuckyFillPlan(structRng || Math.random));
   }
 
   /** Bjorklund Euclidean rhythm → boolean hits length = steps. */
@@ -2801,49 +3005,108 @@
     return arr.slice(rot).concat(arr.slice(0, rot));
   }
 
-  function countEmpty(arr) {
-    var c = 0;
-    for (var i = 0; i < arr.length; i++) if (!arr[i]) c++;
-    return c;
+  /** φ⁻¹ ≈ 0.618 — Euclidean density + skip approach. */
+  var GOLDEN_CONJ = (Math.sqrt(5) - 1) / 2;
+  var CORE_SKIP_SCALE = 0.15;
+  var CORE_PLAY_GAIN = 1.2;
+
+  function isCoreBackbone(soundId) {
+    return soundId === 'kick' || soundId === 'snare';
   }
 
-  function randomPulses(n) {
+  function coreMinPulses(n) {
     if (n <= 1) return n;
-    var max = Math.max(1, Math.floor(n / 2));
-    return 1 + Math.floor(Math.random() * max);
+    return Math.max(2, Math.round(n / 8));
   }
 
-  /** Place Euclidean hits, overwriting whatever is already on the ring. */
+  function randomPulses(n, rand) {
+    rand = rand || Math.random;
+    if (n <= 1) return n;
+    var maxDens = getLuckyEuclidMaxDens();
+    var max = Math.max(1, Math.floor(n * maxDens));
+    var bias = getLuckyEuclidGoldenBias();
+    var goldenTarget = Math.max(1, Math.min(max, Math.round(n * GOLDEN_CONJ)));
+    if (bias > 0 && rand() < bias) {
+      var spread = Math.max(1, Math.round(max * 0.22));
+      var lo = Math.max(1, goldenTarget - spread);
+      var hi = Math.min(max, goldenTarget + spread);
+      return lo + Math.floor(rand() * (hi - lo + 1));
+    }
+    return 1 + Math.floor(rand() * max);
+  }
+
+  /** Kick/snare pulse counts — denser floor around quarter/backbeat band. */
+  function randomPulsesCore(n, rand) {
+    rand = rand || Math.random;
+    if (n <= 1) return n;
+    var maxDens = getLuckyEuclidMaxDens();
+    var max = Math.max(1, Math.floor(n * maxDens));
+    var minP = Math.min(max, coreMinPulses(n));
+    var loBand = Math.max(minP, Math.round(n / 4));
+    var hiBand = Math.max(loBand, Math.round(n / 3));
+    loBand = Math.min(max, loBand);
+    hiBand = Math.min(max, Math.max(loBand, hiBand));
+    var bias = getLuckyEuclidGoldenBias();
+    var goldenTarget = Math.max(minP, Math.min(max, Math.round(n * GOLDEN_CONJ)));
+    if (bias > 0 && rand() < bias) {
+      var spread = Math.max(1, Math.round((hiBand - loBand + 1) * 0.35));
+      var lo = Math.max(minP, goldenTarget - spread);
+      var hi = Math.min(max, goldenTarget + spread);
+      if (hi < lo) hi = lo;
+      return lo + Math.floor(rand() * (hi - lo + 1));
+    }
+    return loBand + Math.floor(rand() * (hiBand - loBand + 1));
+  }
+
+  /**
+   * Skip probability for each Euclidean hit (Lucky Roll second stage).
+   * Base: density×φ⁻¹ + |density − φ⁻¹|×(1 − φ⁻¹), then × Skip strength.
+   */
+  function euclidSkipChance(pulses, steps) {
+    var strength = getLuckySkipStrength();
+    if (strength <= 0 || steps <= 0 || pulses <= 0) return 0;
+    var ratio = Math.min(1, pulses / steps);
+    var n = ratio * GOLDEN_CONJ + Math.abs(ratio - GOLDEN_CONJ) * (1 - GOLDEN_CONJ);
+    n = Math.max(0.05, Math.min(0.72, n)) * strength;
+    return Math.max(0, Math.min(0.85, n));
+  }
+
+  /** Place Euclidean hits, then randomly drop some (golden/ratio skip stage). */
   function applyEuclid(arr, soundId, pulses, rot) {
     var n = arr.length;
     if (!n || pulses <= 0) return;
     pulses = Math.min(pulses, n);
     var hits = rotateBools(euclidHits(n, pulses), rot || 0);
+    var skipP = euclidSkipChance(pulses, n);
+    var backbone = isCoreBackbone(soundId);
+    if (backbone) skipP *= CORE_SKIP_SCALE;
     var i;
+    var placed = 0;
     for (i = 0; i < n; i++) {
-      if (hits[i]) arr[i] = soundId;
+      if (!hits[i]) continue;
+      if (Math.random() < skipP) continue;
+      arr[i] = soundId;
+      placed += 1;
+    }
+    // Kick/snare: restore Euclidean slots if skip thinned below the floor.
+    if (backbone) {
+      var minKeep = Math.min(pulses, coreMinPulses(n));
+      if (placed < minKeep) {
+        var need = minKeep - placed;
+        for (i = 0; i < n && need > 0; i++) {
+          if (!hits[i] || arr[i] === soundId) continue;
+          arr[i] = soundId;
+          need -= 1;
+        }
+      }
     }
   }
 
-  /** Place `pulses` hits of soundId only on currently empty steps, Euclidean spacing. */
-  function applyEuclidOnEmpty(arr, soundId, pulses, rot) {
-    var emptyIdx = [];
-    var i;
-    for (i = 0; i < arr.length; i++) {
-      if (!arr[i]) emptyIdx.push(i);
-    }
-    if (!emptyIdx.length || pulses <= 0) return;
-    pulses = Math.min(pulses, emptyIdx.length);
-    var hits = rotateBools(euclidHits(emptyIdx.length, pulses), rot || 0);
-    for (i = 0; i < emptyIdx.length; i++) {
-      if (hits[i]) arr[emptyIdx[i]] = soundId;
-    }
-  }
-
-  function shuffleInPlace(list) {
+  function shuffleInPlace(list, rand) {
+    rand = rand || Math.random;
     var i;
     for (i = list.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
+      var j = Math.floor(rand() * (i + 1));
       var tmp = list[i];
       list[i] = list[j];
       list[j] = tmp;
@@ -2937,9 +3200,8 @@
     var seed = sampleId || 'say';
     if (sampleId) {
       var vp = getSayVoiceParams(sampleId);
-      var bv = findBrowserVoice(vp.voiceURI);
-      if (bv && bv.voiceURI) seed = bv.voiceURI;
-      else if (vp.voiceURI) seed = vp.voiceURI;
+      if (vp.voiceSeed) seed = String(vp.voiceSeed);
+      else if (vp.voiceURI) seed = String(vp.voiceURI);
     }
     var h = 2166136261;
     var i;
@@ -2965,45 +3227,8 @@
     return normalizeAudioBufferPeak(floatsToAudioBuffer(floats, 22050), WORD_PEAK_DB);
   }
 
-  async function prerenderSpeechWithBrowser(text, sampleId, budget) {
-    await ensureAudio();
-    if (!budget || budget.left <= 0) throw new Error('TTS try budget empty');
-    var voice = naturalTtsVoiceForSample(sampleId);
-    var q = encodeURIComponent(String(text).slice(0, 20));
-    var url = 'https://api.streamelements.com/kappa/v2/speech?voice=' +
-      encodeURIComponent(voice) + '&text=' + q;
-    var lastErr = null;
-
-    while (budget.left > 0) {
-      budget.left -= 1;
-      try {
-        var res = await fetch(url);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var arr = await res.arrayBuffer();
-        if (!arr || arr.byteLength < 64) throw new Error('Empty audio');
-        var buf = await ctx.decodeAudioData(arr.slice(0));
-        return normalizeAudioBufferPeak(buf, WORD_PEAK_DB);
-      } catch (e) {
-        lastErr = e;
-      }
-    }
-    throw lastErr || new Error('Browser TTS failed');
-  }
-
-  async function prerenderSpeechToBuffer(text, sampleId, budget) {
+  async function prerenderSpeechToBuffer(text, sampleId) {
     if (!text) throw new Error('Empty text');
-    var p = getSayVoiceParams(sampleId);
-    var wantBrowser = (p.engine || 'browser') === 'browser' && isBrowserTtsAvailable();
-    if (wantBrowser) {
-      var b = budget || newNaturalTtsBudget();
-      if (b.left > 0) {
-        try {
-          return await prerenderSpeechWithBrowser(text, sampleId, b);
-        } catch (e) {
-          // Fall through to SAM for this word; budget already spent.
-        }
-      }
-    }
     return prerenderSpeechWithSam(text, sampleId);
   }
 
@@ -3022,7 +3247,7 @@
         return;
       }
       sayTexts[sampleId] = text;
-      soundBank[sampleId] = await prerenderSpeechToBuffer(text, sampleId, newNaturalTtsBudget());
+      soundBank[sampleId] = await prerenderSpeechToBuffer(text, sampleId);
       refreshPaintLabels();
       previewSample(sampleId);
       if (soundSheet.classList.contains('open') && paintSample === sampleId) openSoundEditor();
@@ -3069,6 +3294,8 @@
       var mods = randomSayPlayMods(sampleId);
       src.playbackRate.value = mods.playbackRate;
       g.gain.value = mods.gain;
+    } else if (isCoreBackbone(sampleId)) {
+      g.gain.value = CORE_PLAY_GAIN;
     } else {
       g.gain.value = 1;
     }
@@ -3090,7 +3317,6 @@
   }
 
   function stopAllVoices() {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
     var now = ctx ? ctx.currentTime : 0;
     activeVoices.slice().forEach(function (src) {
       try { src.stop(0); } catch (e) { /* already stopped */ }
@@ -3499,13 +3725,121 @@
     fftCtx2d.globalCompositeOperation = 'source-over';
   }
 
+  function currentDiscAngleDeg() {
+    if (!ctx) return 0;
+    var now = ctx.currentTime;
+    var ev = activeLayerAt(now);
+    var barDur = getBarDur();
+    if (!(barDur > 0)) return 0;
+    var start = ev ? ev.start : barOrigin;
+    var elapsed = (now - start) % barDur;
+    if (elapsed < 0) elapsed += barDur;
+    return -(elapsed / barDur) * 360;
+  }
+
+  function cancelDiscRewind() {
+    discRewind = null;
+  }
+
+  function startDiscRewind(fromDeg) {
+    // Normalize into (-360, 0] — play spins CCW (negative degrees).
+    var ang = fromDeg % 360;
+    if (ang > 0) ang -= 360;
+    if (ang === 0) {
+      discRewind = null;
+      if (discGroupEl) discGroupEl.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
+      return 0;
+    }
+    var durMs = 160 + (Math.abs(ang) / 360) * 320;
+    discRewind = { fromDeg: ang, t0: performance.now(), durMs: durMs };
+    return durMs / 1000;
+  }
+
+  /** Vinyl-style DJ scratch / rewind whoosh. */
+  function playDjSwiftSound(durSec) {
+    if (!ctx || !master) return;
+    durSec = Math.max(0.14, Math.min(0.55, durSec || 0.28));
+    var t0 = ctx.currentTime + 0.02;
+    var sr = ctx.sampleRate;
+    var len = Math.max(1, Math.ceil(sr * durSec));
+    var buf = ctx.createBuffer(1, len, sr);
+    var data = buf.getChannelData(0);
+    var i;
+    for (i = 0; i < len; i++) {
+      var env = 1 - i / len;
+      data[i] = (Math.random() * 2 - 1) * (0.55 + 0.45 * env);
+    }
+
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.setValueAtTime(3.2, t0);
+    src.playbackRate.exponentialRampToValueAtTime(0.28, t0 + durSec);
+
+    var bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 3.2;
+    bp.frequency.setValueAtTime(3200, t0);
+    bp.frequency.exponentialRampToValueAtTime(280, t0 + durSec);
+
+    var tone = ctx.createOscillator();
+    tone.type = 'sawtooth';
+    tone.frequency.setValueAtTime(420, t0);
+    tone.frequency.exponentialRampToValueAtTime(70, t0 + durSec);
+
+    var toneF = ctx.createBiquadFilter();
+    toneF.type = 'lowpass';
+    toneF.frequency.setValueAtTime(1800, t0);
+    toneF.frequency.exponentialRampToValueAtTime(400, t0 + durSec);
+
+    var gNoise = ctx.createGain();
+    var gTone = ctx.createGain();
+    var gOut = ctx.createGain();
+    gNoise.gain.setValueAtTime(0.0001, t0);
+    gNoise.gain.exponentialRampToValueAtTime(0.28, t0 + 0.015);
+    gNoise.gain.exponentialRampToValueAtTime(0.0001, t0 + durSec);
+    gTone.gain.setValueAtTime(0.0001, t0);
+    gTone.gain.exponentialRampToValueAtTime(0.09, t0 + 0.02);
+    gTone.gain.exponentialRampToValueAtTime(0.0001, t0 + durSec);
+    gOut.gain.value = 1;
+
+    src.connect(bp);
+    bp.connect(gNoise);
+    tone.connect(toneF);
+    toneF.connect(gTone);
+    gNoise.connect(gOut);
+    gTone.connect(gOut);
+    gOut.connect(master);
+
+    src.start(t0);
+    src.stop(t0 + durSec + 0.03);
+    tone.start(t0);
+    tone.stop(t0 + durSec + 0.03);
+  }
+
+  function tickDiscRewind() {
+    if (!discGroupEl || !discRewind) return false;
+    var u = (performance.now() - discRewind.t0) / discRewind.durMs;
+    if (u >= 1) {
+      discGroupEl.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
+      discRewind = null;
+      return false;
+    }
+    // Ease-out cubic — fast rewind that settles on home.
+    var ease = 1 - Math.pow(1 - u, 3);
+    var ang = discRewind.fromDeg * (1 - ease);
+    discGroupEl.setAttribute('transform', 'rotate(' + ang + ' ' + CX + ' ' + CY + ')');
+    return true;
+  }
+
   function updatePlayhead() {
     if (!discGroupEl) {
       playheadRaf = requestAnimationFrame(updatePlayhead);
       return;
     }
     if (!playing || !ctx) {
-      discGroupEl.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
+      if (!tickDiscRewind()) {
+        discGroupEl.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
+      }
       if (circleWrap) circleWrap.classList.remove('is-playing');
       clearSegNeedleGlow();
       clearFftRing();
@@ -3605,6 +3939,7 @@
     if (start < 0) return;
     await ensureAudio();
     if (ctx.state === 'suspended') await ctx.resume();
+    cancelDiscRewind();
     playing = true;
     hubBtn.classList.add('playing');
     hubHue = 75;
@@ -3622,6 +3957,7 @@
   }
 
   function pause() {
+    var fromDeg = currentDiscAngleDeg();
     playing = false;
     viewLocked = false;
     hubBtn.classList.remove('playing');
@@ -3635,6 +3971,8 @@
     barEvents = [];
     shownPlayLayer = -1;
     syncLayerUi();
+    var rewindSec = startDiscRewind(fromDeg);
+    if (rewindSec > 0) playDjSwiftSound(rewindSec);
   }
 
   async function togglePlay() {
@@ -3772,12 +4110,11 @@
       }
     });
     if (needMaker) await buildBank();
-    var budget = newNaturalTtsBudget();
     for (var t = 0; t < textIds.length; t++) {
       var tid = textIds[t];
       if (soundBank[tid]) continue;
       var text = String(sayTexts[tid] || '').trim();
-      if (text) soundBank[tid] = await prerenderSpeechToBuffer(text, tid, budget);
+      if (text) soundBank[tid] = await prerenderSpeechToBuffer(text, tid);
     }
   }
 
@@ -3866,6 +4203,8 @@
           var mods = randomSayPlayMods(sampleId);
           src.playbackRate.value = mods.playbackRate;
           g.gain.value = mods.gain;
+        } else if (isCoreBackbone(sampleId)) {
+          g.gain.value = CORE_PLAY_GAIN;
         } else {
           g.gain.value = 1;
         }
@@ -4137,16 +4476,6 @@
     if (e.target === soundSheet) closeSoundEditor();
   });
 
-  refreshBrowserVoices();
-  if (window.speechSynthesis) {
-    window.speechSynthesis.addEventListener('voiceschanged', function () {
-      refreshBrowserVoices();
-      if (!soundSheet.classList.contains('open')) return;
-      var s = sampleById(paintSample);
-      if (s && s.type === 'text') openSoundEditor();
-    });
-  }
-
   (function initSoundBodyDrag() {
     var dragging = false;
     var startY = 0;
@@ -4221,6 +4550,54 @@
     applySpaceSettings();
   });
 
+  function bindLuckySlider(el) {
+    if (!el) return;
+    el.addEventListener('input', function () { syncLuckyRollUi(); });
+  }
+  bindLuckySlider(luckyEuclidDensEl);
+  bindLuckySlider(luckyEuclidGoldenEl);
+  bindLuckySlider(luckySkipEl);
+  bindLuckySlider(luckySoundsEl);
+  bindLuckySlider(luckyReuseEl);
+  bindLuckySlider(luckyConsistencyEl);
+  bindLuckySlider(luckyWordsVolEl);
+  bindLuckySlider(luckyHumanityEl);
+  bindLuckySlider(luckySpeedEl);
+
+  buildLuckyProducerSelect();
+  if (luckyProducerEl) {
+    luckyProducerEl.addEventListener('change', function () {
+      onProducerSelectChange(luckyProducerEl);
+    });
+  }
+  if (randProducerEl) {
+    randProducerEl.addEventListener('change', function () {
+      onProducerSelectChange(randProducerEl);
+    });
+  }
+  document.querySelectorAll('[data-lucky-help]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      showLuckyHelp(btn.getAttribute('data-lucky-help'), btn);
+    });
+  });
+  if (luckyTipCloseEl) {
+    luckyTipCloseEl.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      hideLuckyTip();
+    });
+  }
+  document.addEventListener('click', function (e) {
+    if (!luckyTipEl || !luckyTipEl.classList.contains('open')) return;
+    if (luckyTipEl.contains(e.target)) return;
+    if (e.target && e.target.closest && e.target.closest('[data-lucky-help]')) return;
+    hideLuckyTip();
+  });
+  window.addEventListener('resize', hideLuckyTip);
+  applyLuckyProducer('default', { silent: true });
+
   initLayers();
   setViewLayer(0, { skipPaint: true, fromPlayhead: true });
   viewLocked = false;
@@ -4230,6 +4607,7 @@
   buildSvg();
   syncLayerUi();
   syncPanelMenuHighlight();
+  syncLuckyRollUi({ skipMatch: true });
   humanVal.textContent = Math.round(getHumanize() * 100) + '%';
   reverbVal.textContent = Math.round(getReverb() * 100) + '%';
   stereoVal.textContent = Math.round(getStereo()) + '%';
