@@ -70,7 +70,7 @@
       ...params
     };
     const t = atTime;
-    const v = 0.85;
+    const v = 1.05;
 
     const outNorm = ctx.createGain();
     outNorm.gain.setValueAtTime(1, t);

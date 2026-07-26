@@ -164,6 +164,100 @@
       background: var(--line);
       pointer-events: none;
     }
+    .panel-opt-file {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .panel-opt-file .chev {
+      width: 12px;
+      height: 12px;
+      opacity: 0.55;
+      transition: transform 140ms ease;
+      flex-shrink: 0;
+    }
+    .panel-opt-file.is-open .chev { transform: rotate(180deg); }
+    .panel-file-sub {
+      display: none;
+      gap: 2px;
+      padding: 0 0 2px 8px;
+    }
+    .panel-file-sub.open { display: grid; }
+    .panel-file-sub .panel-opt {
+      font-size: 11px;
+      padding: 7px 10px;
+      color: var(--muted);
+    }
+    .panel-file-sub .panel-opt:hover { color: var(--ink); }
+
+    .code-sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 16px;
+    }
+    .code-sheet.open { display: flex; }
+    .code-panel {
+      width: min(480px, 100%);
+      max-height: min(78vh, 560px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .code-panel h2 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .code-panel p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .code-panel textarea {
+      width: 100%;
+      min-height: 220px;
+      flex: 1;
+      resize: vertical;
+      border: 0;
+      border-radius: 8px;
+      background: #1a1a1f;
+      color: var(--ink);
+      padding: 10px;
+      font: 500 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      box-sizing: border-box;
+      outline: none;
+    }
+    .code-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .code-actions button {
+      height: 32px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 8px;
+      background: #222228;
+      color: var(--ink);
+      cursor: pointer;
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+    }
+    .code-actions button.primary {
+      background: #2f6fed;
+      color: #fff;
+    }
 
     .top {
       width: 100%;
@@ -382,6 +476,125 @@
     }
     .chip select { cursor: pointer; max-width: 148px; }
     .chip select option { background: #1a1a1f; }
+    .paint-chip {
+      opacity: 0.55;
+      outline: 1px solid transparent;
+      gap: 4px;
+      padding-right: 4px;
+      transition: opacity 120ms ease, outline-color 120ms ease, background 120ms ease;
+    }
+    .paint-chip.is-active {
+      opacity: 1;
+      outline-color: rgba(255, 255, 255, 0.22);
+      background: #2a2a32;
+      color: var(--ink);
+    }
+    .paint-chip-lab {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      padding: 0 2px;
+      margin: 0;
+      font: 500 11px/1 "IBM Plex Sans", system-ui, sans-serif;
+      color: var(--muted);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .paint-chip-lab:hover { color: var(--ink); }
+    .paint-chip.is-active .paint-chip-lab { color: var(--ink); }
+    .paint-chip-trigger {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 0;
+      background: #1a1a1f;
+      color: var(--ink);
+      border-radius: 5px;
+      height: 22px;
+      padding: 0 7px 0 5px;
+      cursor: pointer;
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+      max-width: 132px;
+    }
+    .paint-chip-trigger:hover { background: #24242c; }
+    .paint-chip-trigger .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      display: block;
+    }
+    .paint-chip-trigger .lab {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .paint-menu {
+      position: fixed;
+      display: none;
+      min-width: 168px;
+      max-height: min(50vh, 280px);
+      overflow-y: auto;
+      padding: 4px;
+      border-radius: 8px;
+      background: #1a1a1f;
+      border: 1px solid #2e2e36;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      z-index: 220;
+      scrollbar-width: none;
+    }
+    .paint-menu::-webkit-scrollbar { display: none; }
+    .paint-menu.open { display: grid; gap: 2px; }
+    .paint-opt {
+      display: grid;
+      grid-template-columns: 14px 1fr 28px;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 4px 4px 6px;
+      border-radius: 5px;
+      color: var(--ink);
+      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
+    }
+    .paint-opt:hover, .paint-opt.active { background: #2a2a32; }
+    .paint-opt .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: block;
+    }
+    .paint-opt .paint-name {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      padding: 0;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .paint-opt .paint-play {
+      width: 28px;
+      height: 24px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      padding: 0;
+    }
+    .paint-opt .paint-play:hover {
+      color: var(--ink);
+      background: #34343c;
+    }
+    .paint-opt .paint-play svg {
+      width: 12px;
+      height: 12px;
+      display: block;
+    }
     .slide-lab.is-help {
       appearance: none;
       border: 0;
@@ -590,133 +803,6 @@
       cursor: pointer;
     }
     .rand-menu .rand-menu-actions button:hover { color: var(--ink); }
-
-    .paint {
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 0 4px 0 4px;
-      height: 30px;
-      border-radius: 7px;
-      background: #222228;
-    }
-    .bucket-btn {
-      width: 28px;
-      height: 28px;
-      border: 0;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--muted);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      padding: 0;
-      flex-shrink: 0;
-      font: 700 16px/1 "IBM Plex Sans", system-ui, sans-serif;
-      letter-spacing: 0.04em;
-    }
-    .bucket-btn:hover {
-      color: var(--ink);
-      background: #2c2c34;
-    }
-    .paint-trigger {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      border: 0;
-      background: transparent;
-      color: var(--ink);
-      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
-      cursor: pointer;
-      padding: 0 6px 0 0;
-      height: 100%;
-      max-width: 168px;
-    }
-    .paint-trigger .dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 3px;
-      flex-shrink: 0;
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-    .paint-trigger .lab {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .paint-menu {
-      display: none;
-      position: absolute;
-      left: 0;
-      top: calc(100% + 4px);
-      z-index: 80;
-      width: 220px;
-      max-height: min(50vh, 280px);
-      overflow: auto;
-      padding: 4px;
-      border-radius: 8px;
-      background: #1e1e24;
-      border: 1px solid var(--line);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      scrollbar-width: none;
-    }
-    .paint-menu::-webkit-scrollbar { display: none; }
-    .paint-menu.open { display: grid; gap: 2px; }
-    .paint-opt {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: transparent;
-      color: var(--ink);
-      padding: 4px 4px 4px 8px;
-      border-radius: 5px;
-      text-align: left;
-    }
-    .paint-opt:hover, .paint-opt.active { background: #2a2a32; }
-    .paint-opt .dot {
-      width: 16px;
-      height: 16px;
-      border-radius: 3px;
-      flex-shrink: 0;
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-    .paint-opt .paint-name {
-      flex: 1;
-      min-width: 0;
-      border: 0;
-      background: transparent;
-      color: inherit;
-      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
-      text-align: left;
-      padding: 6px 2px;
-      cursor: pointer;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .paint-opt .paint-play {
-      width: 28px;
-      height: 28px;
-      border: 0;
-      border-radius: 5px;
-      background: transparent;
-      color: var(--muted);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      padding: 0;
-      flex-shrink: 0;
-    }
-    .paint-opt .paint-play:hover {
-      color: var(--ink);
-      background: #34343c;
-    }
-    .paint-opt .paint-play svg {
-      width: 12px;
-      height: 12px;
-      display: block;
-    }
 
     .extra {
       display: none;
@@ -1012,6 +1098,15 @@
     .circle-wrap.is-playing #discBg {
       fill: #1c1c22;
     }
+    .circle-wrap.is-playing #ringSvg {
+      touch-action: none;
+    }
+    .circle-wrap.is-playing .seg {
+      cursor: grab;
+    }
+    .circle-wrap.is-playing.is-scratching .seg {
+      cursor: grabbing;
+    }
     .hub {
       position: absolute;
       left: 50%;
@@ -1090,7 +1185,7 @@
       inset: 0;
       z-index: 40;
       display: none;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
       background: rgba(0, 0, 0, 0.45);
       padding: 16px;
@@ -1100,7 +1195,7 @@
     .sound-panel {
       width: min(420px, 100%);
       max-width: 100%;
-      max-height: min(70vh, 520px);
+      max-height: min(78vh, 560px);
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -1284,7 +1379,15 @@
       </button>
       <div class="panel-menu" id="panelMenu" role="menu">
         <button type="button" class="panel-opt" role="menuitem" data-panel="about">About</button>
-        <button type="button" class="panel-opt" role="menuitem" data-action="save-wav" id="saveWavBtn" title="Save this wheel as WAV">Save as WAV</button>
+        <button type="button" class="panel-opt panel-opt-file" id="fileMenuBtn" aria-expanded="false" title="File">
+          <span>File</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="panel-file-sub" id="fileMenuSub" hidden>
+          <button type="button" class="panel-opt" role="menuitem" data-action="save-wav" id="saveWavBtn" title="Save this wheel as WAV">Save as WAV</button>
+          <button type="button" class="panel-opt" role="menuitem" data-action="save-code" title="Save project as code text">Save as code</button>
+          <button type="button" class="panel-opt" role="menuitem" data-action="load-code" title="Load project from code text">Load code</button>
+        </div>
         <div class="panel-opt-sep" aria-hidden="true"></div>
         <button type="button" class="panel-opt" role="menuitem" data-panel="edit">Paint tool</button>
         <button type="button" class="panel-opt" role="menuitem" data-panel="groove">Groove</button>
@@ -1298,23 +1401,26 @@
       <div class="top-bar">
         <div class="tab-panels">
           <div class="tab-panel active" id="tabEdit" data-panel="edit" role="tabpanel">
-            <div class="paint">
-              <button type="button" class="bucket-btn" id="soundDesignBtn" title="Sound design" aria-label="Open sound design">...</button>
-              <button type="button" class="paint-trigger" id="paintTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose sound">
-                <i class="dot" id="paintDot"></i>
-                <span class="lab" id="paintLab">Word 1</span>
+            <div class="chip paint-chip is-active" data-paint-group="word">
+              <button type="button" class="paint-chip-lab" data-paint-edit="word" title="Sound design for word">Word</button>
+              <button type="button" class="paint-chip-trigger" id="paintWordTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose word">
+                <i class="dot" id="paintWordDot"></i>
+                <span class="lab" id="paintWordLab">Word 1</span>
               </button>
-              <div class="paint-menu" id="paintMenu" role="listbox"></div>
             </div>
-            <div class="extra" id="sampleExtra">
-              <button type="button" id="loadSampleBtn">Load</button>
+            <div class="chip paint-chip" data-paint-group="drum">
+              <button type="button" class="paint-chip-lab" data-paint-edit="drum" title="Sound design for drum">Drum</button>
+              <button type="button" class="paint-chip-trigger" id="paintDrumTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose drum">
+                <i class="dot" id="paintDrumDot"></i>
+                <span class="lab" id="paintDrumLab">Kick</span>
+              </button>
             </div>
-            <div class="extra" id="textExtra">
-              <input type="text" id="sayInput" maxlength="20" placeholder="Word…" />
-              <span class="say-actions" id="sayActions" hidden>
-                <button type="button" id="sayApplyBtn">Save</button>
-                <button type="button" id="sayCancelBtn">Cancel</button>
-              </span>
+            <div class="chip paint-chip" data-paint-group="sample">
+              <button type="button" class="paint-chip-lab" data-paint-edit="sample" title="Sound design for sample">Sample</button>
+              <button type="button" class="paint-chip-trigger" id="paintSampleTrigger" aria-haspopup="listbox" aria-expanded="false" title="Choose sample">
+                <i class="dot" id="paintSampleDot"></i>
+                <span class="lab" id="paintSampleLab">Sample 1</span>
+              </button>
             </div>
           </div>
           <div class="tab-panel" id="tabGroove" data-panel="groove" role="tabpanel">
@@ -1496,6 +1602,19 @@
         <button type="button" id="soundClose" aria-label="Close">×</button>
       </div>
       <div class="sound-body" id="soundBody"></div>
+    </div>
+  </div>
+
+  <div class="code-sheet" id="codeSheet" aria-hidden="true">
+    <div class="code-panel" role="dialog" aria-labelledby="codeTitle">
+      <h2 id="codeTitle">Project code</h2>
+      <p id="codeHint">Paste a Circle Beat code below, then Load.</p>
+      <textarea id="codeText" spellcheck="false" autocomplete="off"></textarea>
+      <div class="code-actions">
+        <button type="button" id="codeCancelBtn">Cancel</button>
+        <button type="button" id="codeCopyBtn" hidden>Copy</button>
+        <button type="button" class="primary" id="codeActionBtn">Load</button>
+      </div>
     </div>
   </div>
 

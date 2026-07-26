@@ -91,7 +91,7 @@
   };
   var MAKER_DEFAULTS = {
     kick: { f0: 150, f1: 42, pitchRampTime: 0.055, decayBase: 0.45, bodyLevel: 0.75, bodyPunchHold: 0.012, bodyPunchTime: 0.045, bodyTailLevel: 0.12, bodyHighpassHz: 32, bodyShape: 0.7, clickNoiseLevel: 0.3, clickOscLevel: 0.22, clickFreq: 3800, clickDecay: 0.005, clickFilterQ: 2, fmAmount: 0.35, fmDecay: 0.06, fmFreqMult: 1.6 },
-    snare: { bodyF: 185, bodyFEnd: 95, decayT: 0.16, toneLevel: 0.55, fmAmount: 0.25, fmRatio: 2.2, decayN: 0.22, noiseLevel: 0.95, noiseFilterFreq: 2800, noiseFilterQ: 0.85, noiseFilterType: 'highpass', crackLevel: 1.15, crackDecay: 0.028, crackFreq: 6500, crackQ: 1.1 },
+    snare: { bodyF: 185, bodyFEnd: 95, decayT: 0.18, toneLevel: 0.72, fmAmount: 0.25, fmRatio: 2.2, decayN: 0.26, noiseLevel: 1.2, noiseFilterFreq: 2400, noiseFilterQ: 0.85, noiseFilterType: 'highpass', crackLevel: 1.4, crackDecay: 0.03, crackFreq: 6200, crackQ: 1.1 },
     clap: { decay: 0.08, level: 0.85, attack: 0, bpF: 4000, bpQ: 1.2, crackLevel: 0.2, crackFreq: 4500, crackDecay: 0.008, addTone: false, toneFreq: 280, toneDecay: 0.028, toneLevel: 0.18, clapCount: 4, clapSpacingMs: 10, lastDecayMul: 2.5 },
     hat: { durClosed: 0.05, durOpen: 0.2, hpF: 6500, levelClosed: 0.58, levelOpen: 0.58, noiseType: 'pink', filterType: 'highpass', bpQ: 0.7, addOscillators: false, oscFreq1: 8000, oscFreq2: 10000, oscLevel: 0.2, bodyLevel: 0.3, bodyFreq: 1400, bodyDecay: 0.022, attack: 0, stickLevel: 0.28, stickDecay: 0.006, stickFreq: 5500, resonantLevel: 0.15, resonantFreq: 10000, resonantQ: 4, resonantDecay: 0.025, hatOpen: false },
     tom: { level: 0.6, decay: 0.4, f0: 155, f1: 78, sweepTime: 0.18, bodyOscType: 'sine', attack: 0, stickLevel: 0.2, stickDecay: 0.02, stickFreq: 1800, stickQ: 1.2 },
@@ -100,7 +100,7 @@
   };
   var MAKER_RANGES = {
     kick: { f0: [48, 250], f1: [20, 62], pitchRampTime: [0.012, 0.48], decayBase: [0.1, 1.4], bodyLevel: [0.2, 1.02], bodyPunchHold: [0.003, 0.035], bodyPunchTime: [0.02, 0.14], bodyTailLevel: [0.05, 0.4], bodyHighpassHz: [0, 78], bodyShape: [0, 1], clickNoiseLevel: [0, 0.82], clickOscLevel: [0, 0.68], clickFreq: [600, 7200], clickDecay: [0.0015, 0.036], clickFilterQ: [0.4, 7], fmAmount: [0, 1.25], fmDecay: [0.018, 0.2], fmFreqMult: [0.6, 3] },
-    snare: { bodyF: [75, 500], bodyFEnd: [50, 280], decayT: [0.02, 0.42], toneLevel: [0.08, 0.98], fmAmount: [0, 1.5], fmRatio: [1, 6.5], decayN: [0.03, 0.55], noiseLevel: [0.2, 1.5], noiseFilterFreq: [600, 10000], noiseFilterQ: [0.3, 4], crackLevel: [0, 1.85], crackDecay: [0.01, 0.26], crackFreq: [1800, 14000], crackQ: [0.4, 4.2] },
+    snare: { bodyF: [75, 500], bodyFEnd: [50, 280], decayT: [0.08, 0.42], toneLevel: [0.45, 1.05], fmAmount: [0, 1.5], fmRatio: [1, 6.5], decayN: [0.12, 0.55], noiseLevel: [0.85, 1.55], noiseFilterFreq: [900, 5200], noiseFilterQ: [0.3, 4], crackLevel: [0.9, 1.9], crackDecay: [0.012, 0.26], crackFreq: [2200, 12000], crackQ: [0.4, 4.2] },
     clap: { decay: [0.035, 0.2], level: [0.45, 1.05], attack: [0, 0.011], bpF: [2000, 6000], bpQ: [0.28, 2.4], crackLevel: [0, 0.52], crackFreq: [2200, 7200], crackDecay: [0.004, 0.018], toneFreq: [130, 520], toneDecay: [0.014, 0.052], toneLevel: [0.02, 0.38], clapCount: [1, 8], clapSpacingMs: [6, 26], lastDecayMul: [1.1, 2.9] },
     hat: { durClosed: [0.01, 0.21], durOpen: [0.06, 0.82], levelClosed: [0.08, 0.98], levelOpen: [0.08, 0.98], attack: [0, 0.024], stickLevel: [0, 0.58], stickDecay: [0.002, 0.018], bodyLevel: [0, 0.82], bodyFreq: [300, 5400], bodyDecay: [0.006, 0.115], resonantLevel: [0, 0.48], resonantFreq: [8000, 12000], resonantQ: [2, 9.5], resonantDecay: [0.008, 0.058], hpF: [2000, 15800], bpQ: [0.25, 4.8], oscFreq1: [3600, 14800], oscFreq2: [4600, 17800], oscLevel: [0.04, 0.72] },
     tom: { level: [0.35, 0.95], decay: [0.18, 0.85], f0: [70, 200], f1: [48, 110], sweepTime: [0.06, 0.28], attack: [0, 0.028], stickLevel: [0, 0.48], stickDecay: [0.01, 0.045], stickFreq: [900, 2800], stickQ: [0.6, 2.8] },
@@ -209,6 +209,25 @@
   /** Painted segment hit flashes: key "ring:i" → audio time of hit. */
   var segHitFlashes = {};
 
+  /** DJ platter / vinyl rub — variable-rate music clock while scratching. */
+  var PLATTER_BRAKE_RATE = 0.1;
+  var PLATTER_MAX_RATE = 4.8;
+  var PLATTER_MIN_RATE = -3.6;
+  var PLATTER_DRAG_PX = 5;
+  var playOriginLayer = 0;
+  var transport = {
+    free: false,
+    rate: 1,
+    target: 1,
+    musicTime: 0,
+    lastMusicTime: 0,
+    lastCtx: 0,
+    easing: false
+  };
+  var platterGesture = null;
+  var scrubHitCache = {};
+  var scrubCacheBarDur = 0;
+
   var svg = document.getElementById('ringSvg');
   var hubBtn = document.getElementById('hubBtn');
   var hubIcon = document.getElementById('hubIcon');
@@ -246,11 +265,19 @@
   var layerTrigger = document.getElementById('layerTrigger');
   var layerMenu = document.getElementById('layerMenu');
   var layerLab = document.getElementById('layerLab');
-  var soundDesignBtn = document.getElementById('soundDesignBtn');
-  var paintTrigger = document.getElementById('paintTrigger');
-  var paintMenu = document.getElementById('paintMenu');
-  var paintDot = document.getElementById('paintDot');
-  var paintLab = document.getElementById('paintLab');
+  var paintWordTrigger = document.getElementById('paintWordTrigger');
+  var paintDrumTrigger = document.getElementById('paintDrumTrigger');
+  var paintSampleTrigger = document.getElementById('paintSampleTrigger');
+  var paintWordDot = document.getElementById('paintWordDot');
+  var paintDrumDot = document.getElementById('paintDrumDot');
+  var paintSampleDot = document.getElementById('paintSampleDot');
+  var paintWordLab = document.getElementById('paintWordLab');
+  var paintDrumLab = document.getElementById('paintDrumLab');
+  var paintSampleLab = document.getElementById('paintSampleLab');
+  var paintGroup = 'word';
+  var paintByGroup = { word: 'say1', drum: 'kick', sample: 'sample1' };
+  var paintGroupMenu = null;
+  var paintMenuOpenGroup = null;
   var randBtn = document.getElementById('randBtn');
   var randOptsBtn = document.getElementById('randOptsBtn');
   var randOptsMenu = document.getElementById('randOptsMenu');
@@ -303,13 +330,16 @@
   var soundTitle = document.getElementById('soundTitle');
   var soundDot = document.getElementById('soundDot');
   var soundClose = document.getElementById('soundClose');
-  var sampleExtra = document.getElementById('sampleExtra');
-  var textExtra = document.getElementById('textExtra');
-  var loadSampleBtn = document.getElementById('loadSampleBtn');
-  var sayInput = document.getElementById('sayInput');
-  var sayApplyBtn = document.getElementById('sayApplyBtn');
-  var sayCancelBtn = document.getElementById('sayCancelBtn');
-  var sayActions = document.getElementById('sayActions');
+  var fileMenuBtn = document.getElementById('fileMenuBtn');
+  var fileMenuSub = document.getElementById('fileMenuSub');
+  var codeSheet = document.getElementById('codeSheet');
+  var codeTitle = document.getElementById('codeTitle');
+  var codeHint = document.getElementById('codeHint');
+  var codeText = document.getElementById('codeText');
+  var codeCancelBtn = document.getElementById('codeCancelBtn');
+  var codeCopyBtn = document.getElementById('codeCopyBtn');
+  var codeActionBtn = document.getElementById('codeActionBtn');
+  var codeSheetMode = 'load';
   var wavInput = document.getElementById('wavInput');
   var playheadEl = null;
   var discGroupEl = null;
@@ -336,8 +366,8 @@
   /** Lucky Roll producer presets. */
   var LUCKY_PRODUCERS = [
     { id: 'default', name: 'David', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
-    { id: 'jacky', name: 'Jacky', dens: 39, golden: 56, skip: 95, sounds: 5, reuse: 94, words: 34, humanity: 27, speed: 35 },
-    { id: 'minimal', name: 'Minimal', dens: 28, golden: 55, skip: 45, sounds: 3, reuse: 12, words: 90, humanity: 20, speed: 32 },
+    { id: 'jacky', name: 'Jacky', dens: 39, golden: 36, skip: 95, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
+    { id: 'maisie', name: 'Maisie', dens: 28, golden: 55, skip: 45, sounds: 3, reuse: 12, words: 90, humanity: 20, speed: 32 },
     { id: 'dense', name: 'Dense', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
     { id: 'ghost', name: 'Ghost', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
     { id: 'custom', name: 'Custom', dens: null, golden: null, skip: null, sounds: null, reuse: null, words: null, humanity: null, speed: null }
@@ -1855,11 +1885,72 @@
     return s.label;
   }
 
-  function buildPaintMenu() {
-    paintMenu.innerHTML = '';
-    SAMPLES.forEach(function (s) {
+  function paintGroupForSample(id) {
+    var s = sampleById(id);
+    if (!s) return 'word';
+    if (s.type === 'maker') return 'drum';
+    if (s.type === 'sample') return 'sample';
+    return 'word';
+  }
+
+  function paintTriggerForGroup(group) {
+    if (group === 'drum') return paintDrumTrigger;
+    if (group === 'sample') return paintSampleTrigger;
+    return paintWordTrigger;
+  }
+
+  function paintDotForGroup(group) {
+    if (group === 'drum') return paintDrumDot;
+    if (group === 'sample') return paintSampleDot;
+    return paintWordDot;
+  }
+
+  function paintLabForGroup(group) {
+    if (group === 'drum') return paintDrumLab;
+    if (group === 'sample') return paintSampleLab;
+    return paintWordLab;
+  }
+
+  function samplesForPaintGroup(group) {
+    return SAMPLES.filter(function (s) {
+      if (group === 'drum') return s.type === 'maker';
+      if (group === 'sample') return s.type === 'sample';
+      return s.type === 'text';
+    });
+  }
+
+  function ensurePaintGroupMenu() {
+    if (paintGroupMenu) return paintGroupMenu;
+    paintGroupMenu = document.createElement('div');
+    paintGroupMenu.className = 'paint-menu';
+    paintGroupMenu.setAttribute('role', 'listbox');
+    document.body.appendChild(paintGroupMenu);
+    return paintGroupMenu;
+  }
+
+  function closePaintGroupMenu() {
+    if (!paintGroupMenu) return;
+    paintGroupMenu.classList.remove('open');
+    paintMenuOpenGroup = null;
+    ['word', 'drum', 'sample'].forEach(function (g) {
+      var t = paintTriggerForGroup(g);
+      if (t) t.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function openPaintGroupMenu(group) {
+    setPaintGroup(group);
+    var menu = ensurePaintGroupMenu();
+    var trigger = paintTriggerForGroup(group);
+    if (!trigger) return;
+    if (paintMenuOpenGroup === group && menu.classList.contains('open')) {
+      closePaintGroupMenu();
+      return;
+    }
+    menu.innerHTML = '';
+    samplesForPaintGroup(group).forEach(function (s) {
       var row = document.createElement('div');
-      row.className = 'paint-opt' + (s.id === paintSample ? ' active' : '');
+      row.className = 'paint-opt' + (s.id === paintByGroup[group] ? ' active' : '');
       row.dataset.id = s.id;
       row.setAttribute('role', 'option');
 
@@ -1874,7 +1965,8 @@
       nameBtn.addEventListener('click', function (e) {
         e.stopPropagation();
         setPaintSample(s.id);
-        closePaintMenu();
+        closePaintGroupMenu();
+        listenSample(s.id).catch(function (err) { console.error(err); });
       });
 
       var playBtn = document.createElement('button');
@@ -1891,100 +1983,85 @@
       row.appendChild(dot);
       row.appendChild(nameBtn);
       row.appendChild(playBtn);
-      paintMenu.appendChild(row);
+      menu.appendChild(row);
     });
+
+    menu.classList.add('open');
+    paintMenuOpenGroup = group;
+    trigger.setAttribute('aria-expanded', 'true');
+    var rect = trigger.getBoundingClientRect();
+    var pad = 8;
+    var menuW = Math.max(168, menu.offsetWidth || 168);
+    var left = rect.left;
+    if (left + menuW > window.innerWidth - pad) {
+      left = Math.max(pad, window.innerWidth - pad - menuW);
+    }
+    menu.style.left = Math.round(left) + 'px';
+    menu.style.top = Math.round(rect.bottom + 4) + 'px';
+  }
+
+  function buildPaintMenus() {
+    syncPaintSwatch();
+    syncPaintGroupUi();
   }
 
   function refreshPaintLabels() {
-    Array.prototype.forEach.call(paintMenu.querySelectorAll('.paint-opt'), function (row) {
-      var s = sampleById(row.dataset.id);
-      if (!s) return;
-      var nameBtn = row.querySelector('.paint-name');
-      if (nameBtn) nameBtn.textContent = paintOptionLabel(s);
-      row.classList.toggle('active', s.id === paintSample);
-      applySwatchStyle(row.querySelector('.dot'), s);
-    });
     syncPaintSwatch();
+    syncPaintGroupUi();
+    if (paintMenuOpenGroup) openPaintGroupMenu(paintMenuOpenGroup);
+  }
+
+  function setPaintGroup(group, opts) {
+    opts = opts || {};
+    if (group !== 'word' && group !== 'drum' && group !== 'sample') return;
+    paintGroup = group;
+    var list = samplesForPaintGroup(group);
+    var id = paintByGroup[group] || (list[0] && list[0].id);
+    if (!id) return;
+    paintSample = id;
+    paintByGroup[group] = id;
+    syncPaintGroupUi();
+    syncPaintSwatch();
+    if (opts.preview) {
+      listenSample(id).catch(function (err) { console.error(err); });
+    }
+  }
+
+  function syncPaintGroupUi() {
+    document.querySelectorAll('.paint-chip').forEach(function (chip) {
+      chip.classList.toggle('is-active', chip.getAttribute('data-paint-group') === paintGroup);
+    });
   }
 
   function setPaintSample(id) {
+    var s = sampleById(id);
+    if (!s) return;
+    var group = paintGroupForSample(id);
+    paintByGroup[group] = id;
+    paintGroup = group;
     paintSample = id;
+    syncPaintGroupUi();
     syncPaintSwatch();
-    refreshPaintLabels();
   }
 
   function syncPaintSwatch() {
-    var s = sampleById(paintSample);
-    applySwatchStyle(paintDot, s);
-    paintLab.textContent = s ? paintOptionLabel(s) : '—';
+    ['word', 'drum', 'sample'].forEach(function (group) {
+      var id = paintByGroup[group];
+      var s = sampleById(id);
+      applySwatchStyle(paintDotForGroup(group), s);
+      var lab = paintLabForGroup(group);
+      if (lab) lab.textContent = s ? paintOptionLabel(s) : '—';
+    });
     syncPaintExtras();
   }
 
   function syncPaintExtras() {
-    var s = sampleById(paintSample);
-    sampleExtra.classList.toggle('show', !!(s && s.type === 'sample'));
-    textExtra.classList.toggle('show', !!(s && s.type === 'text'));
-    if (s && s.type === 'text') {
-      sayInput.value = sayTexts[paintSample] || '';
-      syncSayDirty();
-    } else {
-      setSayActionsVisible(false);
-    }
-  }
-
-  function setSayActionsVisible(show) {
-    if (!sayActions) return;
-    if (show) sayActions.removeAttribute('hidden');
-    else sayActions.setAttribute('hidden', '');
-  }
-
-  function syncSayDirty() {
-    var s = sampleById(paintSample);
-    if (!s || s.type !== 'text') {
-      setSayActionsVisible(false);
-      return;
-    }
-    var draft = String(sayInput.value || '').trim().slice(0, 20);
-    var saved = String(sayTexts[paintSample] || '').trim();
-    setSayActionsVisible(draft !== saved);
-  }
-
-  function cancelSayEdit() {
-    sayInput.value = sayTexts[paintSample] || '';
-    syncSayDirty();
+    /* Word / sample editors live in the sound dialog now. */
   }
 
   function truncateName(name, n) {
     var t = String(name || '').replace(/\.[^.]+$/, '');
     return t.length > n ? t.slice(0, n - 1) + '…' : t;
-  }
-
-  function openPaintMenu() {
-    buildPaintMenu();
-    // Pin to viewport so parent overflow / collapse never crops the list
-    if (paintMenu.parentElement !== document.body) {
-      document.body.appendChild(paintMenu);
-    }
-    paintMenu.classList.add('open');
-    paintTrigger.setAttribute('aria-expanded', 'true');
-    var rect = paintTrigger.getBoundingClientRect();
-    var pad = 8;
-    var menuW = paintMenu.offsetWidth || 220;
-    var left = rect.left;
-    if (left + menuW > window.innerWidth - pad) {
-      left = Math.max(pad, window.innerWidth - pad - menuW);
-    }
-    paintMenu.style.position = 'fixed';
-    paintMenu.style.left = Math.round(left) + 'px';
-    paintMenu.style.top = Math.round(rect.bottom + 4) + 'px';
-    paintMenu.style.zIndex = '200';
-  }
-
-  function closePaintMenu() {
-    paintMenu.classList.remove('open');
-    paintTrigger.setAttribute('aria-expanded', 'false');
-    paintMenu.style.left = '';
-    paintMenu.style.top = '';
   }
 
   function randomInRange(lo, hi, round) {
@@ -2004,10 +2081,15 @@
       floorKey('clickOscLevel', 0.16);
       floorKey('decayBase', 0.28);
     } else if (id === 'snare') {
-      floorKey('noiseLevel', 0.75);
-      floorKey('crackLevel', 0.85);
-      floorKey('toneLevel', 0.4);
-      floorKey('decayN', 0.14);
+      // Keep snares punchy — thin random HPF / low crack was making them disappear.
+      floorKey('noiseLevel', 0.95);
+      floorKey('crackLevel', 1.1);
+      floorKey('toneLevel', 0.55);
+      floorKey('decayN', 0.18);
+      floorKey('decayT', 0.1);
+      if (params.noiseFilterType === 'highpass' && params.noiseFilterFreq > 4200) {
+        params.noiseFilterFreq = 4200;
+      }
     }
     return params;
   }
@@ -2407,6 +2489,7 @@
       liveRedrawAt = barStart;
     }
 
+    clearScrubHitCache();
     if (!liveRollHasWork(roll)) livePendingRoll = null;
   }
 
@@ -2669,7 +2752,7 @@
     actions.className = 'param-actions';
     var loadBtn = document.createElement('button');
     loadBtn.type = 'button';
-    loadBtn.textContent = 'Load sample';
+    loadBtn.textContent = 'Load';
     loadBtn.addEventListener('click', function () { triggerLoadSample(sampleId); });
     var previewBtn = document.createElement('button');
     previewBtn.type = 'button';
@@ -2710,44 +2793,57 @@
   }
 
   function buildTextForm(sampleId) {
-    var params = getSayVoiceParams(sampleId);
+    getSayVoiceParams(sampleId);
     var word = String(sayTexts[sampleId] || '').trim();
 
-    var hint = document.createElement('div');
-    hint.className = 'param';
-    hint.innerHTML = '<div class="row"><span>Word</span><span>' +
-      (word ? truncateName(word, 16) : '(set in top bar)') +
-      '</span></div>';
-    soundBody.appendChild(hint);
+    var wordWrap = document.createElement('div');
+    wordWrap.className = 'param';
+    var wordRow = document.createElement('div');
+    wordRow.className = 'row';
+    wordRow.innerHTML = '<span>Word</span><span>max 20</span>';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.maxLength = 20;
+    input.placeholder = 'Type a word…';
+    input.value = word;
+    input.setAttribute('aria-label', 'Word text');
+    wordWrap.appendChild(wordRow);
+    wordWrap.appendChild(input);
+    soundBody.appendChild(wordWrap);
 
     var styleHint = document.createElement('div');
     styleHint.className = 'param';
     styleHint.innerHTML = '<div class="row"><span>Style</span><span>SAM (robot)</span></div>';
     soundBody.appendChild(styleHint);
 
-    var volHint = document.createElement('div');
-    volHint.className = 'param';
-    volHint.innerHTML = '<div class="row"><span>Loudness</span><span>Producer → Words</span></div>';
-    soundBody.appendChild(volHint);
-
     var actions = document.createElement('div');
     actions.className = 'param-actions';
-    var rerollBtn = document.createElement('button');
-    rerollBtn.type = 'button';
-    rerollBtn.textContent = 'Reroll voice';
-    rerollBtn.addEventListener('click', function () {
-      params.voiceSeed = 'sam-' + Math.floor(Math.random() * 1e9);
-      if (word) applySayText(sampleId, word).catch(function (e) { console.error(e); });
-    });
+    var saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.textContent = 'Save';
+    function saveAndClose() {
+      applySayText(sampleId, input.value, { skipReopen: true })
+        .then(function () { closeSoundEditor(); })
+        .catch(function (e) { console.error(e); });
+    }
+    saveBtn.addEventListener('click', saveAndClose);
     var previewBtn = document.createElement('button');
     previewBtn.type = 'button';
     previewBtn.textContent = 'Listen';
     previewBtn.addEventListener('click', function () {
-      listenSample(sampleId).catch(function (e) { console.error(e); });
+      var draft = String(input.value || '').trim();
+      listenSample(sampleId, draft || undefined).catch(function (e) { console.error(e); });
     });
-    actions.appendChild(rerollBtn);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveAndClose();
+      }
+    });
+    actions.appendChild(saveBtn);
     actions.appendChild(previewBtn);
     soundBody.appendChild(actions);
+    setTimeout(function () { try { input.focus(); input.select(); } catch (e) { /* ignore */ } }, 0);
   }
 
   function scheduleRebuild() {
@@ -2844,12 +2940,26 @@
 
     var actions = document.createElement('div');
     actions.className = 'param-actions';
+    var tryBtn = document.createElement('button');
+    tryBtn.type = 'button';
+    tryBtn.textContent = 'Try new sound';
+    tryBtn.title = 'Randomize this drum’s parameters';
+    tryBtn.addEventListener('click', function () {
+      randomizeMakerSound(makerId);
+      buildSoundForm(makerId);
+      ensureAudio().then(function () {
+        return buildBank();
+      }).then(function () {
+        listenSample(paintSample).catch(function (e) { console.error(e); });
+      }).catch(function (e) { console.error(e); });
+    });
     var listenBtn = document.createElement('button');
     listenBtn.type = 'button';
     listenBtn.textContent = 'Listen';
     listenBtn.addEventListener('click', function () {
       listenSample(paintSample).catch(function (e) { console.error(e); });
     });
+    actions.appendChild(tryBtn);
     actions.appendChild(listenBtn);
     soundBody.appendChild(actions);
 
@@ -2989,6 +3099,7 @@
         path.dataset.seg = String(i);
         path.setAttribute('fill', segFill(pat[ring.id][i]));
         path.addEventListener('pointerdown', onSegPointerDown);
+        path.addEventListener('pointermove', onSegPointerMove);
         path.addEventListener('pointerup', onSegPointerUp);
         path.addEventListener('pointercancel', onSegPointerCancel);
         discGroupEl.appendChild(path);
@@ -3092,10 +3203,29 @@
       startY: e.clientY,
       existing: pattern[ringId][i],
       held: false,
+      moved: false,
+      scratched: false,
       el: e.currentTarget,
       timer: null
     };
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+
+    if (playing) {
+      // Hold or drag engages the platter; a quick tap still paints.
+      segPress.timer = setTimeout(function () {
+        if (!segPress || segPress.moved) return;
+        segPress.held = true;
+        beginPlatterGesture({
+          pointerId: segPress.pointerId,
+          clientX: segPress.startX,
+          clientY: segPress.startY
+        });
+        if (platterGesture) platterGesture.mode = 'brake';
+        transport.target = PLATTER_BRAKE_RATE;
+      }, 160);
+      return;
+    }
+
     segPress.timer = setTimeout(function () {
       if (!segPress) return;
       segPress.held = true;
@@ -3106,30 +3236,59 @@
     }, HOLD_MS);
   }
 
+  function onSegPointerMove(e) {
+    if (!segPress || e.pointerId !== segPress.pointerId) return;
+    var dist = Math.hypot(e.clientX - segPress.startX, e.clientY - segPress.startY);
+    if (playing) {
+      if (!platterGesture && dist > PLATTER_DRAG_PX) {
+        if (segPress.timer) {
+          clearTimeout(segPress.timer);
+          segPress.timer = null;
+        }
+        beginPlatterGesture(e);
+        segPress.moved = true;
+        segPress.scratched = true;
+      }
+      if (platterGesture) {
+        updatePlatterGesture(e);
+        if (platterGesture.dragged) {
+          segPress.moved = true;
+          segPress.scratched = true;
+        }
+      }
+      return;
+    }
+    if (dist > 14) segPress.moved = true;
+  }
+
   function onSegPointerUp(e) {
+    if (playing) endPlatterGesture(e);
     if (!segPress || e.pointerId !== segPress.pointerId) return;
     var press = segPress;
     if (press.timer) clearTimeout(press.timer);
     segPress = null;
     try { press.el.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
 
-    var moved = Math.hypot(e.clientX - press.startX, e.clientY - press.startY) > 14;
-    if (press.held || moved) return;
+    var moved = press.moved || Math.hypot(e.clientX - press.startX, e.clientY - press.startY) > 14;
+    if (press.held || moved || press.scratched) return;
     if (!layers[viewLayer].enabled) return;
-
+    // While playing, quick tap still paints; hold/drag is platter.
     var ringId = press.ringId;
     var i = press.i;
     if (pattern[ringId][i] === paintSample) {
       pattern[ringId][i] = null;
       paintSeg(ringId, i);
+      clearScrubHitCache();
       return;
     }
     pattern[ringId][i] = paintSample;
     paintSeg(ringId, i);
+    clearScrubHitCache();
     listenSample(paintSample).catch(function (err) { console.error(err); });
   }
 
   function onSegPointerCancel(e) {
+    if (playing) endPlatterGesture(e);
     if (!segPress || e.pointerId !== segPress.pointerId) return;
     clearSegPress();
   }
@@ -3257,6 +3416,7 @@
       if (!pat[item.ringId]) continue;
       applyEuclid(pat[item.ringId], item.soundId, item.pulses, item.rot);
     }
+    clearScrubHitCache();
   }
 
   /** Per-ring blend of master vs alternate plan by Match (consistency). */
@@ -3338,9 +3498,17 @@
   var GOLDEN_CONJ = (Math.sqrt(5) - 1) / 2;
   var CORE_SKIP_SCALE = 0.15;
   var CORE_PLAY_GAIN = 1.2;
+  /** Extra lift so snare reads clearly against words / hats. */
+  var SNARE_PLAY_GAIN = 1.65;
 
   function isCoreBackbone(soundId) {
     return soundId === 'kick' || soundId === 'snare';
+  }
+
+  function playGainForSample(sampleId) {
+    if (sampleId === 'snare') return SNARE_PLAY_GAIN;
+    if (isCoreBackbone(sampleId)) return CORE_PLAY_GAIN;
+    return 1;
   }
 
   function coreMinPulses(n) {
@@ -3561,7 +3729,8 @@
     return prerenderSpeechWithSam(text, sampleId);
   }
 
-  async function applySayText(sampleId, raw) {
+  async function applySayText(sampleId, raw, opts) {
+    opts = opts || {};
     if (sayBusy) return;
     var text = String(raw || '').trim().slice(0, 20);
     sayBusy = true;
@@ -3571,18 +3740,17 @@
         sayTexts[sampleId] = '';
         delete soundBank[sampleId];
         refreshPaintLabels();
-        if (soundSheet.classList.contains('open') && paintSample === sampleId) openSoundEditor();
-        syncSayDirty();
+        if (!opts.skipReopen && soundSheet.classList.contains('open') && paintSample === sampleId) {
+          openSoundEditor();
+        }
         return;
       }
       sayTexts[sampleId] = text;
       soundBank[sampleId] = await prerenderSpeechToBuffer(text, sampleId);
       refreshPaintLabels();
       previewSample(sampleId);
-      if (soundSheet.classList.contains('open') && paintSample === sampleId) openSoundEditor();
-      if (sampleId === paintSample) {
-        sayInput.value = text;
-        syncSayDirty();
+      if (!opts.skipReopen && soundSheet.classList.contains('open') && paintSample === sampleId) {
+        openSoundEditor();
       }
     } finally {
       sayBusy = false;
@@ -3611,7 +3779,311 @@
     segHitFlashes[ringId + ':' + segIdx] = when;
   }
 
-  function playBuf(sampleId, when) {
+  function positiveMod(a, b) {
+    if (!(b > 0)) return 0;
+    return ((a % b) + b) % b;
+  }
+
+  function clearScrubHitCache() {
+    scrubHitCache = {};
+    scrubCacheBarDur = 0;
+  }
+
+  function layerForBarIndex(barIndex) {
+    var seq = [];
+    var cur = resolveStart(playOriginLayer);
+    if (cur < 0) return 0;
+    var guard = 0;
+    do {
+      seq.push(cur);
+      cur = nextEnabled(cur);
+      guard += 1;
+    } while (cur >= 0 && cur !== seq[0] && guard < MAX_CIRCLES);
+    if (!seq.length) return 0;
+    var n = seq.length;
+    var idx = ((barIndex % n) + n) % n;
+    return seq[idx];
+  }
+
+  function buildBarHits(layerIdx, barMusicStart, barDur) {
+    var pat = layers[layerIdx] && layers[layerIdx].pattern;
+    var hits = [];
+    if (!pat) return hits;
+    var human = getHumanize();
+    var swing = getSwing();
+    var swingDiv = getSwingNoteDiv();
+    var swingUnitDur = barDur / swingDiv;
+    var swingMaxDelay = swingUnitDur * SWING_MAX_DELAY_FRAC;
+    RINGS.forEach(function (ring) {
+      var steps = pat[ring.id];
+      if (!steps) return;
+      var n = ring.segments;
+      var stepDur = barDur / n;
+      var humanMaxDelay = stepDur * MAX_DELAY_FRAC;
+      for (var i = 0; i < n; i++) {
+        if (!steps[i]) continue;
+        var offset = 0;
+        if (swing > 0 && stepIsSwingOffbeat(i, n, swingDiv)) offset += swing * swingMaxDelay;
+        if (human > 0) offset += human * humanMaxDelay * pseudo01(ring.id, i, layerIdx + 1);
+        var cap = swingMaxDelay + humanMaxDelay;
+        if (offset > cap) offset = cap;
+        hits.push({
+          mt: barMusicStart + i * stepDur + offset,
+          sampleId: steps[i],
+          ringId: ring.id,
+          seg: i,
+          layer: layerIdx
+        });
+      }
+    });
+    hits.sort(function (a, b) { return a.mt - b.mt; });
+    return hits;
+  }
+
+  function hitsForBarIndex(barIndex) {
+    var barDur = getBarDur();
+    if (scrubCacheBarDur && Math.abs(scrubCacheBarDur - barDur) > 1e-6) clearScrubHitCache();
+    scrubCacheBarDur = barDur;
+    var key = String(barIndex);
+    if (!scrubHitCache[key]) {
+      var layer = layerForBarIndex(barIndex);
+      scrubHitCache[key] = buildBarHits(layer, barIndex * barDur, barDur);
+      var keys = Object.keys(scrubHitCache);
+      if (keys.length > 24) {
+        keys.sort(function (a, b) { return (+a) - (+b); });
+        var i;
+        for (i = 0; i < keys.length - 16; i++) delete scrubHitCache[keys[i]];
+      }
+    }
+    return scrubHitCache[key];
+  }
+
+  function triggerHitsBetween(fromMt, toMt) {
+    if (!ctx || fromMt === toMt) return;
+    var barDur = getBarDur();
+    if (!(barDur > 0)) return;
+    var lo = Math.min(fromMt, toMt);
+    var hi = Math.max(fromMt, toMt);
+    var b0 = Math.floor(lo / barDur) - 1;
+    var b1 = Math.floor(hi / barDur) + 1;
+    var rateAbs = Math.max(0.08, Math.min(3.5, Math.abs(transport.rate) || 1));
+    var b;
+    for (b = b0; b <= b1; b++) {
+      var hits = hitsForBarIndex(b);
+      var i;
+      for (i = 0; i < hits.length; i++) {
+        var h = hits[i];
+        var crossed = toMt > fromMt
+          ? (h.mt > fromMt && h.mt <= toMt)
+          : (h.mt < fromMt && h.mt >= toMt);
+        if (!crossed) continue;
+        playBuf(h.sampleId, ctx.currentTime + 0.005, { rate: rateAbs });
+        noteSegHit(h.ringId, h.seg, ctx.currentTime);
+      }
+    }
+  }
+
+  function stopScheduler() {
+    if (scheduleTimer) {
+      clearTimeout(scheduleTimer);
+      scheduleTimer = 0;
+    }
+  }
+
+  function pointerAngleAt(clientX, clientY) {
+    var rect = svg.getBoundingClientRect();
+    var cx = rect.left + rect.width * 0.5;
+    var cy = rect.top + rect.height * 0.5;
+    return Math.atan2(clientY - cy, clientX - cx);
+  }
+
+  function enterFreeTransport() {
+    if (!playing || !ctx || transport.free) return;
+    var now = ctx.currentTime;
+    // Normal play runs at rate 1, so music time matches wall clock since barOrigin.
+    transport.musicTime = Math.max(0, now - barOrigin);
+    transport.lastMusicTime = transport.musicTime;
+    transport.lastCtx = now;
+    transport.rate = 1;
+    transport.target = 1;
+    transport.free = true;
+    transport.easing = false;
+    stopScheduler();
+    stopAllVoices();
+    clearScrubHitCache();
+    if (circleWrap) circleWrap.classList.add('is-scratching');
+  }
+
+  function handOffFreeTransport() {
+    if (!transport.free || !ctx || !playing) return;
+    var barDur = getBarDur();
+    if (!(barDur > 0)) return;
+    var mt = transport.musicTime;
+    var phase = positiveMod(mt, barDur);
+    var barIndex = Math.floor(mt / barDur);
+    if (mt < 0 && phase > 1e-9) barIndex -= 1;
+    var layer = layerForBarIndex(barIndex);
+    var now = ctx.currentTime;
+    var barStartCtx = now - phase;
+    barOrigin = barStartCtx - barIndex * barDur;
+    barEvents = [{ start: barStartCtx, layer: layer }];
+    playCursor = layer;
+    shownPlayLayer = layer;
+    if (!viewLocked) setViewLayer(layer, { fromPlayhead: true });
+
+    // Schedule remaining hits in this bar, then resume lookahead.
+    var hits = hitsForBarIndex(barIndex);
+    var i;
+    for (i = 0; i < hits.length; i++) {
+      if (hits[i].mt + 1e-4 < mt) continue;
+      var when = barStartCtx + (hits[i].mt - barIndex * barDur);
+      if (when < now - 0.01) continue;
+      playBuf(hits[i].sampleId, when);
+      noteSegHit(hits[i].ringId, hits[i].seg, when);
+    }
+    nextBarTime = barStartCtx + barDur;
+    var nxt = nextEnabled(layer);
+    playCursor = nxt < 0 ? layer : nxt;
+    transport.free = false;
+    transport.rate = 1;
+    transport.target = 1;
+    transport.easing = false;
+    if (circleWrap) circleWrap.classList.remove('is-scratching');
+    scheduler();
+  }
+
+  function tickFreeTransport(now) {
+    if (!transport.free || !ctx) return getTransportPhase(now);
+    var dt = Math.max(0, Math.min(0.08, now - (transport.lastCtx || now)));
+    transport.lastCtx = now;
+
+    if (platterGesture && platterGesture.mode === 'drag') {
+      // Drag owns the playhead (updated in pointermove). Don't apply hold-brake.
+      transport.lastCtx = now;
+      var barDurDrag = getBarDur();
+      var phaseDrag = barDurDrag > 0 ? positiveMod(transport.musicTime, barDurDrag) / barDurDrag : 0;
+      var barIndexDrag = barDurDrag > 0 ? Math.floor(transport.musicTime / barDurDrag) : 0;
+      if (transport.musicTime < 0 && positiveMod(transport.musicTime, barDurDrag) > 1e-9) barIndexDrag -= 1;
+      var layerDrag = layerForBarIndex(barIndexDrag);
+      if (layerDrag !== shownPlayLayer) {
+        shownPlayLayer = layerDrag;
+        if (!viewLocked) setViewLayer(layerDrag, { fromPlayhead: true });
+      }
+      return phaseDrag;
+    } else if (platterGesture) {
+      // Hold only (no drag yet) — slow the platter.
+      transport.target = PLATTER_BRAKE_RATE;
+      transport.rate += (transport.target - transport.rate) * Math.min(1, dt * 10);
+    } else {
+      // Released — snap back to normal quickly, then hand off to scheduler.
+      transport.target = 1;
+      transport.easing = true;
+      transport.rate += (transport.target - transport.rate) * Math.min(1, dt * 14);
+      if (Math.abs(transport.rate - 1) < 0.08) {
+        transport.rate = 1;
+        transport.lastMusicTime = transport.musicTime;
+        handOffFreeTransport();
+        return getTransportPhase(now);
+      }
+    }
+
+    transport.lastMusicTime = transport.musicTime;
+    transport.musicTime += dt * transport.rate;
+    triggerHitsBetween(transport.lastMusicTime, transport.musicTime);
+
+    var barDur = getBarDur();
+    var phase = barDur > 0 ? positiveMod(transport.musicTime, barDur) / barDur : 0;
+    var barIndex = barDur > 0 ? Math.floor(transport.musicTime / barDur) : 0;
+    if (transport.musicTime < 0 && positiveMod(transport.musicTime, barDur) > 1e-9) barIndex -= 1;
+    var layer = layerForBarIndex(barIndex);
+    if (layer !== shownPlayLayer) {
+      shownPlayLayer = layer;
+      if (!viewLocked) setViewLayer(layer, { fromPlayhead: true });
+    }
+    return phase;
+  }
+
+  function getTransportPhase(now) {
+    if (transport.free) {
+      var barDur = getBarDur();
+      return barDur > 0 ? positiveMod(transport.musicTime, barDur) / barDur : 0;
+    }
+    var ev = activeLayerAt(now);
+    var barDurN = getBarDur();
+    var start = ev ? ev.start : barOrigin;
+    var elapsed = barDurN > 0 ? positiveMod(now - start, barDurN) : 0;
+    return barDurN > 0 ? elapsed / barDurN : 0;
+  }
+
+  function beginPlatterGesture(e) {
+    if (!playing || !ctx) return;
+    enterFreeTransport();
+    var ang = pointerAngleAt(e.clientX, e.clientY);
+    platterGesture = {
+      pointerId: e.pointerId,
+      mode: 'hold',
+      angle: ang,
+      lastAngle: ang,
+      lastT: performance.now(),
+      startX: e.clientX,
+      startY: e.clientY,
+      dragged: false
+    };
+    transport.target = PLATTER_BRAKE_RATE;
+    if (circleWrap) circleWrap.classList.add('is-scratching');
+  }
+
+  function updatePlatterGesture(e) {
+    if (!platterGesture || e.pointerId !== platterGesture.pointerId) return;
+    if (!transport.free) enterFreeTransport();
+    var now = performance.now();
+    var ang = pointerAngleAt(e.clientX, e.clientY);
+    var dist = Math.hypot(e.clientX - platterGesture.startX, e.clientY - platterGesture.startY);
+    var dAng = ang - platterGesture.lastAngle;
+    while (dAng > Math.PI) dAng -= Math.PI * 2;
+    while (dAng < -Math.PI) dAng += Math.PI * 2;
+    var dt = Math.max(0.006, (now - platterGesture.lastT) / 1000);
+
+    // Any real rub overrides hold-brake immediately for a responsive vinyl feel.
+    if (dist > PLATTER_DRAG_PX || Math.abs(dAng) > 0.018 || platterGesture.mode === 'drag') {
+      if (Math.abs(dAng) > 0.0005 || dist > PLATTER_DRAG_PX) {
+        platterGesture.dragged = true;
+        platterGesture.mode = 'drag';
+        var barDur = getBarDur();
+        var naturalOmega = barDur > 0 ? (Math.PI * 2) / barDur : 1;
+        var omega = dAng / dt; // rad/s, CW+
+        var speedNorm = naturalOmega > 0 ? Math.abs(omega) / naturalOmega : 0;
+        // Faster / farther drag → more extreme scrub (nonlinear).
+        var speedGain = 1 + Math.min(3.2, Math.pow(speedNorm, 1.15) * 1.15);
+        var distGain = 1 + Math.min(2.2, dist / 110);
+        var scrubGain = speedGain * distGain;
+        var fromMt = transport.musicTime;
+        if (barDur > 0) {
+          transport.musicTime -= (dAng / (Math.PI * 2)) * barDur * scrubGain;
+          triggerHitsBetween(fromMt, transport.musicTime);
+          transport.lastMusicTime = transport.musicTime;
+        }
+        var rate = (-omega / naturalOmega) * speedGain;
+        transport.rate = Math.max(PLATTER_MIN_RATE, Math.min(PLATTER_MAX_RATE, rate));
+        transport.target = transport.rate;
+      }
+    }
+
+    platterGesture.lastAngle = ang;
+    platterGesture.lastT = now;
+    platterGesture.angle = ang;
+  }
+
+  function endPlatterGesture(e) {
+    if (!platterGesture) return;
+    if (e && e.pointerId !== platterGesture.pointerId) return;
+    platterGesture = null;
+    transport.target = 1;
+    transport.easing = true;
+  }
+
+  function playBuf(sampleId, when, opts) {
+    opts = opts || {};
     var buf = soundBank[sampleId];
     if (!buf || !ctx || !master) return;
     if (typeof buf.getChannelData !== 'function') return;
@@ -3619,14 +4091,14 @@
     src.buffer = buf;
     var g = ctx.createGain();
     var s = sampleById(sampleId);
+    var rateMul = opts.rate != null ? opts.rate : 1;
     if (s && s.type === 'text') {
       var mods = randomSayPlayMods(sampleId);
-      src.playbackRate.value = mods.playbackRate;
+      src.playbackRate.value = mods.playbackRate * rateMul;
       g.gain.value = mods.gain;
-    } else if (isCoreBackbone(sampleId)) {
-      g.gain.value = CORE_PLAY_GAIN;
     } else {
-      g.gain.value = 1;
+      src.playbackRate.value = rateMul;
+      g.gain.value = playGainForSample(sampleId);
     }
     src.connect(g);
     g.connect(busForSample(sampleId));
@@ -3701,7 +4173,7 @@
   }
 
   function scheduler() {
-    if (!playing || !ctx) return;
+    if (!playing || !ctx || transport.free) return;
     var end = ctx.currentTime + LOOK_AHEAD;
     while (nextBarTime < end) {
       if (!layers[playCursor] || !layers[playCursor].enabled) {
@@ -4062,14 +4534,7 @@
 
   function currentDiscAngleDeg() {
     if (!ctx) return 0;
-    var now = ctx.currentTime;
-    var ev = activeLayerAt(now);
-    var barDur = getBarDur();
-    if (!(barDur > 0)) return 0;
-    var start = ev ? ev.start : barOrigin;
-    var elapsed = (now - start) % barDur;
-    if (elapsed < 0) elapsed += barDur;
-    return -(elapsed / barDur) * 360;
+    return -getTransportPhase(ctx.currentTime) * 360;
   }
 
   function cancelDiscRewind() {
@@ -4195,17 +4660,19 @@
 
     var now = ctx.currentTime;
     tickLiveRedraw(now);
-    var ev = activeLayerAt(now);
-    if (ev && ev.layer !== shownPlayLayer) {
-      shownPlayLayer = ev.layer;
-      if (!viewLocked) setViewLayer(ev.layer, { fromPlayhead: true });
+    var phase;
+    if (transport.free) {
+      phase = tickFreeTransport(now);
+    } else {
+      transport.musicTime = Math.max(0, now - barOrigin);
+      transport.lastMusicTime = transport.musicTime;
+      var ev = activeLayerAt(now);
+      if (ev && ev.layer !== shownPlayLayer) {
+        shownPlayLayer = ev.layer;
+        if (!viewLocked) setViewLayer(ev.layer, { fromPlayhead: true });
+      }
+      phase = getTransportPhase(now);
     }
-
-    var barDur = getBarDur();
-    var start = ev ? ev.start : barOrigin;
-    var elapsed = (now - start) % barDur;
-    if (elapsed < 0) elapsed += barDur;
-    var phase = elapsed / barDur;
     // Disc spins under a fixed needle (CCW so current beat stays at 12 o'clock).
     discGroupEl.setAttribute('transform', 'rotate(' + (-phase * 360) + ' ' + CX + ' ' + CY + ')');
 
@@ -4283,9 +4750,19 @@
     hubHueLastT = 0;
     hubIcon.innerHTML = ICON_PAUSE;
     playCursor = start;
+    playOriginLayer = start;
     barEvents = [];
     shownPlayLayer = -1;
     viewLocked = false;
+    platterGesture = null;
+    transport.free = false;
+    transport.rate = 1;
+    transport.target = 1;
+    transport.musicTime = 0;
+    transport.lastMusicTime = 0;
+    transport.easing = false;
+    clearScrubHitCache();
+    if (circleWrap) circleWrap.classList.remove('is-scratching');
     var t = ctx.currentTime + 0.06;
     barOrigin = t;
     nextBarTime = t;
@@ -4300,15 +4777,19 @@
     hubBtn.classList.remove('playing');
     clearHubStrikeGlow();
     hubIcon.innerHTML = ICON_PLAY;
-    if (scheduleTimer) {
-      clearTimeout(scheduleTimer);
-      scheduleTimer = 0;
-    }
+    platterGesture = null;
+    transport.free = false;
+    transport.rate = 1;
+    transport.target = 1;
+    transport.easing = false;
+    if (circleWrap) circleWrap.classList.remove('is-scratching');
+    stopScheduler();
     // Apply any queued Live roll so the stopped view matches what was coming next.
     flushLivePendingRoll();
     stopAllVoices();
     barEvents = [];
     shownPlayLayer = -1;
+    clearScrubHitCache();
     syncLayerUi();
     var rewindSec = startDiscRewind(fromDeg);
     if (rewindSec > 0) playDjSwiftSound(rewindSec);
@@ -4430,6 +4911,374 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
   }
 
+  function escapeCodeToken(s) {
+    return String(s || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/\|/g, '\\|')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '');
+  }
+
+  function unescapeCodeToken(s) {
+    var out = '';
+    var i;
+    for (i = 0; i < s.length; i++) {
+      if (s[i] === '\\' && i + 1 < s.length) {
+        var n = s[i + 1];
+        if (n === 'n') { out += '\n'; i += 1; continue; }
+        if (n === '|' || n === '\\') { out += n; i += 1; continue; }
+      }
+      out += s[i];
+    }
+    return out;
+  }
+
+  /** Serialize full project to pasteable Circle Beat code. */
+  function encodeProjectCode() {
+    var lines = [];
+    lines.push('CIRCLEBEAT 1');
+    lines.push('BPM ' + Math.round(getBpm()));
+    lines.push('HUMAN ' + Math.round(getHumanize() * 100));
+    lines.push('SWING ' + Math.round(getSwing() * 100));
+    lines.push('SWINGTO ' + getSwingNoteDiv());
+    lines.push('REVERB ' + Math.round(getReverb() * 100));
+    lines.push('REVDUR ' + Math.round((parseFloat(reverbDurEl.value) || 50)));
+    lines.push('STEREO ' + Math.round(getStereo()));
+    lines.push('VIEW ' + viewLayer);
+    lines.push('PAINT ' + paintSample);
+    lines.push(
+      'LUCKY ' +
+      Math.round(readSliderNumber(luckyEuclidDensEl, 32)) + ' ' +
+      Math.round(readSliderNumber(luckyEuclidGoldenEl, 25)) + ' ' +
+      Math.round(readSliderNumber(luckySkipEl, 27)) + ' ' +
+      Math.round(readSliderNumber(luckySoundsEl, 7)) + ' ' +
+      Math.round(readSliderNumber(luckyReuseEl, 94)) + ' ' +
+      Math.round(readSliderNumber(luckyConsistencyEl, 100)) + ' ' +
+      Math.round(readSliderNumber(luckyWordsVolEl, 34)) + ' ' +
+      Math.round(readSliderNumber(luckyHumanityEl, 27)) + ' ' +
+      Math.round(readSliderNumber(luckySpeedEl, 35))
+    );
+
+    SAMPLES.forEach(function (s) {
+      if (s.type !== 'text') return;
+      var text = String(sayTexts[s.id] || '').trim();
+      if (text) lines.push('SAY ' + s.id + '|' + escapeCodeToken(text));
+      var vp = sayVoiceParams[s.id];
+      if (vp && vp.voiceSeed) lines.push('VOICE ' + s.id + '|' + escapeCodeToken(String(vp.voiceSeed)));
+    });
+
+    SAMPLES.forEach(function (s) {
+      if (s.type !== 'sample') return;
+      var name = String(sampleNames[s.id] || '').trim();
+      if (name) lines.push('FILE ' + s.id + '|' + escapeCodeToken(name));
+    });
+
+    makerIds.forEach(function (id) {
+      var params = makerSoundParams[id] || MAKER_DEFAULTS[id];
+      if (!params) return;
+      var parts = [];
+      Object.keys(params).forEach(function (key) {
+        var v = params[key];
+        if (typeof v === 'boolean') parts.push(key + '=' + (v ? 1 : 0));
+        else if (typeof v === 'number' && Number.isFinite(v)) parts.push(key + '=' + v);
+        else if (v != null) parts.push(key + '=' + escapeCodeToken(String(v)));
+      });
+      if (parts.length) lines.push('MAKER ' + id + ' ' + parts.join(' '));
+    });
+
+    layers.forEach(function (layer, idx) {
+      lines.push('WHEEL ' + idx + ' ' + (layer.enabled ? 1 : 0));
+      RINGS.forEach(function (ring) {
+        var steps = (layer.pattern && layer.pattern[ring.id]) || [];
+        var cells = [];
+        var i;
+        for (i = 0; i < ring.segments; i++) {
+          cells.push(steps[i] ? steps[i] : '_');
+        }
+        lines.push('RING ' + ring.id + ' ' + cells.join(','));
+      });
+    });
+
+    lines.push('END');
+    return lines.join('\n');
+  }
+
+  function parseMakerParamValue(raw) {
+    if (raw === '1' || raw === '0') {
+      // keep as number; bools restored by known keys below
+    }
+    var n = parseFloat(raw);
+    if (String(n) === raw || /^-?\d+(\.\d+)?$/.test(raw)) return n;
+    return unescapeCodeToken(raw);
+  }
+
+  async function applyProjectCode(text) {
+    var raw = String(text || '').replace(/^\uFEFF/, '').trim();
+    if (!raw) throw new Error('Empty code');
+    var lines = raw.split(/\r?\n/);
+    if (!/^CIRCLEBEAT\b/i.test(lines[0] || '')) {
+      throw new Error('Not a Circle Beat code (missing CIRCLEBEAT header).');
+    }
+
+    var nextLayers = [];
+    var i;
+    for (i = 0; i < MAX_CIRCLES; i++) {
+      nextLayers.push({ enabled: false, pattern: emptyPattern() });
+    }
+    var nextSays = {};
+    var nextVoices = {};
+    var nextFiles = {};
+    var nextMakers = {};
+    var meta = {
+      bpm: null, human: null, swing: null, swingTo: null,
+      reverb: null, revDur: null, stereo: null,
+      view: 0, paint: 'say1', lucky: null
+    };
+    var curWheel = -1;
+
+    for (i = 1; i < lines.length; i++) {
+      var line = String(lines[i] || '').trim();
+      if (!line || line === 'END') continue;
+      var sp = line.indexOf(' ');
+      var tag = (sp < 0 ? line : line.slice(0, sp)).toUpperCase();
+      var rest = sp < 0 ? '' : line.slice(sp + 1).trim();
+
+      if (tag === 'BPM') meta.bpm = parseInt(rest, 10);
+      else if (tag === 'HUMAN') meta.human = parseInt(rest, 10);
+      else if (tag === 'SWING') meta.swing = parseInt(rest, 10);
+      else if (tag === 'SWINGTO') meta.swingTo = parseInt(rest, 10);
+      else if (tag === 'REVERB') meta.reverb = parseInt(rest, 10);
+      else if (tag === 'REVDUR') meta.revDur = parseInt(rest, 10);
+      else if (tag === 'STEREO') meta.stereo = parseInt(rest, 10);
+      else if (tag === 'VIEW') meta.view = parseInt(rest, 10) || 0;
+      else if (tag === 'PAINT') meta.paint = rest || 'say1';
+      else if (tag === 'LUCKY') {
+        var lp = rest.split(/\s+/).map(function (x) { return parseInt(x, 10); });
+        meta.lucky = lp;
+      } else if (tag === 'SAY') {
+        var pipe = rest.indexOf('|');
+        if (pipe > 0) nextSays[rest.slice(0, pipe)] = unescapeCodeToken(rest.slice(pipe + 1));
+      } else if (tag === 'VOICE') {
+        var vp = rest.indexOf('|');
+        if (vp > 0) nextVoices[rest.slice(0, vp)] = unescapeCodeToken(rest.slice(vp + 1));
+      } else if (tag === 'FILE') {
+        var fp = rest.indexOf('|');
+        if (fp > 0) nextFiles[rest.slice(0, fp)] = unescapeCodeToken(rest.slice(fp + 1));
+      } else if (tag === 'MAKER') {
+        var msp = rest.indexOf(' ');
+        if (msp > 0) {
+          var mid = rest.slice(0, msp);
+          var obj = Object.assign({}, MAKER_DEFAULTS[mid] || {});
+          rest.slice(msp + 1).split(/\s+/).forEach(function (pair) {
+            var eq = pair.indexOf('=');
+            if (eq < 1) return;
+            var k = pair.slice(0, eq);
+            var rawV = pair.slice(eq + 1);
+            var val = parseMakerParamValue(rawV);
+            if (MAKER_BOOLS[mid]) {
+              var boolMeta = MAKER_BOOLS[mid].filter(function (m) {
+                return m.key === k && m.type === 'bool';
+              })[0];
+              if (boolMeta) val = !!Number(rawV);
+            }
+            obj[k] = val;
+          });
+          nextMakers[mid] = obj;
+        }
+      } else if (tag === 'WHEEL') {
+        var wp = rest.split(/\s+/);
+        curWheel = parseInt(wp[0], 10);
+        if (curWheel >= 0 && curWheel < MAX_CIRCLES) {
+          nextLayers[curWheel].enabled = wp[1] === '1';
+        }
+      } else if (tag === 'RING' && curWheel >= 0 && curWheel < MAX_CIRCLES) {
+        var rsp = rest.indexOf(' ');
+        if (rsp > 0) {
+          var rid = rest.slice(0, rsp);
+          var cells = rest.slice(rsp + 1).split(',');
+          var ring = null;
+          RINGS.forEach(function (r) { if (r.id === rid) ring = r; });
+          if (ring) {
+            var arr = Array(ring.segments).fill(null);
+            var c;
+            for (c = 0; c < ring.segments && c < cells.length; c++) {
+              var cell = cells[c];
+              arr[c] = (!cell || cell === '_') ? null : cell;
+            }
+            nextLayers[curWheel].pattern[rid] = arr;
+          }
+        }
+      }
+    }
+
+    if (playing) pause();
+
+    layers = nextLayers;
+    if (!layers.some(function (l) { return l.enabled; })) {
+      layers[0].enabled = true;
+    }
+
+    SAMPLES.forEach(function (s) {
+      if (s.type === 'text') {
+        sayTexts[s.id] = nextSays[s.id] != null ? nextSays[s.id] : '';
+        if (nextVoices[s.id]) {
+          sayVoiceParams[s.id] = {
+            engine: 'sam',
+            voiceSeed: nextVoices[s.id],
+            pitchVar: 0,
+            volVar: 0
+          };
+        }
+        delete soundBank[s.id];
+      }
+      if (s.type === 'sample') {
+        sampleNames[s.id] = nextFiles[s.id] != null ? nextFiles[s.id] : '';
+        // Sample audio is not embedded in code — clear buffers so user can reload files.
+        delete soundBank[s.id];
+      }
+    });
+
+    Object.keys(nextMakers).forEach(function (id) {
+      makerSoundParams[id] = nextMakers[id];
+      if (id === 'kick' || id === 'snare') enforceCoreDrumEnergyFloor(id, makerSoundParams[id]);
+    });
+
+    if (meta.bpm != null && Number.isFinite(meta.bpm)) {
+      bpmEl.value = String(Math.max(50, Math.min(130, meta.bpm)));
+      bpmVal.textContent = String(getBpm());
+    }
+    if (meta.human != null && Number.isFinite(meta.human)) {
+      humanEl.value = String(Math.max(0, Math.min(100, meta.human)));
+      humanVal.textContent = Math.round(getHumanize() * 100) + '%';
+    }
+    if (meta.swing != null && Number.isFinite(meta.swing)) {
+      swingEl.value = String(Math.max(0, Math.min(100, meta.swing)));
+      swingVal.textContent = Math.round(getSwing() * 100) + '%';
+    }
+    if (swingNoteEl && meta.swingTo != null && Number.isFinite(meta.swingTo)) {
+      swingNoteEl.value = String(meta.swingTo);
+    }
+    if (meta.reverb != null && Number.isFinite(meta.reverb)) {
+      reverbEl.value = String(Math.max(0, Math.min(100, meta.reverb)));
+      reverbVal.textContent = Math.round(getReverb() * 100) + '%';
+    }
+    if (meta.revDur != null && Number.isFinite(meta.revDur) && reverbDurEl) {
+      reverbDurEl.value = String(Math.max(0, Math.min(100, meta.revDur)));
+      if (reverbDurVal) {
+        reverbDurVal.textContent = getReverbDurationSec().toFixed(2) + ' s';
+      }
+    }
+    if (meta.stereo != null && Number.isFinite(meta.stereo) && stereoEl) {
+      stereoEl.value = String(Math.max(0, Math.min(100, meta.stereo)));
+      stereoVal.textContent = Math.round(getStereo()) + '%';
+    }
+    applySpaceSettings();
+    updateReverbIR();
+
+    if (meta.lucky && meta.lucky.length >= 9) {
+      if (luckyEuclidDensEl) luckyEuclidDensEl.value = String(meta.lucky[0]);
+      if (luckyEuclidGoldenEl) luckyEuclidGoldenEl.value = String(meta.lucky[1]);
+      if (luckySkipEl) luckySkipEl.value = String(meta.lucky[2]);
+      if (luckySoundsEl) luckySoundsEl.value = String(meta.lucky[3]);
+      if (luckyReuseEl) luckyReuseEl.value = String(meta.lucky[4]);
+      if (luckyConsistencyEl) luckyConsistencyEl.value = String(meta.lucky[5]);
+      if (luckyWordsVolEl) luckyWordsVolEl.value = String(meta.lucky[6]);
+      if (luckyHumanityEl) luckyHumanityEl.value = String(meta.lucky[7]);
+      if (luckySpeedEl) luckySpeedEl.value = String(meta.lucky[8]);
+      syncLuckyRollUi({ skipMatch: true });
+    }
+
+    if (sampleById(meta.paint)) setPaintSample(meta.paint);
+    setViewLayer(Math.max(0, Math.min(MAX_CIRCLES - 1, meta.view | 0)), { fromPlayhead: true });
+    viewLocked = false;
+    clearScrubHitCache();
+    livePendingRoll = null;
+
+    try {
+      await ensureAudio();
+      await buildBank();
+      await seedWordBuffers();
+    } catch (e) {
+      console.error(e);
+    }
+
+    buildSvg();
+    refreshSegFills();
+    refreshPaintLabels();
+    syncLayerUi();
+
+    var missing = [];
+    SAMPLES.forEach(function (s) {
+      if (s.type !== 'sample') return;
+      var fname = String(sampleNames[s.id] || '').trim();
+      if (!fname) return;
+      if (!soundBank[s.id]) {
+        missing.push(s.label + ' needs file: ' + fname);
+      }
+    });
+    return missing;
+  }
+
+  function setFileMenuOpen(open) {
+    if (!fileMenuBtn || !fileMenuSub) return;
+    fileMenuBtn.classList.toggle('is-open', !!open);
+    fileMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      fileMenuSub.hidden = false;
+      fileMenuSub.classList.add('open');
+    } else {
+      fileMenuSub.classList.remove('open');
+      fileMenuSub.hidden = true;
+    }
+  }
+
+  function openCodeSheet(mode, presetText) {
+    codeSheetMode = mode === 'save' ? 'save' : 'load';
+    if (!codeSheet) return;
+    if (codeTitle) codeTitle.textContent = codeSheetMode === 'save' ? 'Save as code' : 'Load code';
+    if (codeHint) {
+      codeHint.textContent = codeSheetMode === 'save'
+        ? 'Copy or download this code. Sample audio is not embedded — only file names are stored.'
+        : 'Paste a Circle Beat code, then Load. Missing sample files will be listed.';
+    }
+    if (codeText) codeText.value = presetText || '';
+    if (codeCopyBtn) codeCopyBtn.hidden = codeSheetMode !== 'save';
+    if (codeActionBtn) {
+      codeActionBtn.textContent = codeSheetMode === 'save' ? 'Download' : 'Load';
+      codeActionBtn.classList.add('primary');
+    }
+    codeSheet.classList.add('open');
+    codeSheet.setAttribute('aria-hidden', 'false');
+    if (codeText && codeSheetMode === 'load') {
+      setTimeout(function () { try { codeText.focus(); } catch (e) { /* ignore */ } }, 0);
+    }
+  }
+
+  function closeCodeSheet() {
+    if (!codeSheet) return;
+    codeSheet.classList.remove('open');
+    codeSheet.setAttribute('aria-hidden', 'true');
+  }
+
+  function saveProjectCode() {
+    var code = encodeProjectCode();
+    openCodeSheet('save', code);
+  }
+
+  async function loadProjectCodeFromUi() {
+    try {
+      var missing = await applyProjectCode(codeText ? codeText.value : '');
+      closeCodeSheet();
+      if (missing && missing.length) {
+        alert('Project loaded, but these sample files are missing:\n\n' + missing.join('\n') +
+          '\n\nUse Sample → Load to add each file.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err && err.message ? err.message : 'Could not load code.');
+    }
+  }
+
   async function ensureLayerSampleBuffers(layerIdx) {
     await ensureAudio();
     var pat = layers[layerIdx] && layers[layerIdx].pattern;
@@ -4546,10 +5395,8 @@
           var mods = randomSayPlayMods(sampleId);
           src.playbackRate.value = mods.playbackRate;
           g.gain.value = mods.gain;
-        } else if (isCoreBackbone(sampleId)) {
-          g.gain.value = CORE_PLAY_GAIN;
         } else {
-          g.gain.value = 1;
+          g.gain.value = playGainForSample(sampleId);
         }
         src.connect(g);
         g.connect(isSidechainKey(sampleId) ? buses.punchBus : buses.duckGain);
@@ -4610,6 +5457,7 @@
     if (!panelMenu) return;
     panelMenu.classList.remove('open');
     if (panelBurger) panelBurger.setAttribute('aria-expanded', 'false');
+    setFileMenuOpen(false);
   }
 
   function setVisualFx(on) {
@@ -4662,18 +5510,77 @@
       syncPanelMenuHighlight();
       var open = panelMenu.classList.toggle('open');
       panelBurger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (!open) setFileMenuOpen(false);
     });
+    if (fileMenuBtn) {
+      fileMenuBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = !(fileMenuSub && fileMenuSub.classList.contains('open'));
+        setFileMenuOpen(open);
+      });
+    }
     panelMenu.addEventListener('click', function (e) {
       var btn = e.target.closest('.panel-opt');
       if (!btn) return;
       e.stopPropagation();
+      if (btn === fileMenuBtn || btn.classList.contains('panel-opt-file')) return;
       if (btn.dataset.action === 'save-wav') {
         closePanelMenu();
         saveViewWheelWav().catch(function (err) { console.error(err); });
         return;
       }
+      if (btn.dataset.action === 'save-code') {
+        closePanelMenu();
+        saveProjectCode();
+        return;
+      }
+      if (btn.dataset.action === 'load-code') {
+        closePanelMenu();
+        openCodeSheet('load', '');
+        return;
+      }
       if (!btn.dataset.panel) return;
       setPanel(btn.dataset.panel);
+    });
+  }
+
+  if (codeCancelBtn) {
+    codeCancelBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      closeCodeSheet();
+    });
+  }
+  if (codeCopyBtn) {
+    codeCopyBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var text = codeText ? codeText.value : '';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          codeCopyBtn.textContent = 'Copied';
+          setTimeout(function () { codeCopyBtn.textContent = 'Copy'; }, 1200);
+        }).catch(function () {
+          if (codeText) { codeText.focus(); codeText.select(); }
+        });
+      } else if (codeText) {
+        codeText.focus();
+        codeText.select();
+      }
+    });
+  }
+  if (codeActionBtn) {
+    codeActionBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (codeSheetMode === 'save') {
+        var blob = new Blob([codeText ? codeText.value : ''], { type: 'text/plain;charset=utf-8' });
+        downloadBlob(blob, 'circlebeat-project.txt');
+      } else {
+        loadProjectCodeFromUi().catch(function (err) { console.error(err); });
+      }
+    });
+  }
+  if (codeSheet) {
+    codeSheet.addEventListener('click', function (e) {
+      if (e.target === codeSheet) closeCodeSheet();
     });
   }
 
@@ -4707,65 +5614,41 @@
     else openLayerMenu();
   });
 
-  paintTrigger.addEventListener('click', function (e) {
-    e.stopPropagation();
-    listenSample(paintSample).catch(function (err) { console.error(err); });
-    if (paintMenu.classList.contains('open')) closePaintMenu();
-    else openPaintMenu();
-  });
+  function bindPaintGroupTrigger(trigger, group) {
+    if (!trigger) return;
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openPaintGroupMenu(group);
+    });
+  }
+  bindPaintGroupTrigger(paintWordTrigger, 'word');
+  bindPaintGroupTrigger(paintDrumTrigger, 'drum');
+  bindPaintGroupTrigger(paintSampleTrigger, 'sample');
 
-  soundDesignBtn.addEventListener('click', function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    closePaintMenu();
-    openSoundEditor();
+  document.querySelectorAll('[data-paint-edit]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var group = btn.getAttribute('data-paint-edit');
+      setPaintGroup(group);
+      closePaintGroupMenu();
+      openSoundEditor();
+    });
   });
 
   document.addEventListener('click', function (e) {
-    if (!paintMenu.contains(e.target) && e.target !== paintTrigger && !paintTrigger.contains(e.target)) {
-      closePaintMenu();
+    if (!e.target.closest('.paint-chip') && !(paintGroupMenu && paintGroupMenu.contains(e.target))) {
+      closePaintGroupMenu();
     }
     if (!e.target.closest('.layer-pick')) closeLayerMenus();
     if (!e.target.closest('.rand-group')) closeRandMenus();
     if (!e.target.closest('.panel-menu-wrap')) closePanelMenu();
   });
 
-  loadSampleBtn.addEventListener('click', function () {
-    triggerLoadSample(paintSample);
-  });
-
   wavInput.addEventListener('change', function () {
     var file = wavInput.files && wavInput.files[0];
     var id = wavInput.dataset.target || paintSample;
     if (file) loadWavFile(id, file).catch(function (err) { console.error(err); });
-  });
-
-  sayApplyBtn.addEventListener('click', function () {
-    applySayText(paintSample, sayInput.value).catch(function (err) { console.error(err); });
-  });
-
-  if (sayCancelBtn) {
-    sayCancelBtn.addEventListener('click', function () {
-      cancelSayEdit();
-    });
-  }
-
-  sayInput.addEventListener('input', function () {
-    var t = String(sayInput.value || '').slice(0, 20);
-    if (sayInput.value !== t) sayInput.value = t;
-    syncSayDirty();
-  });
-
-  sayInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (sayActions && !sayActions.hasAttribute('hidden')) {
-        applySayText(paintSample, sayInput.value).catch(function (err) { console.error(err); });
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelSayEdit();
-    }
   });
 
   randBtn.addEventListener('click', function () {
@@ -4951,7 +5834,8 @@
   setViewLayer(0, { skipPaint: true, fromPlayhead: true });
   viewLocked = false;
   seedWordTextsSync();
-  buildPaintMenu();
+  buildPaintMenus();
+  setPaintGroup('word');
   syncPaintSwatch();
   buildSvg();
   syncLayerUi();
