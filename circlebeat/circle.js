@@ -323,7 +323,7 @@
     { id: 'jacky', name: 'Jacky', dens: 39, golden: 56, skip: 95, sounds: 5, reuse: 94, words: 34, humanity: 27, speed: 35 },
     { id: 'minimal', name: 'Minimal', dens: 28, golden: 55, skip: 45, sounds: 3, reuse: 12, words: 90, humanity: 20, speed: 32 },
     { id: 'dense', name: 'Dense', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
-    { id: 'ghost', name: 'Ghost', dens: 48, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 110, humanity: 85, speed: 44 },
+    { id: 'ghost', name: 'Ghost', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
     { id: 'custom', name: 'Custom', dens: null, golden: null, skip: null, sounds: null, reuse: null, words: null, humanity: null, speed: null }
   ];
 
