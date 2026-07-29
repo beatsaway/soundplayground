@@ -1,4 +1,4 @@
 @echo off
+REM Thin alias — prefer start.bat (frees port + opens browser)
 cd /d "%~dp0"
-echo Circle Beat: http://localhost:8768/
-python -m http.server 8768
+call start.bat

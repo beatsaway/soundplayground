@@ -253,8 +253,9 @@
   var topCloseBtn = document.getElementById('topCloseBtn');
   var activePanel = 'edit';
   var visualFxOn = true;
-  var visualOnBtn = document.getElementById('visualOnBtn');
-  var visualOffBtn = document.getElementById('visualOffBtn');
+  var visualNpcOn = true;
+  var visualFxBtn = document.getElementById('visualFxBtn');
+  var visualNpcBtn = document.getElementById('visualNpcBtn');
   var appStarted = false;
   var energyBursts = [];
   var baseHaloWings = [];
@@ -289,6 +290,7 @@
   var randOptVoices = document.getElementById('randOptVoices');
   var randOptBpm = document.getElementById('randOptBpm');
   var randOptSpace = document.getElementById('randOptSpace');
+  var randOptNpc = document.getElementById('randOptNpc');
   /**
    * Live Lucky Roll queue — nothing here touches the current wheel until the
    * next bar is scheduled. Shape:
@@ -2549,6 +2551,23 @@
     var doVoices = !!(randOptVoices && randOptVoices.checked);
     var doBpm = !!(randOptBpm && randOptBpm.checked);
     var doSpace = !!(randOptSpace && randOptSpace.checked);
+    var doNpc = !!(randOptNpc && randOptNpc.checked);
+    if (!doPatterns && !doSounds && !doWords && !doVoices && !doBpm && !doSpace && !doNpc) return;
+
+    // Lucky Roll NPC = spawn/reroll only. Visibility is Visual > NPC.
+    if (doNpc && window.CircleNpc) {
+      try {
+        if (window.CircleNpc.ready) await window.CircleNpc.ready;
+        if (visualNpcOn) window.CircleNpc.setEnabled(true);
+        await window.CircleNpc.spawnRandom();
+        if (typeof window.CircleNpc.setMusicPlaying === 'function') {
+          window.CircleNpc.setMusicPlaying(!!playing);
+        }
+      } catch (npcErr) {
+        console.error('[CircleNpc]', npcErr);
+      }
+    }
+
     if (!doPatterns && !doSounds && !doWords && !doVoices && !doBpm && !doSpace) return;
 
     var wasPlaying = playing;
@@ -4110,6 +4129,13 @@
     }
     if (isSidechainKey(sampleId)) triggerSidechainDuck(startAt);
     if (sampleId === 'kick') noteKickForBurst(startAt);
+    if (window.CircleNpc && typeof window.CircleNpc.onBeat === 'function') {
+      // Schedule dance swap near the audio hit (approx; RAF loop is visual-time)
+      var delayMs = Math.max(0, (startAt - ctx.currentTime) * 1000);
+      window.setTimeout(function () {
+        window.CircleNpc.onBeat(sampleId);
+      }, delayMs);
+    }
     activeVoices.push(src);
     src.onended = function () {
       var i = activeVoices.indexOf(src);
@@ -4633,6 +4659,10 @@
 
   function updatePlayhead() {
     if (!discGroupEl) {
+      if (window.CircleNpc && typeof window.CircleNpc.tick === 'function') {
+        var bassNpc = (analyser && analyserData) ? bassEnergy() : 0;
+        window.CircleNpc.tick(bassNpc);
+      }
       playheadRaf = requestAnimationFrame(updatePlayhead);
       return;
     }
@@ -4645,6 +4675,9 @@
       clearFftRing();
       clearStarField();
       shownPlayLayer = -1;
+      if (window.CircleNpc && typeof window.CircleNpc.tick === 'function') {
+        window.CircleNpc.tick(0);
+      }
       playheadRaf = requestAnimationFrame(updatePlayhead);
       return;
     }
@@ -4735,6 +4768,13 @@
     });
 
     applyHubNeonAndStrike(hubHitFlash, hubNearBoost, music);
+    if (window.CircleNpc && typeof window.CircleNpc.tick === 'function') {
+      // Prefer live analyser bass; music.bass is already computed this frame when playing
+      var bassForNpc = (typeof music !== 'undefined' && music && music.bass != null)
+        ? music.bass
+        : ((analyser && analyserData) ? bassEnergy() : 0);
+      window.CircleNpc.tick(bassForNpc);
+    }
     playheadRaf = requestAnimationFrame(updatePlayhead);
   }
 
@@ -4749,6 +4789,9 @@
     hubHue = 75;
     hubHueLastT = 0;
     hubIcon.innerHTML = ICON_PAUSE;
+    if (window.CircleNpc && typeof window.CircleNpc.setMusicPlaying === 'function') {
+      window.CircleNpc.setMusicPlaying(true);
+    }
     playCursor = start;
     playOriginLayer = start;
     barEvents = [];
@@ -4777,6 +4820,9 @@
     hubBtn.classList.remove('playing');
     clearHubStrikeGlow();
     hubIcon.innerHTML = ICON_PLAY;
+    if (window.CircleNpc && typeof window.CircleNpc.setMusicPlaying === 'function') {
+      window.CircleNpc.setMusicPlaying(false);
+    }
     platterGesture = null;
     transport.free = false;
     transport.rate = 1;
@@ -5463,18 +5509,25 @@
   function setVisualFx(on) {
     visualFxOn = !!on;
     if (appRoot) appRoot.classList.toggle('visual-off', !visualFxOn);
-    if (visualOnBtn) {
-      visualOnBtn.classList.toggle('active', visualFxOn);
-      visualOnBtn.setAttribute('aria-pressed', visualFxOn ? 'true' : 'false');
-    }
-    if (visualOffBtn) {
-      visualOffBtn.classList.toggle('active', !visualFxOn);
-      visualOffBtn.setAttribute('aria-pressed', visualFxOn ? 'false' : 'true');
+    if (visualFxBtn) {
+      visualFxBtn.classList.toggle('active', visualFxOn);
+      visualFxBtn.setAttribute('aria-pressed', visualFxOn ? 'true' : 'false');
     }
     if (!visualFxOn) {
       clearFftRing();
       clearStarField();
       if (stageEl) stageEl.classList.remove('is-playing');
+    }
+  }
+
+  function setVisualNpc(on) {
+    visualNpcOn = !!on;
+    if (visualNpcBtn) {
+      visualNpcBtn.classList.toggle('active', visualNpcOn);
+      visualNpcBtn.setAttribute('aria-pressed', visualNpcOn ? 'true' : 'false');
+    }
+    if (window.CircleNpc && typeof window.CircleNpc.setEnabled === 'function') {
+      window.CircleNpc.setEnabled(visualNpcOn);
     }
   }
 
@@ -5591,16 +5644,16 @@
     });
   }
 
-  if (visualOnBtn) {
-    visualOnBtn.addEventListener('click', function (e) {
+  if (visualFxBtn) {
+    visualFxBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      setVisualFx(true);
+      setVisualFx(!visualFxOn);
     });
   }
-  if (visualOffBtn) {
-    visualOffBtn.addEventListener('click', function (e) {
+  if (visualNpcBtn) {
+    visualNpcBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      setVisualFx(false);
+      setVisualNpc(!visualNpcOn);
     });
   }
 

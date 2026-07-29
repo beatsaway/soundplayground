@@ -415,19 +415,13 @@
     .visual-toggle {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 4px;
       flex: 0 0 auto;
       height: 34px;
-      padding: 0 10px;
+      padding: 0 6px;
       border-radius: 8px;
       background: #222228;
       border: 1px solid var(--line);
-    }
-    .visual-toggle .slide-lab {
-      margin: 0;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 500;
     }
     .fx-btn {
       border: 0;
@@ -437,11 +431,12 @@
       color: var(--muted);
       background: transparent;
       cursor: pointer;
+      transition: color 120ms ease;
     }
     .fx-btn:hover { color: var(--ink); }
     .fx-btn.active {
-      color: #111;
-      background: var(--play);
+      color: var(--play);
+      background: transparent;
     }
     .app.visual-off,
     .app.visual-off .stage {
@@ -947,6 +942,23 @@
     .app > .top,
     .app > .bottom,
     .stage .circle-wrap { position: relative; z-index: 1; }
+    .npc-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      touch-action: none;
+    }
+    .npc-canvas.is-on {
+      opacity: 1;
+      pointer-events: auto;
+      cursor: grab;
+    }
+    .npc-canvas.is-on:active { cursor: grabbing; }
     .bottom {
       width: 100%;
       background: var(--panel);
@@ -1478,9 +1490,8 @@
           </div>
           <div class="tab-panel" id="tabVisual" data-panel="visual" role="tabpanel">
             <div class="visual-toggle" role="group" aria-label="Visual effects">
-              <span class="slide-lab">FX</span>
-              <button type="button" class="fx-btn active" id="visualOnBtn" aria-pressed="true">On</button>
-              <button type="button" class="fx-btn" id="visualOffBtn" aria-pressed="false">Off</button>
+              <button type="button" class="fx-btn active" id="visualFxBtn" aria-pressed="true" title="Toggle FX">FX</button>
+              <button type="button" class="fx-btn active" id="visualNpcBtn" aria-pressed="true" title="Toggle NPC">NPC</button>
             </div>
           </div>
           <div class="tab-panel" id="tabLucky" data-panel="lucky" role="tabpanel">
@@ -1557,6 +1568,7 @@
           </svg>
         </button>
       </div>
+      <canvas class="npc-canvas" id="npcCanvas" aria-hidden="true"></canvas>
     </div>
 
     <footer class="bottom">
@@ -1590,6 +1602,7 @@
               <label class="rand-opt"><input type="checkbox" id="randOptVoices" checked /> Voices</label>
               <label class="rand-opt"><input type="checkbox" id="randOptBpm" checked /> BPM</label>
               <label class="rand-opt"><input type="checkbox" id="randOptSpace" checked /> Space</label>
+              <label class="rand-opt"><input type="checkbox" id="randOptNpc" checked /> NPC</label>
               <div class="rand-menu-head">Affected layers</div>
               <div id="randLayersList"></div>
               <div class="rand-menu-actions">
@@ -1637,6 +1650,15 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sam-js@0.3.1/dist/samjs.min.js" crossorigin="anonymous"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="npc/dancer.js"></script>
   <script src="maker/kick-synth.js"></script>
   <script src="maker/snare-synth.js"></script>
   <script src="maker/clap-synth.js"></script>
@@ -1644,6 +1666,6 @@
   <script src="maker/ride-synth.js"></script>
   <script src="maker/cowbell-synth.js"></script>
   <script src="maker/tom-synth.js"></script>
-  <script src="circle.js"></script>
+  <script defer src="circle.js"></script>
 </body>
 </html>
