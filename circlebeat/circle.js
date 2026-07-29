@@ -256,6 +256,8 @@
   var visualNpcOn = true;
   var visualFxBtn = document.getElementById('visualFxBtn');
   var visualNpcBtn = document.getElementById('visualNpcBtn');
+  var npcCountdownEl = document.getElementById('npcCountdown');
+  var npcCountdownNumEl = document.getElementById('npcCountdownNum');
   var appStarted = false;
   var energyBursts = [];
   var baseHaloWings = [];
@@ -2543,6 +2545,77 @@
     return buffers;
   }
 
+  function sleepMs(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  function setNpcCountdownDigit(n) {
+    if (!npcCountdownNumEl) return;
+    npcCountdownNumEl.classList.remove('is-pop');
+    npcCountdownNumEl.textContent = String(n);
+    // Force reflow so the pop transition retriggers each beat.
+    void npcCountdownNumEl.offsetWidth;
+    npcCountdownNumEl.classList.add('is-pop');
+  }
+
+  function showNpcCountdown(on) {
+    if (!npcCountdownEl) return;
+    npcCountdownEl.classList.toggle('is-on', !!on);
+    npcCountdownEl.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (!on && npcCountdownNumEl) npcCountdownNumEl.classList.remove('is-pop');
+  }
+
+  /** Neon 7→0. Resolves after 0 has been shown for one beat. */
+  async function runNpcCountdown() {
+    showNpcCountdown(true);
+    for (var n = 7; n >= 0; n--) {
+      setNpcCountdownDigit(n);
+      await sleepMs(n === 0 ? 520 : 700);
+    }
+  }
+
+  /**
+   * First NPC load pulls ~11MB dance GLBs — slow path shows a neon countdown
+   * while building. If spawn finishes early, hold until 0; if countdown ends
+   * first, stay on 0 until spawn completes.
+   */
+  async function spawnNpcWithUx() {
+    var slow = !!(window.CircleNpc.willSpawnBeSlow && window.CircleNpc.willSpawnBeSlow());
+    if (!slow) {
+      if (window.CircleNpc.ready) await window.CircleNpc.ready;
+      await window.CircleNpc.spawnRandom();
+      return;
+    }
+
+    var spawnDone = false;
+    var spawnErr = null;
+    var spawnP = Promise.resolve()
+      .then(function () {
+        return window.CircleNpc.ready ? window.CircleNpc.ready : null;
+      })
+      .then(function () {
+        return window.CircleNpc.spawnRandom({ deferShow: true });
+      })
+      .then(
+        function () { spawnDone = true; },
+        function (err) { spawnErr = err; spawnDone = true; }
+      );
+
+    await runNpcCountdown();
+    if (!spawnDone) {
+      // Hold on glowing 0 while GLBs / mesh gen finish.
+      setNpcCountdownDigit(0);
+      await spawnP;
+    } else {
+      await spawnP;
+    }
+    showNpcCountdown(false);
+    if (spawnErr) throw spawnErr;
+    if (typeof window.CircleNpc.revealNpc === 'function') {
+      window.CircleNpc.revealNpc();
+    }
+  }
+
   async function runRandomise() {
     var indices = selectedRandLayers();
     var doPatterns = !!(randOptPatterns && randOptPatterns.checked);
@@ -2557,9 +2630,9 @@
     // Lucky Roll NPC = spawn/reroll only. Visibility is Visual > NPC.
     if (doNpc && window.CircleNpc) {
       try {
-        if (window.CircleNpc.ready) await window.CircleNpc.ready;
         if (visualNpcOn) window.CircleNpc.setEnabled(true);
-        await window.CircleNpc.spawnRandom();
+        // spawnNpcWithUx awaits ready itself so a cold load can start the countdown immediately.
+        await spawnNpcWithUx();
         if (typeof window.CircleNpc.setMusicPlaying === 'function') {
           window.CircleNpc.setMusicPlaying(!!playing);
         }

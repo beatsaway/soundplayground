@@ -49,6 +49,8 @@ let clock = null;
 /** @type {ReturnType<typeof makeDancer>[]} */
 let dancers = [];
 let sourceClips = null;
+/** False until the first Lucky Roll NPC spawn finishes (cold path = neon countdown). */
+let hasSpawnedOnce = false;
 let enabled = true;
 let visible = false;
 /** Music transport — hide dancers while paused/stopped. */
@@ -184,7 +186,7 @@ function restoreMeshColors(d) {
   for (const { mat, base } of d.colorTargets || []) mat.color.copy(base);
 }
 
-/** Circular hit-test for the drum wheel (SVG disc + hub), not the square wrap. */
+/** Circular hit-test for the drum wheel (SVG disc), not the square wrap. */
 function isOverWheel(clientX, clientY) {
   const wrap = document.getElementById("circleWrap");
   if (!wrap) return false;
@@ -199,8 +201,25 @@ function isOverWheel(clientX, clientY) {
   return dx * dx + dy * dy <= rad * rad;
 }
 
+function isOverHub(clientX, clientY) {
+  const hub = document.getElementById("hubBtn");
+  if (!hub) return false;
+  const r = hub.getBoundingClientRect();
+  return (
+    clientX >= r.left &&
+    clientX <= r.right &&
+    clientY >= r.top &&
+    clientY <= r.bottom
+  );
+}
+
+/** Wheel disc or play/stop hub — orbit must not steal these. */
+function isOverWheelUi(clientX, clientY) {
+  return isOverHub(clientX, clientY) || isOverWheel(clientX, clientY);
+}
+
 /**
- * Keep orbit off the wheel: pointer-events pass through to the SVG when over it.
+ * Keep orbit off the wheel/hub: pointer-events pass through when over them.
  * Mid-orbit drag keeps the canvas live even if the pointer crosses the wheel.
  */
 function syncWheelPassthrough(clientX, clientY) {
@@ -209,44 +228,50 @@ function syncWheelPassthrough(clientX, clientY) {
     canvas.style.pointerEvents = "auto";
     return;
   }
-  const over = isOverWheel(clientX, clientY);
+  const over = isOverWheelUi(clientX, clientY);
   canvas.style.pointerEvents = over ? "none" : "auto";
   if (controls) controls.enabled = !over && !orbitBlockedByWheel;
 }
 
+function retargetPointerDown(e, under) {
+  if (!under || under === canvas) return;
+  try {
+    under.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        pointerId: e.pointerId,
+        pointerType: e.pointerType,
+        isPrimary: e.isPrimary,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        screenX: e.screenX,
+        screenY: e.screenY,
+        button: e.button,
+        buttons: e.buttons,
+        pressure: e.pressure,
+      })
+    );
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 function onCanvasPointerDown(e) {
   if (!visible || !enabled || !musicPlaying) return;
-  if (isOverWheel(e.clientX, e.clientY)) {
+  if (isOverWheelUi(e.clientX, e.clientY)) {
     orbitBlockedByWheel = true;
     draggingOrbit = false;
     if (controls) controls.enabled = false;
     canvas.style.pointerEvents = "none";
     e.stopImmediatePropagation();
-    // Retarget this down so segment paint / scratch still receive it.
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    if (under && under !== canvas) {
-      try {
-        under.dispatchEvent(
-          new PointerEvent("pointerdown", {
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            pointerId: e.pointerId,
-            pointerType: e.pointerType,
-            isPrimary: e.isPrimary,
-            clientX: e.clientX,
-            clientY: e.clientY,
-            screenX: e.screenX,
-            screenY: e.screenY,
-            button: e.button,
-            buttons: e.buttons,
-            pressure: e.pressure,
-          })
-        );
-      } catch (_) {
-        /* ignore */
-      }
-    }
+    // Prefer hub so play/stop gets the gesture; else whatever is under the canvas.
+    const hub = document.getElementById("hubBtn");
+    const under = isOverHub(e.clientX, e.clientY)
+      ? hub
+      : document.elementFromPoint(e.clientX, e.clientY);
+    retargetPointerDown(e, under);
     return;
   }
   orbitBlockedByWheel = false;
@@ -255,7 +280,7 @@ function onCanvasPointerDown(e) {
   if (controls) controls.autoRotate = false;
 }
 
-function onPointerUp() {
+function onPointerUp(e) {
   if (draggingOrbit && camera && controls) {
     userRadius = camera.position.distanceTo(controls.target);
   }
@@ -265,8 +290,13 @@ function onPointerUp() {
     controls.enabled = true;
     if (visible && enabled && musicPlaying) controls.autoRotate = true;
   }
-  if (canvas && visible && enabled && musicPlaying) {
-    // Leave PE as-is; next move/down will sync. Default to auto off-wheel.
+  if (!canvas || !visible || !enabled || !musicPlaying) return;
+  // Keep PE none over wheel/hub so the following `click` reaches play/stop & segments.
+  const x = e && typeof e.clientX === "number" ? e.clientX : null;
+  const y = e && typeof e.clientY === "number" ? e.clientY : null;
+  if (x != null && y != null && isOverWheelUi(x, y)) {
+    canvas.style.pointerEvents = "none";
+  } else {
     canvas.style.pointerEvents = "auto";
   }
 }
@@ -342,7 +372,7 @@ function ensureRenderer() {
   canvas.addEventListener("pointermove", (e) => syncWheelPassthrough(e.clientX, e.clientY));
   window.addEventListener("pointermove", (e) => {
     if (!canvas || !visible) return;
-    if (canvas.style.pointerEvents === "none" || isOverWheel(e.clientX, e.clientY)) {
+    if (canvas.style.pointerEvents === "none" || isOverWheelUi(e.clientX, e.clientY)) {
       syncWheelPassthrough(e.clientX, e.clientY);
     }
   });
@@ -619,7 +649,8 @@ async function buildOneDancer(slot, x) {
   return d;
 }
 
-async function spawnRandom() {
+async function spawnRandom(opts = {}) {
+  const deferShow = !!opts.deferShow;
   ensureRenderer();
   if (!renderer) throw new Error("npcCanvas missing");
   await ensureClips();
@@ -645,10 +676,9 @@ async function spawnRandom() {
     built.push(d);
   }
   dancers = built;
+  hasSpawnedOnce = true;
 
   visible = true;
-  // Show only while transport is playing (caller should setMusicPlaying)
-  syncCanvasShown();
   if (controls) {
     controls.target.set(0, 0.95, 0);
     camera.position.set(0, 1.4, count >= 3 ? 5.1 : 4.6);
@@ -656,6 +686,25 @@ async function spawnRandom() {
     userRadius = camera.position.distanceTo(controls.target);
   }
   resize();
+  if (deferShow) {
+    // Built but hidden until countdown / caller reveals.
+    if (canvas) {
+      canvas.classList.remove("is-on");
+      canvas.style.pointerEvents = "none";
+    }
+    if (controls) controls.autoRotate = false;
+  } else {
+    syncCanvasShown();
+  }
+}
+
+/** True for the first NPC spawn (cold GLBs / first mesh build). Later rolls are fast. */
+function willSpawnBeSlow() {
+  return !hasSpawnedOnce || !sourceClips;
+}
+
+function revealNpc() {
+  syncCanvasShown();
 }
 
 function syncCanvasShown() {
@@ -816,6 +865,8 @@ function tick(bass) {
 window.CircleNpc = {
   ready,
   spawnRandom,
+  willSpawnBeSlow,
+  revealNpc,
   clearNpc,
   setEnabled,
   setMusicPlaying,

@@ -959,6 +959,38 @@
       cursor: grab;
     }
     .npc-canvas.is-on:active { cursor: grabbing; }
+    .npc-countdown {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      background: radial-gradient(ellipse 55% 45% at 50% 48%, rgba(0, 0, 0, 0.35) 0%, transparent 70%);
+    }
+    .npc-countdown.is-on {
+      display: flex;
+    }
+    .npc-countdown-num {
+      font-family: "Sora", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: min(42vmin, 220px);
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: var(--play);
+      text-shadow:
+        0 0 18px rgba(200, 255, 0, 0.85),
+        0 0 48px rgba(200, 255, 0, 0.45),
+        0 0 90px rgba(120, 255, 180, 0.25);
+      transform: scale(0.72);
+      opacity: 0.35;
+      transition: transform 160ms cubic-bezier(0.2, 1.4, 0.4, 1), opacity 160ms ease;
+    }
+    .npc-countdown-num.is-pop {
+      transform: scale(1);
+      opacity: 1;
+    }
     .bottom {
       width: 100%;
       background: var(--panel);
@@ -1569,6 +1601,9 @@
         </button>
       </div>
       <canvas class="npc-canvas" id="npcCanvas" aria-hidden="true"></canvas>
+      <div class="npc-countdown" id="npcCountdown" aria-live="polite" aria-hidden="true">
+        <span class="npc-countdown-num" id="npcCountdownNum">7</span>
+      </div>
     </div>
 
     <footer class="bottom">
