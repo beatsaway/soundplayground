@@ -38,8 +38,15 @@ export function buildAvatarSceneForRig(partialConfig = {}, place = {}) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
-    // Propagate hofk-style bone tag (or infer head → head bone)
+    // Propagate hofk-style bone tag (mesh → ancestors → head inference)
     let skinBone = obj.userData.skinBone || null;
+    if (!skinBone) {
+      let p = obj.parent;
+      while (p && !skinBone) {
+        if (p.userData?.skinBone) skinBone = p.userData.skinBone;
+        p = p.parent;
+      }
+    }
     if (!skinBone) {
       let p = obj;
       while (p) {
@@ -56,6 +63,8 @@ export function buildAvatarSceneForRig(partialConfig = {}, place = {}) {
       const sb = obj.userData.skinBands;
       mesh.userData.skinBands = {
         ...sb,
+        attr: sb.attr,
+        blend: sb.blend,
         joints: sb.joints ? sb.joints.map((j) => ({ ...j })) : undefined,
         trunk: sb.trunk
           ? { ...sb.trunk, joints: sb.trunk.joints?.map((j) => ({ ...j })) }
@@ -73,6 +82,13 @@ export function buildAvatarSceneForRig(partialConfig = {}, place = {}) {
           ? { ...sb.legR, joints: sb.legR.joints?.map((j) => ({ ...j })) }
           : undefined,
       };
+    }
+
+    // Keep limbT (and similar) through bake — used by arm/leg skin bands
+    for (const name of ["limbT", "armSide"]) {
+      if (obj.geometry.attributes[name] && !geo.attributes[name]) {
+        geo.setAttribute(name, obj.geometry.attributes[name].clone());
+      }
     }
 
     scene.add(mesh);

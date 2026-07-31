@@ -1,36 +1,29 @@
-# Avatar mesh strategy (avatarbuilder3)
+# Avatar mesh strategy (Lathe)
 
 ## Goal
 
-One **smooth, connected** human body shell (limbs fused into torso) — not separate tubes floating near the trunk.
+Readable stylized human **parts of revolution** — torso, limbs, skull, garments each lathed from a 2D profile. Seams between parts are intentional (no SDF soft-union).
 
 ## Method
 
-**Analytic SDF → marching cubes → weld → light smooth**
+**Profile curve → `THREE.LatheGeometry` → optional non-uniform scale → place limbs**
 
-Volumes (fixed human proportions):
+- Trunk / pelvis / neck: lathe around world Y, slight Z squash for depth
+- Arms / legs: lathe shaft along local Y, then `placeLimb` from joint to joint (T-pose)
+- Skull: unit lathe ellipsoid profile, scaled to `hw` / `hd`
+- Nose / ears: short lathes rotated onto the face/temple
+- Hair / hats / clothes / shoes: lathe shells sized from `humanLayout`
 
-- Trunk: elliptic cylinder along the spine (hips → neck), mild rear-hip bias
-- Arms: capsules shoulder → hand (T-pose), soft-union into trunk
-- Legs: capsules hip → foot, soft-union into trunk; hard-ish separation between L/R
-- Small joint balls only where they help the blend (shoulders / hips)
+## Why lathe (not SDF)
 
-## Why not plain tubes
+- Predictable topology and UVs
+- Fast to rebuild / no marching-cubes blobs
+- Clear part boundaries for per-mesh `skinBone` tagging
 
-Separate lofts leave gaps at armpits/hips unless you do heavy topology welding. SDF smooth-union gives one continuous surface by construction.
+## Skinning
 
-## Why this is safer than avatarbuilder2’s SDF
+Each lathe mesh sets `userData.skinBone` (hips, spine_02, neck, thigh_*, etc.). Auto-rig uses explicit single-bone weights; distance skin is fallback only.
 
-- Canonical proportions first (no extreme random thickness)
-- Enforced leg/arm clearance
-- Wide soft blend only limb↔torso; never soft-glue both legs together
-- Weld + Laplacian after MC to kill spikes
+## Separate accents
 
-## Separate still
-
-- **Face / cranium**: same SDF → MC pipeline (`buildSmoothFace`) — smooth skull only
-- Eyes, brows: separate accent meshes on the face plane
-- **Nose / ears**: same SDF → MC pipeline (`buildSmoothFeatures`)
-- **Hair**: same SDF → MC pipeline (`buildSmoothHair`) — one smooth volume per style
-- **Hoodie / tops / bottoms / shoes / hats**: full SDF garments (`buildSmoothClothes`, `buildSmoothShoes`, `buildSmoothHats`)
-- Small accents only where useful (polo collar contrast)
+Eyes, most brows, polo/jacket buttons stay RoundedBox / Sphere primitives.

@@ -15,7 +15,7 @@ export function buildJointMap(partialConfig = {}) {
   const {
     foot, shin, thigh, hip, torso, neck, head,
     kneeY, ankleY, hipSocketY, waistY, shoulderY, shoulderSocketX, armAttachY,
-    handH, elbowX, wristX, handX, legX, tw, offsets,
+    handH, elbowX, wristX, handX, legX, tw, offsets, clavicleX,
   } = st;
 
   const ARM_Z = offsets.ARM_Z;
@@ -23,6 +23,7 @@ export function buildJointMap(partialConfig = {}) {
   const SHIN_Z = offsets.SHIN_Z;
   const FOOT_Z = offsets.FOOT_Z;
   const HEAD_Z = offsets.HEAD_Z;
+  const NECK_Z = offsets.NECK_Z ?? offsets.JOIN_Z ?? HEAD_Z * 0.3;
   const armY = armAttachY;
 
   const v = (x, y, z) => ({ x, y, z });
@@ -34,7 +35,7 @@ export function buildJointMap(partialConfig = {}) {
     spine_01: v(0, torso.bot + torso.h * 0.18, 0),
     spine_02: v(0, torso.y + torso.h * 0.08, 0),
     spine_03: v(0, torso.top - torso.h * 0.1, 0),
-    neck_01: v(0, neck.y, HEAD_Z * 0.3),
+    neck_01: v(0, neck.y, NECK_Z),
     head: v(0, head.y, HEAD_Z),
     head_leaf: v(0, head.top + 0.02, HEAD_Z),
 
@@ -45,13 +46,14 @@ export function buildJointMap(partialConfig = {}) {
     calf_l: v(legX, kneeY, SHIN_Z * 0.5),
     foot_r: v(-legX, ankleY, FOOT_Z),
     foot_l: v(legX, ankleY, FOOT_Z),
-    ball_r: v(-legX, foot.bot + foot.h * 0.35, FOOT_Z + 0.06),
-    ball_l: v(legX, foot.bot + foot.h * 0.35, FOOT_Z + 0.06),
-    ball_leaf_r: v(-legX, foot.bot + foot.h * 0.2, FOOT_Z + 0.1),
-    ball_leaf_l: v(legX, foot.bot + foot.h * 0.2, FOOT_Z + 0.1),
+    // Ball of foot: forward of ankle along +Z (matches shoe toe), low near sole
+    ball_r: v(-legX, foot.bot + foot.h * 0.4, FOOT_Z + Math.max(0.08, (st.L?.footD ?? 0.2) * 0.55)),
+    ball_l: v(legX, foot.bot + foot.h * 0.4, FOOT_Z + Math.max(0.08, (st.L?.footD ?? 0.2) * 0.55)),
+    ball_leaf_r: v(-legX, foot.bot + foot.h * 0.25, FOOT_Z + Math.max(0.11, (st.L?.footD ?? 0.2) * 0.75)),
+    ball_leaf_l: v(legX, foot.bot + foot.h * 0.25, FOOT_Z + Math.max(0.11, (st.L?.footD ?? 0.2) * 0.75)),
 
-    clavicle_r: v(-tw * 0.38, shoulderY, ARM_Z * 0.35),
-    clavicle_l: v(tw * 0.38, shoulderY, ARM_Z * 0.35),
+    clavicle_r: v(-(clavicleX ?? tw * 0.38), shoulderY, ARM_Z * 0.35),
+    clavicle_l: v(clavicleX ?? tw * 0.38, shoulderY, ARM_Z * 0.35),
     upperarm_r: v(-shoulderSocketX, armY, ARM_Z),
     upperarm_l: v(shoulderSocketX, armY, ARM_Z),
     lowerarm_r: v(-elbowX, armY, ARM_Z),

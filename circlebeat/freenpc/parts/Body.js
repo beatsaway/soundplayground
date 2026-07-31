@@ -1,15 +1,19 @@
 import * as THREE from "three";
 import { buildStack } from "./Primitives.js";
-import { buildConnectedBody, humanLayout } from "../mesh/buildConnectedBody.js";
+import { buildLatheBody, humanLayout } from "../mesh/buildLatheBody.js";
 import { skinMaterial, clothMaterial } from "../materials/PatternFactory.js";
 
 function topCoverage(style) {
   switch (style) {
+    case "tank":
     case "overalls":
       return { torso: true, upperArm: false, lowerArm: false };
     case "tee":
     case "polo":
       return { torso: true, upperArm: true, lowerArm: false };
+    case "hoodie":
+    case "jacket":
+    case "longsleeve":
     default:
       return { torso: true, upperArm: true, lowerArm: true };
   }
@@ -20,7 +24,6 @@ function bottomCoverage(style) {
     case "mini-skirt":
     case "mini-shorts":
     case "shorts":
-      // Cover pelvis + thighs so skin doesn't peek under the shell
       return { pelvis: true, thigh: true, shin: false };
     default:
       return { pelvis: true, thigh: true, shin: true };
@@ -28,7 +31,7 @@ function bottomCoverage(style) {
 }
 
 /**
- * One smooth connected body shell (SDF). Head stays separate.
+ * Segmented lathe body (of-revolution parts). Head stays separate.
  */
 export class BodySkin {
   static build(cfg) {
@@ -45,17 +48,20 @@ export class BodySkin {
     const layout = humanLayout(cfg);
 
     const shinMat = bottom.shin ? bottomMat : skin;
-    const body = buildConnectedBody([
-      bottom.pelvis ? bottomMat : skin,
-      top.torso ? topMat : skin,
-      skin,
-      top.upperArm ? topMat : skin,
-      top.lowerArm ? topMat : skin,
-      skin,
-      bottom.thigh ? bottomMat : skin,
-      shinMat,
-      shinMat, // group 8 unused (no body feet — shoes are a separate mesh)
-    ], { resolution: 42, joinSmooth: 0.06, layout });
+    const body = buildLatheBody(
+      [
+        bottom.pelvis ? bottomMat : skin,
+        top.torso ? topMat : skin,
+        skin,
+        top.upperArm ? topMat : skin,
+        top.lowerArm ? topMat : skin,
+        skin,
+        bottom.thigh ? bottomMat : skin,
+        shinMat,
+        shinMat,
+      ],
+      { layout, segments: 14, cfg }
+    );
 
     if (body) g.add(body);
     g.userData.stack = buildStack(cfg);

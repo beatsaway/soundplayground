@@ -1,8 +1,8 @@
 /**
- * Human stack — mirrors mesh/buildConnectedBody humanLayout(cfg).
+ * Human stack — mirrors mesh/humanLayout(cfg).
  * Limb / torso / neck lengths follow AvatarConfig height multipliers.
  */
-import { humanLayout } from "../mesh/buildConnectedBody.js";
+import { humanLayout } from "../mesh/humanLayout.js";
 import {
   HEAD_SCALE_MIN,
   HEAD_SCALE_MAX,
@@ -37,56 +37,76 @@ export function faceParams(cfg = {}) {
     width: clampH(cfg.face?.width, FACE_WIDTH_MIN, FACE_WIDTH_MAX),
     eyeDrop: clampH(cfg.face?.eyeDrop, FACE_DROP_MIN, FACE_DROP_MAX),
     noseDrop: clampH(cfg.face?.noseDrop, FACE_DROP_MIN, FACE_DROP_MAX),
+    mouthDrop: clampH(cfg.face?.mouthDrop, FACE_DROP_MIN, FACE_DROP_MAX),
   };
 }
 
 export function skullSize(cfg, st) {
   const f = faceParams(cfg);
   const headScale = clampH(cfg.height?.head, HEAD_SCALE_MIN, HEAD_SCALE_MAX);
-  const lenT = clampH((f.length - 0.65) / 1.35, 0, 1);
   const roundT = clampH((f.roundness - 0.45) / 0.8, 0, 1);
-  const bodyW = st?.S?.w ?? 1;
+  const bodyW = st?.S?.w ?? st?.L?.S?.w ?? 1;
+  const L = st?.L;
 
-  // Narrower base skull — face.width multiplies this further
-  let hw = 0.158 * headScale * (0.94 + 0.06 * bodyW) * f.width;
-  let hh = 0.162 * headScale;
-  let hd = 0.178 * headScale;
+  // 7.5-head canon → ball; cranial ball slightly smaller, jaw/chin larger
+  const neckTopY = L?.yNeckTop ?? L?.yNeck ?? st?.neck?.top ?? null;
+  const baseHeadH = L?.estHeadH ?? Math.max(0.2, (neckTopY ?? 1.45) / 6.55);
+  const headH = Math.max(0.18, baseHeadH * headScale);
+  const Rfull = headH / 3;
+  const R = Rfull * 0.88;
+  const jawMeshLen = Rfull * Math.min(2.25, Math.max(1.6, 1.95 + ((f.length ?? 1) - 1) * 0.35));
+  const jawDrop = Rfull * 0.12;
+  const jawH = jawMeshLen * 0.74;
+  const chinH = Rfull * 0.46;
+  const jawLen = jawDrop + jawH + chinH * 0.92;
+  const headHAdj = R + jawLen;
 
-  // Longer face → taller + narrower; shorter → slightly wider
-  hh *= mix(0.88, 1.16, lenT);
-  hw *= mix(1.06, 0.9, lenT);
-  hd *= mix(1.06, 0.96, lenT);
+  // Ball half-extents follow shrunk cranial R; width slider still applies
+  let hw = R * (0.96 + 0.04 * bodyW) * f.width;
+  let hd = R;
+  hw = mix(R, hw, 0.45);
+  hd = mix(R, hd * mix(0.98, 1.04, roundT), 0.3);
 
-  // Rounder → fuller / more spherical; squarer → flatter cheeks, boxier jaw width
-  hw *= mix(0.94, 1.06, roundT);
-  hd *= mix(0.94, 1.12, roundT);
-  hh *= mix(1.05, 0.95, roundT);
-  // Floor depth so profile never collapses (squarer can be a bit shallower)
-  hd = Math.max(hd, hw * mix(0.78, 0.86, roundT));
+  const hh = headHAdj * 0.5;
 
   const radiusFactor = Math.min(0.49, 0.26 + f.roundness * 0.2);
-  return { hw, hh, hd, headScale, ...f, radiusFactor };
+  return {
+    hw,
+    hh,
+    hd,
+    R,
+    Rfull,
+    headScale,
+    headH: headHAdj,
+    jawLen,
+    jawDrop,
+    jawMeshLen,
+    ...f,
+    radiusFactor,
+  };
 }
 
-/** Local-Y of skull underside at the neck column (matches buildSmoothFace jaw/cran). Negative. */
+/** Chin tip local-Y vs ball center. */
 export function skullSeatLocalY(sk) {
-  const ry = (sk.hh ?? 0.16) * 0.5;
-  const rT = clampH(((sk.roundness ?? 1) - 0.45) / 0.8, 0, 1);
-  const cranBot = ry * 0.06 - ry * mix(0.94, 1.02, rT);
-  const jawBot = -ry * mix(0.34, 0.4, rT) - ry * mix(0.32, 0.38, rT);
-  // Neck seats under jaw/cran — not the forward chin tip (which hangs lower)
-  return Math.min(cranBot, jawBot);
+  if (sk.jawLen != null) return -sk.jawLen;
+  const Rfull = sk.Rfull ?? (sk.R ?? (sk.hh ?? 0.1) / 1.5) / 0.88;
+  const R = sk.R ?? Rfull * 0.88;
+  const length = sk.length ?? 1;
+  const jawMeshLen = Rfull * Math.min(2.25, Math.max(1.6, 1.95 + (length - 1) * 0.35));
+  const jawDrop = Rfull * 0.12;
+  const jawH = jawMeshLen * 0.74;
+  const chinH = Rfull * 0.46;
+  return -(jawDrop + jawH + chinH * 0.92);
 }
 
-/** Local-Y of cranial crown top (for hair/hat anchors). Positive. */
+/** Crown local-Y vs ball center (sphere top = +R). */
 export function skullCrownLocalY(sk) {
-  const ry = (sk.hh ?? 0.16) * 0.5;
-  const rT = clampH(((sk.roundness ?? 1) - 0.45) / 0.8, 0, 1);
-  return ry * 0.06 + ry * mix(0.94, 1.02, rT);
+  const R = sk.R ?? (sk.hh ?? 0.1) / 1.5;
+  return R;
 }
 
-/** How far the skull underside sinks into the neck top. */
-export const HEAD_NECK_SINK = 0.055;
+/** How far the chin tip sinks past neck.top so under-chin rests on the column. */
+export const HEAD_NECK_SINK = 0.05;
 
 /**
  * @returns anchors + sizes for every segment (centers + tops/bots)
@@ -105,11 +125,15 @@ export function buildStack(cfg = {}) {
     armLenU, armLenL, handLen, shoulderX, legX, hipZ,
   } = L;
 
-  // Seat real skull underside onto neck (fixes float when face.length ≫ skull hh)
-  const sk = skullSize(cfg, { S });
+  // Lower the head so the ball underside meets the neck column (chin can wrap the join)
+  const sk = skullSize(cfg, { S, L });
   const seatLocal = skullSeatLocalY(sk);
   const crownLocal = skullCrownLocalY(sk);
-  const headBot = yNeckTop - HEAD_NECK_SINK;
+  const jawLen = Math.abs(seatLocal);
+  const Rball = sk.R ?? 0.06;
+  // Chin wraps past neck top a little; keep sink modest with the shorter column
+  const sink = Math.max(HEAD_NECK_SINK, jawLen - Rball - 0.02);
+  const headBot = yNeckTop - sink;
   const headY = headBot - seatLocal;
   const headTop = headY + crownLocal;
 
@@ -131,23 +155,39 @@ export function buildStack(cfg = {}) {
   const armLen = armLenU + armLenL;
   const handH = handLen;
   const shoulderSocketX = shoulderX;
-  const armAttachY = yShoulder;
-  const elbowX = shoulderX + armLenU;
-  const wristX = shoulderX + armLenU + armLenL;
-  const handX = wristX + handH * 0.45;
+  // Enforce monotonic clavicle → shoulder → elbow → wrist → hand with clear gaps
+  const MIN_UA = 0.16;
+  const MIN_LA = 0.15;
+  const MIN_HAND = 0.055;
+  const MAX_UA = 0.42;
+  const MAX_LA = 0.4;
+  const ua = Math.min(MAX_UA, Math.max(MIN_UA, armLenU));
+  const la = Math.min(MAX_LA, Math.max(MIN_LA, armLenL));
+  const hh = Math.max(MIN_HAND, handH);
+  const elbowX = shoulderSocketX + ua;
+  const wristX = elbowX + la;
+  const handX = wristX + hh * 0.45;
+  // Clavicle sits between chest and shoulder (never past upperarm)
+  const clavicleX = Math.min(shoulderSocketX * 0.62, Math.max(tw * 0.28, shoulderSocketX - ua * 0.35));
+  // Small forward nest only — under-chin / jaw back sits on the neck, not a long gap to the occiput
+  const joinZ = (hipZ != null ? hipZ : -0.035) * 0.5;
+  const nest = Math.min(0.022, Math.max(0.01, (L.neckR ?? 0.034) * 0.45));
+  const headZ = joinZ + nest;
   const offsets = {
-    ARM_Z: 0,
-    HIP_Z: hipZ,
-    SHIN_Z: hipZ * 0.4,
-    FOOT_Z: 0,
-    HEAD_Z: 0.03,
+    ARM_Z: 0.04,
+    HIP_Z: hipZ != null ? hipZ : -0.035,
+    SHIN_Z: -0.02,
+    FOOT_Z: -0.005,
+    JOIN_Z: joinZ,
+    NECK_Z: joinZ,
+    HEAD_Z: headZ,
   };
 
   return {
     S,
     H,
     L,
-    overlap: HEAD_NECK_SINK,
+    overlap: sink,
     shR: L.rShoulder,
     foot,
     shin,
@@ -162,19 +202,20 @@ export function buildStack(cfg = {}) {
     head,
     shoulderY: yShoulder,
     shoulderSocketX,
-    armAttachY,
+    clavicleX,
+    armAttachY: yShoulder,
     armTop: yShoulder,
     armBot: yShoulder,
-    armH: armLen,
+    armH: ua + la,
     armY: yShoulder,
-    upperArm: { h: armLenU, y: yShoulder, top: yShoulder, bot: yShoulder },
+    upperArm: { h: ua, y: yShoulder, top: yShoulder, bot: yShoulder },
     elbowY: yShoulder,
     elbowX,
     wristX,
     handX,
-    forearm: { h: armLenL, y: yShoulder, top: yShoulder, bot: yShoulder },
+    forearm: { h: la, y: yShoulder, top: yShoulder, bot: yShoulder },
     handY: yShoulder,
-    handH,
+    handH: hh,
     tw,
     td,
     hipW,
@@ -183,7 +224,7 @@ export function buildStack(cfg = {}) {
     armThick: L.armThick,
     legThick: L.legThick,
     armW,
-    armX: shoulderX + armLenU * 0.5,
+    armX: shoulderSocketX + ua * 0.5,
     armTilt: Math.PI / 2,
     pose: "T",
     legW,

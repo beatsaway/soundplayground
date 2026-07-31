@@ -13,6 +13,7 @@
 import {
   BODY_SHAPES,
   EYE_STYLES,
+  EYE_PUPIL_STYLES,
   BROW_STYLES,
   NOSE_STYLES,
   EAR_STYLES,
@@ -86,10 +87,10 @@ export function encodeLookCode(cfg = {}, anim = {}) {
     String(idx(BODY_SHAPES, c.bodyShape)),
     hex6(c.skinTone),
     [c.height?.leg, c.height?.torso, c.height?.neck, c.height?.head, c.body?.armThick, c.body?.legThick, c.body?.hipThick].map(f2).join(" "),
-    [c.face?.eyeDistance, c.face?.roundness, c.face?.length, c.face?.width, c.face?.eyeDrop, c.face?.noseDrop].map(f2).join(" "),
-    `${idx(EYE_STYLES, c.eyes?.style)} ${hex6(c.eyes?.color)} ${f2(c.eyes?.scale)} ${f2(c.eyes?.pupilScale ?? 0.55)} ${f2(c.eyes?.pupilX ?? 0)} ${f2(c.eyes?.pupilY ?? 0)}`,
+    [c.face?.eyeDistance, c.face?.roundness, c.face?.length, c.face?.width, c.face?.eyeDrop, c.face?.noseDrop, c.face?.mouthDrop].map(f2).join(" "),
+    `${idx(EYE_STYLES, c.eyes?.whiteStyle || c.eyes?.style)} ${idx(EYE_PUPIL_STYLES, c.eyes?.pupilStyle || "circle")} ${hex6(c.eyes?.color)} ${f2(c.eyes?.scale)} ${f2(c.eyes?.pupilScale ?? 0.55)} ${f2(c.eyes?.pupilX ?? 0)} ${f2(c.eyes?.pupilY ?? 0)}`,
     String(idx(BROW_STYLES, c.brows?.style)),
-    String(idx(NOSE_STYLES, c.nose?.style)),
+    `${idx(NOSE_STYLES, c.nose?.style)} ${f2(c.nose?.width ?? 0.9)} ${f2(c.nose?.scale ?? 0.78)}`,
     String(idx(EAR_STYLES, c.ears?.style)),
     `${idx(HAIR_STYLES, c.hair?.style)} ${hex6(c.hair?.color)}`,
     `${idx(HAT_STYLES, c.hat?.style)} ${hex6(c.hat?.color)}`,
@@ -138,25 +139,53 @@ function partialFromMap(map, anim) {
       roundness: num(f[1], 1),
       length: num(f[2], 1),
       width: num(f[3], 0.92),
-      eyeDrop: num(f[4], 0.35),
+      eyeDrop: num(f[4], 0.5),
       noseDrop: num(f[5], 0.5),
+      mouthDrop: num(f[6], 0.5),
     };
   }
 
   if (map.eyes) {
     const e = map.eyes;
-    partial.eyes = {
-      style: pick(EYE_STYLES, e[0]),
-      color: parseHex(e[1]) ?? 0x2a3a4a,
-      scale: num(e[2], 1),
-      pupilScale: num(e[3], 0.55),
-      pupilX: num(e[4], 0),
-      pupilY: num(e[5], 0),
-    };
+    // New: white pupil color scale pupilScale pupilX pupilY
+    // Old: style color scale pupilScale pupilX pupilY  (e[1] is hex)
+    const secondIsHex = e[1] != null && /^[0-9a-fA-F]{3,8}$/i.test(String(e[1]).replace(/^#/, ""));
+    if (secondIsHex) {
+      const white = pick(EYE_STYLES, e[0]);
+      partial.eyes = {
+        style: white,
+        whiteStyle: white,
+        pupilStyle: "circle",
+        color: parseHex(e[1]) ?? 0x2a3a4a,
+        scale: num(e[2], 1),
+        pupilScale: num(e[3], 0.55),
+        pupilX: num(e[4], 0),
+        pupilY: num(e[5], 0),
+      };
+    } else {
+      const white = pick(EYE_STYLES, e[0]);
+      partial.eyes = {
+        style: white,
+        whiteStyle: white,
+        pupilStyle: pick(EYE_PUPIL_STYLES, e[1], "circle"),
+        color: parseHex(e[2]) ?? 0x2a3a4a,
+        scale: num(e[3], 1),
+        pupilScale: num(e[4], 0.55),
+        pupilX: num(e[5], 0),
+        pupilY: num(e[6], 0),
+      };
+    }
   }
 
   if (map.brows) partial.brows = { style: pick(BROW_STYLES, map.brows[0]), scale: 1 };
-  if (map.nose) partial.nose = { style: pick(NOSE_STYLES, map.nose[0]), scale: 1 };
+  if (map.nose) {
+    const n = map.nose;
+    partial.nose = {
+      style: pick(NOSE_STYLES, n[0]),
+      width: num(n[1], 0.9),
+      scale: num(n[2], 0.78),
+    };
+  }
   if (map.ears) partial.ears = { style: pick(EAR_STYLES, map.ears[0]), scale: 1 };
 
   if (map.hair) {

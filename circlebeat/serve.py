@@ -1,6 +1,6 @@
 """
 Circle Beat local server.
-Serves this folder (includes vendored freenpc + animation/rig GLBs).
+Serves this folder (vendored Free NPC Maker v1.01 + animation/rig GLBs).
 """
 from __future__ import annotations
 

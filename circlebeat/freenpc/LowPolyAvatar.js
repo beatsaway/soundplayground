@@ -49,7 +49,10 @@ export class LowPolyAvatar extends THREE.Group {
     const hair = Hair.build(cfg);
     head.add(hair);
     head.add(Hat.build(cfg, { hair, headMesh: head.userData.headMesh }));
-    head.position.z = 0.03; // slightly toward camera
+    // Nest neck under rear of skull (not through face center / chin ring)
+    const headZ = stack.offsets?.HEAD_Z ?? 0.03;
+    head.position.z = headZ;
+    head.userData.headZ = headZ;
     this.add(head);
 
     this.userData.head = head;
@@ -73,7 +76,7 @@ export class LowPolyAvatar extends THREE.Group {
     if (!head) return;
     head.rotation.y = Math.sin(idle.t * 1.15) * 0.05;
     head.position.y = Math.sin(idle.t * 2.0) * 0.006;
-    head.position.z = 0.03;
+    head.position.z = head.userData.headZ ?? 0.03;
   }
 
   dispose() {
