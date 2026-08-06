@@ -7,6 +7,6 @@
 | `david.webp` | calm android |
 | `jacky.webp` | sly fox spirit |
 | `maisie.webp` | soft moth spirit |
-| `dense.webp` | busy robot |
+| `dense.webp` | busy robot (Dennis) |
 | `ghost.webp` | quiet ghost |
 | `custom.webp` | wildcard creature |

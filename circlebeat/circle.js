@@ -290,7 +290,6 @@
   var paintGroupMenu = null;
   var paintMenuOpenGroup = null;
   var randBtn = document.getElementById('randBtn');
-  var randProducerFaceBtn = document.getElementById('randProducerFaceBtn');
   var randProducerFaceImg = document.getElementById('randProducerFaceImg');
   var randOptsBtn = document.getElementById('randOptsBtn');
   var randOptsMenu = document.getElementById('randOptsMenu');
@@ -394,12 +393,12 @@
 
   /** Lucky Roll producer presets. */
   var LUCKY_PRODUCERS = [
-    { id: 'default', name: 'David', emoji: '🤖', thumb: 'producer-thumbs/david.webp', blurb: 'clean and steady — keeps it simple', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
-    { id: 'jacky', name: 'Jacky', emoji: '🦊', thumb: 'producer-thumbs/jacky.webp', blurb: 'leaves space; skips a lot on purpose', dens: 39, golden: 36, skip: 95, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
-    { id: 'maisie', name: 'Maisie', emoji: '🌸', thumb: 'producer-thumbs/maisie.webp', blurb: 'sparse drums with words up front', dens: 28, golden: 55, skip: 45, sounds: 3, reuse: 12, words: 90, humanity: 20, speed: 32 },
-    { id: 'dense', name: 'Dense', emoji: '🤖', thumb: 'producer-thumbs/dense.webp', blurb: 'packs the grid — busy and fast', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
-    { id: 'ghost', name: 'Ghost', emoji: '👻', thumb: 'producer-thumbs/ghost.webp', blurb: 'thin and quiet, more air than hits', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
-    { id: 'custom', name: 'Custom', emoji: '👾', thumb: 'producer-thumbs/custom.webp', blurb: 'your own mix — not a named preset', dens: null, golden: null, skip: null, sounds: null, reuse: null, words: null, humanity: null, speed: null }
+    { id: 'default', name: 'David', emoji: '🤖', thumb: 'producer-thumbs/david.webp', blurb: 'I\'m an artistic groover.', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
+    { id: 'jacky', name: 'Jacky', emoji: '🦊', thumb: 'producer-thumbs/jacky.webp', blurb: 'im something of a DJ myself.', dens: 36, golden: 32, skip: 42, sounds: 7, reuse: 90, words: 34, humanity: 27, speed: 35 },
+    { id: 'maisie', name: 'Maisie', emoji: '🌸', thumb: 'producer-thumbs/maisie.webp', blurb: 'More words! Less drums!', dens: 28, golden: 55, skip: 45, sounds: 6, reuse: 20, words: 90, humanity: 95, speed: 32 },
+    { id: 'dense', name: 'Dennis', emoji: '🤖', thumb: 'producer-thumbs/dense.webp', blurb: 'Some say I\'m dense. I don\'t deny it.', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
+    { id: 'ghost', name: 'Ghost', emoji: '👻', thumb: 'producer-thumbs/ghost.webp', blurb: ' Hello  . . . ?  ', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
+    { id: 'custom', name: 'Custom', emoji: '👾', thumb: 'producer-thumbs/custom.webp', blurb: 'Wait. This beat is yours. I\'m just watching.', dens: null, golden: null, skip: null, sounds: null, reuse: null, words: null, humanity: null, speed: null }
   ];
   var CUSTOM_PRODUCER_EMOJI = '❓';
   var CUSTOM_PRODUCER_THUMB = 'producer-thumbs/custom.webp';
@@ -468,8 +467,35 @@
     var p = producerById(id || 'custom');
     if (!p || p.id === 'custom') p = producerById('custom');
     var src = producerThumbSrc(p);
-    if (imgEl.getAttribute('src') !== src) imgEl.src = src;
-    imgEl.alt = p.name || 'Producer';
+    var cur = imgEl.getAttribute('src') || '';
+    if (cur === src) {
+      imgEl.alt = p.name || 'Producer';
+      return;
+    }
+    // Decode first so launch/hub faces never flash empty (or a browser tap tint).
+    var probe = new Image();
+    probe.decoding = 'async';
+    probe.onload = function () {
+      if (imgEl.getAttribute('data-face-src') !== src) return;
+      imgEl.src = src;
+      imgEl.alt = p.name || 'Producer';
+    };
+    probe.onerror = function () {
+      if (imgEl.getAttribute('data-face-src') !== src) return;
+      imgEl.src = src;
+      imgEl.alt = p.name || 'Producer';
+    };
+    imgEl.setAttribute('data-face-src', src);
+    probe.src = src;
+  }
+
+  function preloadProducerThumbs() {
+    namedLuckyProducers().concat([producerById('custom')]).forEach(function (p) {
+      if (!p || !p.thumb) return;
+      var img = new Image();
+      img.decoding = 'async';
+      img.src = p.thumb;
+    });
   }
 
   function producerOptionLabel(p) {
@@ -525,8 +551,9 @@
   /** Call from Lucky Roll only — unlocks hub face and stamps current producer. */
   function unlockHubProducerFace() {
     var pid = currentProducerPickId || matchLuckyProducerId();
-    if (!pid || pid === 'custom') pid = matchLuckyProducerId();
-    if (!pid || pid === 'custom') pid = 'default';
+    if (!pid) pid = matchLuckyProducerId();
+    if (!pid) pid = 'default';
+    // Keep Custom as Custom (do not fall back to David).
     hubProducerFaceId = pid;
     hubProducerFaceOn = true;
     syncHubProducerFace();
@@ -551,7 +578,24 @@
     launchProducerId = p.id;
     setProducerFaceImg(launchProducerFace, p.id);
     if (launchProducerName) launchProducerName.textContent = p.name;
-    if (launchProducerBlurb) launchProducerBlurb.textContent = p.blurb || '';
+    if (launchProducerBlurb) {
+      launchProducerBlurb.textContent = p.blurb || '';
+      launchProducerBlurb.classList.remove('is-in');
+      // Retrigger quick fade-in on producer swap.
+      void launchProducerBlurb.offsetWidth;
+      launchProducerBlurb.classList.add('is-in');
+    }
+  }
+
+  async function playLaunchUiSwift() {
+    try {
+      await ensureAudio();
+      if (ctx && ctx.state === 'suspended') await ctx.resume();
+    } catch (e) {
+      console.error(e);
+      return;
+    }
+    playDjSwiftSound(0.28);
   }
 
   function stepLaunchProducer(dir) {
@@ -563,8 +607,9 @@
     }
     if (i >= list.length) i = 0;
     i = (i + dir + list.length) % list.length;
-    applyLuckyProducer(list[i].id, { silent: true });
+    // Launch picker only — apply preset on startApp to avoid UI thrash / flash.
     syncLaunchProducerUi(list[i].id);
+    playLaunchUiSwift().catch(function (err) { console.error(err); });
   }
 
   function readLuckySettings() {
@@ -2729,7 +2774,13 @@
     }
 
     clearScrubHitCache();
-    if (!liveRollHasWork(roll)) livePendingRoll = null;
+    if (!liveRollHasWork(roll)) {
+      var postNudge = roll.postNudgeLayers;
+      livePendingRoll = null;
+      if (postNudge && postNudge.length) {
+        nudgeLayersAfterLucky(postNudge).catch(function (err) { console.error(err); });
+      }
+    }
   }
 
   function flushLivePendingRoll() {
@@ -2884,6 +2935,8 @@
         roll.buffers = await buildLiveRollBuffers(roll.makerParams);
       }
 
+      roll.postNudgeLayers = indices.slice();
+
       // Pre-render word buffers using pending voice seeds / texts without touching live bank.
       if ((doWords || doVoices) && (roll.sayTexts || roll.sayVoices)) {
         await ensureAudio();
@@ -2951,6 +3004,8 @@
     if (doSounds && indices.length) {
       await randomizeSoundsForLayers(indices);
     }
+
+    if (indices.length) await nudgeLayersAfterLucky(indices);
 
     if (wasPlaying) pause();
     await play();
@@ -3075,7 +3130,6 @@
     used.forEach(nudgeMakerSound);
     await ensureAudio();
     await buildBank();
-    previewSample(paintSample);
   }
 
   /** Replace a few word slots; keep most of the current bank. */
@@ -3185,6 +3239,25 @@
 
     if (wasPlaying) pause();
     await play();
+  }
+
+  /**
+   * After Lucky Roll: lightly nudge each rolled wheel separately (patterns +
+   * sounds). Globals (BPM/space/words/voices) stay as the roll set them.
+   */
+  async function nudgeLayersAfterLucky(indices) {
+    if (!indices || !indices.length) return;
+    var i;
+    for (i = 0; i < indices.length; i++) {
+      var layerIdx = indices[i];
+      if (!layers[layerIdx]) continue;
+      nudgePattern(layers[layerIdx].pattern);
+      await nudgeSoundsForLayers([layerIdx]);
+    }
+    pattern = layers[viewLayer].pattern;
+    buildSvg();
+    refreshSegFills();
+    clearScrubHitCache();
   }
 
   function prettyKey(key) {
@@ -3847,6 +3920,7 @@
     }
 
     var fillPool = [];
+    var wordPool = [];
     var humanity = getLuckyHumanity();
     SAMPLES.forEach(function (s) {
       if (usedSet[s.id]) return;
@@ -3854,13 +3928,17 @@
         if (!String(sayTexts[s.id] || '').trim()) return;
         // Humanity: how likely this producer picks word sounds for free slots.
         if (rand() >= humanity) return;
-        fillPool.push(s.id);
+        wordPool.push(s.id);
         return;
       }
       if (s.type === 'sample' && !soundBank[s.id]) return;
       fillPool.push(s.id);
     });
+    shuffleInPlace(wordPool, rand);
     shuffleInPlace(fillPool, rand);
+    // Prefer words first when Humanity is high so vocal producers actually land on the wheel.
+    if (humanity >= 0.55) fillPool = wordPool.concat(fillPool);
+    else fillPool = fillPool.concat(wordPool);
 
     while (remaining.length && usedOrder.length < soundTarget && fillPool.length) {
       var freshId = fillPool.shift();
@@ -6307,13 +6385,6 @@
     else setPanel('lucky');
   }
 
-  if (randProducerFaceBtn) {
-    randProducerFaceBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      toggleProducerPanelFromFace();
-    });
-  }
-
   if (nudgeBtn) {
     nudgeBtn.addEventListener('click', function () {
       closeRandMenus();
@@ -6542,6 +6613,7 @@
   });
   window.addEventListener('resize', hideLuckyTip);
   var bootProducerId = pickRandomNamedProducerId();
+  preloadProducerThumbs();
   applyLuckyProducer(bootProducerId, { silent: true });
   syncLaunchProducerUi(bootProducerId);
 
@@ -6576,6 +6648,7 @@
     try {
       await ensureAudio();
       if (ctx && ctx.state === 'suspended') await ctx.resume();
+      playDjSwiftSound(0.28);
     } catch (e) {
       console.error(e);
     }

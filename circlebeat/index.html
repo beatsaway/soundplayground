@@ -41,6 +41,12 @@
       padding: 24px;
       cursor: pointer;
       transition: opacity 0.4s ease, visibility 0.4s ease;
+      -webkit-tap-highlight-color: transparent;
+      tap-highlight-color: transparent;
+    }
+    #launchOverlay button {
+      -webkit-tap-highlight-color: transparent;
+      tap-highlight-color: transparent;
     }
     #launchOverlay.hidden {
       opacity: 0;
@@ -61,8 +67,71 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 14px;
+      padding-top: 8px;
       animation: launchRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+    }
+    .launch-speech {
+      position: relative;
+      max-width: min(18.5rem, 82vw);
+      min-height: 3.4em;
+      margin: 0 0 2px;
+      padding: 12px 14px 14px;
+      border-radius: 16px;
+      background: #f4f4f8;
+      color: #1a1a22;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      text-align: left;
+    }
+    .launch-speech::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -9px;
+      width: 16px;
+      height: 16px;
+      background: #f4f4f8;
+      transform: translateX(-50%) rotate(45deg);
+      border-radius: 2px;
+      box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.04);
+    }
+    .launch-producer-blurb {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      width: 100%;
+      font-family: Sora, "IBM Plex Sans", system-ui, sans-serif;
+      font-size: 0.88rem;
+      font-weight: 500;
+      font-style: normal;
+      line-height: 1.35;
+      letter-spacing: -0.01em;
+      color: #1a1a22;
+      text-align: left;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    .launch-producer-blurb.is-in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .launch-producer-blurb {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+    }
+    .launch-producer-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
     }
     .launch-producer-row {
       display: flex;
@@ -79,11 +148,19 @@
       display: grid;
       place-items: center;
       border-radius: 7px;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      tap-highlight-color: transparent;
     }
     .launch-producer-nav:hover,
+    .launch-producer-nav:focus,
     .launch-producer-nav:focus-visible {
       background: #222228;
       outline: none;
+      box-shadow: none;
+    }
+    .launch-producer-nav:active {
+      background: #2a2a32;
     }
     .launch-tri {
       display: block;
@@ -100,21 +177,33 @@
       border-width: 16px 0 16px 26px;
       border-color: transparent transparent transparent #fff;
     }
-    .launch-producer-face {
+    .launch-producer-face-wrap {
       width: clamp(72px, 18vw, 96px);
       height: clamp(72px, 18vw, 96px);
+      border-radius: 12px;
+      background: transparent;
+      overflow: visible;
+      transform-origin: center center;
+      box-shadow: none;
+      filter: none;
+    }
+    .launch-producer-face {
+      width: 100%;
+      height: 100%;
       border-radius: 12px;
       object-fit: contain;
       display: block;
       background: transparent;
       user-select: none;
       pointer-events: none;
+      box-shadow: none;
+      filter: none;
       transform-origin: center center;
       animation: launchFacePulse 1.55s ease-in-out infinite;
     }
     @keyframes launchFacePulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.08); opacity: 0.88; }
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
     }
     .launch-producer-name {
       margin: 0;
@@ -128,29 +217,10 @@
       color: var(--ink);
       font-weight: 600;
     }
-    .launch-producer-blurb {
-      margin: 2px 0 0;
-      max-width: 20rem;
-      font-family: Sora, "IBM Plex Sans", system-ui, sans-serif;
-      font-size: 0.8rem;
-      font-weight: 400;
-      font-style: italic;
-      line-height: 1.45;
-      letter-spacing: 0.01em;
-      color: rgba(238, 238, 242, 0.55);
-      min-height: 2.2em;
-    }
-    .launch-producer-blurb::before {
-      content: "“";
-      margin-right: 0.12em;
-      color: rgba(238, 238, 242, 0.35);
-      font-style: normal;
-    }
-    .launch-producer-blurb::after {
-      content: "”";
-      margin-left: 0.12em;
-      color: rgba(238, 238, 242, 0.35);
-      font-style: normal;
+    @media (prefers-reduced-motion: reduce) {
+      .launch-producer-face {
+        animation: none;
+      }
     }
     .launch-start {
       margin: 6px 0 0;
@@ -942,22 +1012,20 @@
       align-items: center;
       height: 100%;
       min-width: 0;
-      border-radius: 7px 0 0 7px;
-    }
-    .rand-group .rand-main:hover,
-    .rand-group .rand-main:focus-within {
-      background: #2c2c34;
-    }
-    .rand-group .rand-face,
-    .rand-group .rand-label {
       border: 0;
+      border-radius: 7px 0 0 7px;
       background: transparent;
-      height: 100%;
       color: var(--ink);
       cursor: pointer;
       font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
       padding: 0;
       margin: 0;
+    }
+    .rand-group .rand-main:hover,
+    .rand-group .rand-main:focus-visible {
+      background: #2c2c34;
+      outline: 2px solid rgba(200, 255, 0, 0.45);
+      outline-offset: -2px;
     }
     .rand-group .rand-face {
       flex-shrink: 0;
@@ -965,6 +1033,8 @@
       place-items: center;
       padding-left: 10px;
       padding-right: 6px;
+      height: 100%;
+      pointer-events: none;
     }
     .rand-group .rand-face img {
       width: 18px;
@@ -978,11 +1048,7 @@
     .rand-group .rand-label {
       padding-right: 10px;
       white-space: nowrap;
-    }
-    .rand-group .rand-face:focus-visible,
-    .rand-group .rand-label:focus-visible {
-      outline: 2px solid rgba(200, 255, 0, 0.45);
-      outline-offset: -2px;
+      pointer-events: none;
     }
     .bottom-bar .rand-tools {
       display: flex;
@@ -1481,6 +1547,11 @@
     }
     .hub.playing.hub-has-producer .hub-producer {
       display: block;
+      opacity: 0;
+      transition: opacity 0.45s ease;
+    }
+    /* First ~1s: pause glyph only. After hub-pause-fade: show producer face. */
+    .hub.playing.hub-has-producer.hub-pause-fade .hub-producer {
       opacity: 0.9;
     }
     .hub-producer-sheen {
@@ -1728,17 +1799,23 @@
   <div id="launchOverlay" role="dialog" aria-modal="true" aria-label="Start Circle Beat" tabindex="0">
     <h1>Circle Beat</h1>
     <div class="launch-producer" id="launchProducer" role="group" aria-label="Choose producer">
-      <div class="launch-producer-row">
-        <button type="button" class="launch-producer-nav" id="launchProducerPrev" aria-label="Previous producer">
-          <span class="launch-tri launch-tri-left" aria-hidden="true"></span>
-        </button>
-        <img class="launch-producer-face" id="launchProducerFace" alt="" width="128" height="128" decoding="async" />
-        <button type="button" class="launch-producer-nav" id="launchProducerNext" aria-label="Next producer">
-          <span class="launch-tri launch-tri-right" aria-hidden="true"></span>
-        </button>
+      <div class="launch-speech" aria-live="polite">
+        <p class="launch-producer-blurb" id="launchProducerBlurb"></p>
       </div>
-      <p class="launch-producer-name">Producer: <strong id="launchProducerName"></strong></p>
-      <p class="launch-producer-blurb" id="launchProducerBlurb"></p>
+      <div class="launch-producer-stage">
+        <div class="launch-producer-row">
+          <button type="button" class="launch-producer-nav" id="launchProducerPrev" aria-label="Previous producer">
+            <span class="launch-tri launch-tri-left" aria-hidden="true"></span>
+          </button>
+          <div class="launch-producer-face-wrap" aria-hidden="true">
+            <img class="launch-producer-face" id="launchProducerFace" alt="" width="128" height="128" decoding="async" />
+          </div>
+          <button type="button" class="launch-producer-nav" id="launchProducerNext" aria-label="Next producer">
+            <span class="launch-tri launch-tri-right" aria-hidden="true"></span>
+          </button>
+        </div>
+        <p class="launch-producer-name">Producer: <strong id="launchProducerName"></strong></p>
+      </div>
     </div>
     <p class="launch-start">Tap to start</p>
   </div>
@@ -1949,12 +2026,12 @@
         </div>
         <div class="rand-tools">
         <div class="rand-group" title="Lucky Roll">
-          <div class="rand-main">
-            <button type="button" class="rand-face" id="randProducerFaceBtn" aria-label="Open producer settings" title="Producer settings">
+          <button type="button" class="rand-main" id="randBtn" aria-label="Lucky Roll">
+            <span class="rand-face" aria-hidden="true">
               <img id="randProducerFaceImg" alt="" width="18" height="18" decoding="async" />
-            </button>
-            <button type="button" class="rand-label" id="randBtn" aria-label="Lucky Roll">Lucky Roll</button>
-          </div>
+            </span>
+            <span class="rand-label">Lucky Roll</span>
+          </button>
           <div class="rand-dd">
             <button type="button" class="rand-dd-btn" id="randOptsBtn" aria-haspopup="true" aria-expanded="false" title="Lucky Roll options">...</button>
             <div class="rand-menu" id="randOptsMenu" role="menu">
