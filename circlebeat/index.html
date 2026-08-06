@@ -223,14 +223,15 @@
     .launch-producer-name {
       margin: 0;
       font-family: Sora, "IBM Plex Sans", sans-serif;
-      font-size: 0.82rem;
+      font-size: 1.15rem;
       font-weight: 500;
       letter-spacing: 0.02em;
       color: var(--muted);
     }
     .launch-producer-name strong {
       color: var(--ink);
-      font-weight: 600;
+      font-weight: 700;
+      font-size: 1.28rem;
     }
     @media (prefers-reduced-motion: reduce) {
       .launch-producer-face {
@@ -299,6 +300,10 @@
       place-items: center;
       overflow: visible;
       box-shadow: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-user-drag: none;
+      -webkit-touch-callout: none;
     }
     .app-producer-face:hover {
       background: transparent;
@@ -314,6 +319,9 @@
       object-fit: contain;
       display: block;
       pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-user-drag: none;
     }
     .producer-chip {
       align-items: center;
@@ -799,6 +807,13 @@
     }
     .chip select { cursor: pointer; max-width: 148px; }
     .chip select option { background: #1a1a1f; }
+    .chip input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--play);
+      cursor: pointer;
+    }
     .paint-chip {
       opacity: 0.55;
       outline: 1px solid transparent;
@@ -1458,6 +1473,26 @@
       height: min(92vmin, 720px);
       overflow: visible;
     }
+    /* Fixed shade (doesn't spin) — darkens bottom so 12-o'clock needle zone reads brighter. */
+    .wheel-shade {
+      display: none;
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 0) 28%,
+        rgba(0, 0, 0, 0.28) 55%,
+        rgba(0, 0, 0, 0.58) 78%,
+        rgba(0, 0, 0, 0.78) 100%
+      );
+    }
+    .circle-wrap.is-playing .wheel-shade {
+      display: block;
+    }
     .circle-wrap.disabled {
       opacity: 0.38;
       filter: grayscale(0.35);
@@ -1907,6 +1942,10 @@
                 <span class="lab" id="paintSampleLab">Sample 1</span>
               </button>
             </div>
+            <label class="chip" title="Paint the same spot on all 8 pie slices" style="cursor:pointer">
+              <input type="checkbox" id="paintMirror" />
+              <span>Mirror</span>
+            </label>
           </div>
           <div class="tab-panel" id="tabGroove" data-panel="groove" role="tabpanel">
             <label class="slide" title="Tempo">
@@ -2029,6 +2068,7 @@
       <canvas class="fft-ring" id="fftRing" aria-hidden="true"></canvas>
       <div class="circle-wrap" id="circleWrap">
         <svg id="ringSvg" viewBox="0 0 1000 1000" aria-label="Drum circle"></svg>
+        <div class="wheel-shade" aria-hidden="true"></div>
         <button type="button" class="hub" id="hubBtn" aria-label="Play or pause" title="Play / pause">
           <span class="hub-strike" id="hubStrike" aria-hidden="true"></span>
           <img class="hub-producer" id="hubProducerImg" alt="" width="128" height="128" decoding="async" aria-hidden="true" />

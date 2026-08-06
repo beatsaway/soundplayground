@@ -285,6 +285,7 @@
   var paintWordTrigger = document.getElementById('paintWordTrigger');
   var paintDrumTrigger = document.getElementById('paintDrumTrigger');
   var paintSampleTrigger = document.getElementById('paintSampleTrigger');
+  var paintMirrorEl = document.getElementById('paintMirror');
   var paintWordDot = document.getElementById('paintWordDot');
   var paintDrumDot = document.getElementById('paintDrumDot');
   var paintSampleDot = document.getElementById('paintSampleDot');
@@ -399,11 +400,11 @@
 
   /** Lucky Roll producer presets. */
   var LUCKY_PRODUCERS = [
-    { id: 'default', name: 'David', emoji: '🤖', thumb: 'producer-thumbs/david.webp', blurb: 'Me artistic groover.', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
-    { id: 'jacky', name: 'Jacky', emoji: '🦊', thumb: 'producer-thumbs/jacky.webp', blurb: 'Something of a DJ myself.', dens: 36, golden: 32, skip: 42, sounds: 7, reuse: 90, words: 34, humanity: 27, speed: 35 },
-    { id: 'maisie', name: 'Maisie', emoji: '🌸', thumb: 'producer-thumbs/maisie.webp', blurb: ' More yap!', dens: 28, golden: 55, skip: 45, sounds: 6, reuse: 20, words: 90, humanity: 95, speed: 32 },
-    { id: 'dense', name: 'Dennis', emoji: '🤖', thumb: 'producer-thumbs/dense.webp', blurb: 'Some say I\'m dense. I don\'t deny it.', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
-    { id: 'ghost', name: 'Ghost', emoji: '👻', thumb: 'producer-thumbs/ghost.webp', blurb: ' Hello  . . . ?  ', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
+    { id: 'default', name: 'Kim', emoji: '🤖', thumb: 'producer-thumbs/david.webp', blurb: 'Me artistic groover.', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
+    { id: 'jacky', name: 'Quinn', emoji: '🦊', thumb: 'producer-thumbs/jacky.webp', blurb: 'Something of a DJ myself.', dens: 36, golden: 32, skip: 42, sounds: 7, reuse: 90, words: 34, humanity: 27, speed: 35 },
+    { id: 'maisie', name: 'Ray', emoji: '🌸', thumb: 'producer-thumbs/maisie.webp', blurb: ' More yap!', dens: 28, golden: 55, skip: 45, sounds: 6, reuse: 20, words: 90, humanity: 95, speed: 32 },
+    { id: 'dense', name: 'Dee', emoji: '🤖', thumb: 'producer-thumbs/dense.webp', blurb: 'Some say I\'m dense. I don\'t deny it.', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
+    { id: 'ghost', name: 'Ash', emoji: '👻', thumb: 'producer-thumbs/ghost.webp', blurb: ' Hello  . . . ?  ', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
     { id: 'custom', name: 'Custom', emoji: '👾', thumb: 'producer-thumbs/custom.webp', blurb: 'Wait. This beat is yours. I\'m just watching.', dens: null, golden: null, skip: null, sounds: null, reuse: null, words: null, humanity: null, speed: null }
   ];
   var CUSTOM_PRODUCER_EMOJI = '❓';
@@ -559,7 +560,7 @@
     var pid = currentProducerPickId || matchLuckyProducerId();
     if (!pid) pid = matchLuckyProducerId();
     if (!pid) pid = 'default';
-    // Keep Custom as Custom (do not fall back to David).
+    // Keep Custom as Custom (do not fall back to Kim).
     hubProducerFaceId = pid;
     hubProducerFaceOn = true;
     syncHubProducerFace();
@@ -3760,6 +3761,53 @@
     el.setAttribute('fill', segFill(pattern[ringId][i], ringId, i));
   }
 
+  /** 8-fold mirror indices — same pie slices as the alternating empty greys. */
+  function mirrorSegIndices(n, i) {
+    if (!(n > 0) || !Number.isFinite(i)) return [i];
+    i = ((i % n) + n) % n;
+    var slices = DISC_PIE_SLICES;
+    var out = [];
+    var k;
+    if (n % slices === 0) {
+      var per = n / slices;
+      var offset = i % per;
+      for (k = 0; k < slices; k++) out.push(k * per + offset);
+      return out;
+    }
+    var step = n / slices;
+    for (k = 0; k < slices; k++) {
+      var idx = Math.round(i + k * step) % n;
+      if (out.indexOf(idx) === -1) out.push(idx);
+    }
+    return out;
+  }
+
+  function ringSegmentCount(ringId) {
+    var r;
+    for (r = 0; r < RINGS.length; r++) {
+      if (RINGS[r].id === ringId) return RINGS[r].segments;
+    }
+    return 0;
+  }
+
+  function paintTargetsFor(ringId, i) {
+    var n = ringSegmentCount(ringId);
+    if (!n) return [i];
+    if (paintMirrorEl && paintMirrorEl.checked) return mirrorSegIndices(n, i);
+    return [i];
+  }
+
+  function applyPaintCells(ringId, i, value) {
+    if (!pattern || !pattern[ringId]) return;
+    var targets = paintTargetsFor(ringId, i);
+    var t;
+    for (t = 0; t < targets.length; t++) {
+      pattern[ringId][targets[t]] = value;
+      paintSeg(ringId, targets[t]);
+    }
+    clearScrubHitCache();
+  }
+
   var segPress = null;
 
   function clearSegPress() {
@@ -3855,14 +3903,10 @@
     var ringId = press.ringId;
     var i = press.i;
     if (pattern[ringId][i] === paintSample) {
-      pattern[ringId][i] = null;
-      paintSeg(ringId, i);
-      clearScrubHitCache();
+      applyPaintCells(ringId, i, null);
       return;
     }
-    pattern[ringId][i] = paintSample;
-    paintSeg(ringId, i);
-    clearScrubHitCache();
+    applyPaintCells(ringId, i, paintSample);
     listenSample(paintSample).catch(function (err) { console.error(err); });
   }
 

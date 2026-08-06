@@ -2,11 +2,11 @@
 
 **96×96** transparent WebP — all **non-human** mascots. Soft 1px alpha feather.
 
-| File | Form |
-|------|------|
-| `david.webp` | calm android |
-| `jacky.webp` | sly fox spirit |
-| `maisie.webp` | soft moth spirit |
-| `dense.webp` | busy robot (Dennis) |
-| `ghost.webp` | quiet ghost |
-| `custom.webp` | wildcard creature |
+| File | Producer | Form |
+|------|----------|------|
+| `david.webp` | Kim | calm android |
+| `jacky.webp` | Quinn | sly fox spirit |
+| `maisie.webp` | Ray | soft moth spirit |
+| `dense.webp` | Dee | busy robot |
+| `ghost.webp` | Ash | quiet ghost |
+| `custom.webp` | Custom | wildcard creature |
