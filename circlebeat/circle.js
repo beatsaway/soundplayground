@@ -394,7 +394,7 @@
   /** Lucky Roll producer presets. */
   var LUCKY_PRODUCERS = [
     { id: 'default', name: 'David', emoji: '🤖', thumb: 'producer-thumbs/david.webp', blurb: 'I\'m an artistic groover.', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
-    { id: 'jacky', name: 'Jacky', emoji: '🦊', thumb: 'producer-thumbs/jacky.webp', blurb: 'im something of a DJ myself.', dens: 36, golden: 32, skip: 42, sounds: 7, reuse: 90, words: 34, humanity: 27, speed: 35 },
+    { id: 'jacky', name: 'Jacky', emoji: '🦊', thumb: 'producer-thumbs/jacky.webp', blurb: 'I\'m something of a DJ myself.', dens: 36, golden: 32, skip: 42, sounds: 7, reuse: 90, words: 34, humanity: 27, speed: 35 },
     { id: 'maisie', name: 'Maisie', emoji: '🌸', thumb: 'producer-thumbs/maisie.webp', blurb: 'More words! Less drums!', dens: 28, golden: 55, skip: 45, sounds: 6, reuse: 20, words: 90, humanity: 95, speed: 32 },
     { id: 'dense', name: 'Dennis', emoji: '🤖', thumb: 'producer-thumbs/dense.webp', blurb: 'Some say I\'m dense. I don\'t deny it.', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
     { id: 'ghost', name: 'Ghost', emoji: '👻', thumb: 'producer-thumbs/ghost.webp', blurb: ' Hello  . . . ?  ', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
