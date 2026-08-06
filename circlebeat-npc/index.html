@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Circle Beat</title>
+  <title>Circle Beat NPC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -34,7 +34,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      gap: 20px;
+      gap: 18px;
       background:
         radial-gradient(ellipse 70% 50% at 50% 42%, #16161c 0%, #050506 55%, #000 100%);
       text-align: center;
@@ -55,114 +55,19 @@
       letter-spacing: -0.035em;
       color: #f7f7fb;
       line-height: 1.05;
+      font-stretch: normal;
+      transform: none;
       animation: launchRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
-    .launch-producer {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      animation: launchRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
-    }
-    .launch-producer-row {
-      display: flex;
-      align-items: center;
-      gap: 18px;
-    }
-    .launch-producer-nav {
-      border: 0;
-      background: transparent;
-      width: 52px;
-      height: 52px;
-      padding: 0;
-      cursor: pointer;
-      display: grid;
-      place-items: center;
-      border-radius: 7px;
-    }
-    .launch-producer-nav:hover,
-    .launch-producer-nav:focus-visible {
-      background: #222228;
-      outline: none;
-    }
-    .launch-tri {
-      display: block;
-      width: 0;
-      height: 0;
-      border-style: solid;
-      filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.35));
-    }
-    .launch-tri-left {
-      border-width: 16px 26px 16px 0;
-      border-color: transparent #fff transparent transparent;
-    }
-    .launch-tri-right {
-      border-width: 16px 0 16px 26px;
-      border-color: transparent transparent transparent #fff;
-    }
-    .launch-producer-face {
-      width: clamp(72px, 18vw, 96px);
-      height: clamp(72px, 18vw, 96px);
-      border-radius: 12px;
-      object-fit: contain;
-      display: block;
-      background: transparent;
-      user-select: none;
-      pointer-events: none;
-      transform-origin: center center;
-      animation: launchFacePulse 1.55s ease-in-out infinite;
-    }
-    @keyframes launchFacePulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.08); opacity: 0.88; }
-    }
-    .launch-producer-name {
+    #launchOverlay p {
       margin: 0;
-      font-family: Sora, "IBM Plex Sans", sans-serif;
-      font-size: 0.82rem;
-      font-weight: 500;
-      letter-spacing: 0.02em;
-      color: var(--muted);
-    }
-    .launch-producer-name strong {
-      color: var(--ink);
-      font-weight: 600;
-    }
-    .launch-producer-blurb {
-      margin: 2px 0 0;
-      max-width: 20rem;
-      font-family: Sora, "IBM Plex Sans", system-ui, sans-serif;
-      font-size: 0.8rem;
-      font-weight: 400;
-      font-style: italic;
-      line-height: 1.45;
-      letter-spacing: 0.01em;
-      color: rgba(238, 238, 242, 0.55);
-      min-height: 2.2em;
-    }
-    .launch-producer-blurb::before {
-      content: "“";
-      margin-right: 0.12em;
-      color: rgba(238, 238, 242, 0.35);
-      font-style: normal;
-    }
-    .launch-producer-blurb::after {
-      content: "”";
-      margin-left: 0.12em;
-      color: rgba(238, 238, 242, 0.35);
-      font-style: normal;
-    }
-    .launch-start {
-      margin: 6px 0 0;
       font-family: Sora, "IBM Plex Sans", sans-serif;
       font-size: 0.72rem;
       font-weight: 500;
       letter-spacing: 0.28em;
       text-transform: uppercase;
       color: rgba(238, 238, 242, 0.42);
-      animation:
-        launchRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.22s both,
-        launchBlink 1.35s steps(1, end) infinite;
+      animation: launchRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
     }
     @keyframes launchRise {
       from {
@@ -174,16 +79,11 @@
         transform: translateY(0);
       }
     }
-    @keyframes launchBlink {
-      0%, 48% { opacity: 1; }
-      50%, 100% { opacity: 0.28; }
-    }
     .app {
       height: 100%;
       width: 100%;
       display: grid;
-      /* Stage + bottom only — top panel overlays so the wheel never shifts */
-      grid-template-rows: 1fr auto;
+      grid-template-rows: auto 1fr auto;
       min-height: 0;
       position: relative;
       background: var(--bg);
@@ -198,141 +98,6 @@
       display: none;
     }
     .app.top-collapsed .panel-menu-wrap { display: block; }
-    .app-producer-face {
-      position: absolute;
-      top: 8px;
-      right: 10px;
-      z-index: 50;
-      width: 40px;
-      height: 40px;
-      padding: 0;
-      border: 0;
-      border-radius: 10px;
-      background: transparent;
-      cursor: pointer;
-      display: grid;
-      place-items: center;
-      overflow: visible;
-      box-shadow: none;
-    }
-    .app-producer-face:hover {
-      background: transparent;
-      filter: brightness(1.08);
-    }
-    .app-producer-face:focus-visible {
-      outline: 2px solid rgba(200, 255, 0, 0.45);
-      outline-offset: 2px;
-    }
-    .app-producer-face img {
-      width: 40px;
-      height: 40px;
-      object-fit: contain;
-      display: block;
-      pointer-events: none;
-    }
-    .producer-chip {
-      align-items: center;
-    }
-    .producer-pick {
-      position: relative;
-      min-width: 0;
-    }
-    .producer-pick-trigger {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      height: 28px;
-      padding: 0 8px 0 4px;
-      border: 0;
-      border-radius: 6px;
-      background: #2a2a32;
-      color: var(--ink);
-      cursor: pointer;
-      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
-      max-width: 160px;
-    }
-    .producer-pick-trigger:hover { background: #32323c; }
-    .producer-pick-face {
-      width: 22px;
-      height: 22px;
-      border-radius: 5px;
-      object-fit: contain;
-      background: transparent;
-      flex-shrink: 0;
-      pointer-events: none;
-    }
-    .producer-pick-lab {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      min-width: 0;
-    }
-    .producer-pick-menu {
-      position: absolute;
-      left: 0;
-      top: calc(100% + 4px);
-      z-index: 40;
-      min-width: 160px;
-      max-height: 240px;
-      overflow: auto;
-      padding: 4px;
-      border-radius: 8px;
-      background: #1e1e24;
-      border: 1px solid var(--line);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      display: grid;
-      gap: 2px;
-    }
-    .producer-pick-menu[hidden] { display: none !important; }
-    .producer-pick-opt {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      width: 100%;
-      border: 0;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--ink);
-      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
-      padding: 7px 8px;
-      cursor: pointer;
-      text-align: left;
-    }
-    .producer-pick-opt:hover,
-    .producer-pick-opt.active { background: #2a2a32; }
-    .producer-pick-opt img {
-      width: 22px;
-      height: 22px;
-      border-radius: 5px;
-      object-fit: contain;
-      flex-shrink: 0;
-      pointer-events: none;
-    }
-    .producer-pick-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 6px 8px;
-      color: var(--ink);
-      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
-    }
-    .producer-pick-compact .producer-pick-trigger {
-      height: 26px;
-      max-width: 140px;
-      background: #2a2a32;
-    }
-    .producer-pick-compact .producer-pick-menu {
-      left: auto;
-      right: 0;
-      bottom: calc(100% + 4px);
-      top: auto;
-    }
-    .rand-group .rand-face img,
-    .launch-producer-face {
-      object-fit: contain;
-      background: transparent;
-    }
     .panel-burger {
       display: flex;
       align-items: center;
@@ -495,32 +260,24 @@
     }
 
     .top {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
       width: 100%;
       background: var(--panel);
       border-bottom: 1px solid var(--line);
       overflow: visible;
-      max-height: min(72vh, 520px);
+      transition: max-height 0.28s ease, opacity 0.22s ease, border-color 0.22s ease;
+      max-height: none;
       opacity: 1;
-      transform: translateY(0);
-      transform-origin: top center;
-      transition:
-        transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-        opacity 0.18s ease;
       display: flex;
       flex-direction: column;
-      z-index: 40;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      position: relative;
+      z-index: 20;
     }
     .app.top-collapsed .top {
       overflow: hidden;
+      max-height: 0;
       opacity: 0;
-      transform: translateY(calc(-100% - 4px));
+      border-bottom-color: transparent;
       pointer-events: none;
-      box-shadow: none;
     }
     .top-bar {
       display: flex;
@@ -936,61 +693,6 @@
       line-height: 1;
       color: var(--ink);
     }
-    /* Face + Lucky Roll read as one control; separate hit targets only. */
-    .rand-group .rand-main {
-      display: flex;
-      align-items: center;
-      height: 100%;
-      min-width: 0;
-      border-radius: 7px 0 0 7px;
-    }
-    .rand-group .rand-main:hover,
-    .rand-group .rand-main:focus-within {
-      background: #2c2c34;
-    }
-    .rand-group .rand-face,
-    .rand-group .rand-label {
-      border: 0;
-      background: transparent;
-      height: 100%;
-      color: var(--ink);
-      cursor: pointer;
-      font: 500 12px/1 "IBM Plex Sans", system-ui, sans-serif;
-      padding: 0;
-      margin: 0;
-    }
-    .rand-group .rand-face {
-      flex-shrink: 0;
-      display: grid;
-      place-items: center;
-      padding-left: 10px;
-      padding-right: 6px;
-    }
-    .rand-group .rand-face img {
-      width: 18px;
-      height: 18px;
-      border-radius: 4px;
-      object-fit: contain;
-      display: block;
-      background: transparent;
-      pointer-events: none;
-    }
-    .rand-group .rand-label {
-      padding-right: 10px;
-      white-space: nowrap;
-    }
-    .rand-group .rand-face:focus-visible,
-    .rand-group .rand-label:focus-visible {
-      outline: 2px solid rgba(200, 255, 0, 0.45);
-      outline-offset: -2px;
-    }
-    .bottom-bar .rand-tools {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
     .rand-dd {
       position: relative;
       height: 100%;
@@ -1237,8 +939,58 @@
     }
     .stage.is-playing .star-field,
     .stage.is-playing .fft-ring { opacity: 1; }
+    .app > .top,
     .app > .bottom,
     .stage .circle-wrap { position: relative; z-index: 1; }
+    .npc-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      touch-action: none;
+    }
+    .npc-canvas.is-on {
+      opacity: 1;
+      pointer-events: auto;
+      cursor: grab;
+    }
+    .npc-canvas.is-on:active { cursor: grabbing; }
+    .npc-countdown {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      background: radial-gradient(ellipse 55% 45% at 50% 48%, rgba(0, 0, 0, 0.35) 0%, transparent 70%);
+    }
+    .npc-countdown.is-on {
+      display: flex;
+    }
+    .npc-countdown-num {
+      font-family: "Sora", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: min(42vmin, 220px);
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: var(--play);
+      text-shadow:
+        0 0 18px rgba(200, 255, 0, 0.85),
+        0 0 48px rgba(200, 255, 0, 0.45),
+        0 0 90px rgba(120, 255, 180, 0.25);
+      transform: scale(0.72);
+      opacity: 0.35;
+      transition: transform 160ms cubic-bezier(0.2, 1.4, 0.4, 1), opacity 160ms ease;
+    }
+    .npc-countdown-num.is-pop {
+      transform: scale(1);
+      opacity: 1;
+    }
     .bottom {
       width: 100%;
       background: var(--panel);
@@ -1426,32 +1178,6 @@
       overflow: hidden;
       isolation: isolate;
     }
-    /* Soft glossy top rim — play weaker, pause/face stronger. */
-    .hub::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 2;
-      background:
-        radial-gradient(ellipse 88% 42% at 50% -6%,
-          rgba(255, 255, 255, 0.42) 0%,
-          rgba(255, 255, 255, 0.14) 38%,
-          transparent 62%);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.22),
-        inset 0 -12px 20px rgba(0, 0, 0, 0.14);
-      opacity: 0.38;
-      transition: opacity 120ms ease;
-    }
-    .hub.playing::before {
-      opacity: 0.28;
-    }
-    .hub.playing.hub-has-producer::before {
-      /* No extra light wash over the producer face */
-      opacity: 0.28;
-    }
     .hub:hover { background: #2a2a32; }
     .hub.playing:hover { /* color set by neon hue JS */ }
     .hub:active { transform: translate(-50%, -50%) scale(0.97); }
@@ -1463,35 +1189,12 @@
         0 0 28px rgba(200, 255, 0, 0.28);
       transition: box-shadow 45ms linear, background 45ms linear, color 45ms linear;
     }
-    /* Neon stays on — producer WebPs are transparent. */
-    .hub-producer {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 75%;
-      height: 75%;
-      transform: translate(-50%, -50%);
-      object-fit: contain;
-      border-radius: 0;
-      pointer-events: none;
-      z-index: 1;
-      display: none;
-      transform-origin: center center;
-      will-change: transform, filter;
-    }
-    .hub.playing.hub-has-producer .hub-producer {
-      display: block;
-      opacity: 0.9;
-    }
-    .hub-producer-sheen {
-      display: none !important;
-    }
     .hub-strike {
       position: absolute;
       inset: 0;
       border-radius: 50%;
       pointer-events: none;
-      z-index: 2;
+      z-index: 1;
       opacity: 0;
       background:
         radial-gradient(ellipse 95% 80% at 50% -10%,
@@ -1506,10 +1209,6 @@
     .hub.playing.strike-lit .hub-strike {
       opacity: var(--hub-strike, 0);
     }
-    .hub.playing.hub-has-producer .hub-strike {
-      /* No strike light on producer face */
-      display: none;
-    }
     .hub.playing.strike-lit {
       box-shadow:
         0 -10px 28px rgba(255, 255, 255, calc(0.18 + var(--hub-strike, 0) * 0.5)),
@@ -1518,19 +1217,10 @@
     }
     .hub svg {
       position: relative;
-      z-index: 3;
+      z-index: 2;
       width: 42%;
       height: 42%;
       display: block;
-      opacity: 1;
-      transition: opacity 0.45s ease;
-    }
-    .hub.playing.hub-has-producer svg {
-      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
-    }
-    .hub.playing.hub-has-producer.hub-pause-fade svg {
-      opacity: 0;
-      pointer-events: none;
     }
     .needle { pointer-events: none; }
     .circle-wrap.is-playing .needle-bloom {
@@ -1725,34 +1415,18 @@
   </style>
 </head>
 <body>
-  <div id="launchOverlay" role="dialog" aria-modal="true" aria-label="Start Circle Beat" tabindex="0">
-    <h1>Circle Beat</h1>
-    <div class="launch-producer" id="launchProducer" role="group" aria-label="Choose producer">
-      <div class="launch-producer-row">
-        <button type="button" class="launch-producer-nav" id="launchProducerPrev" aria-label="Previous producer">
-          <span class="launch-tri launch-tri-left" aria-hidden="true"></span>
-        </button>
-        <img class="launch-producer-face" id="launchProducerFace" alt="" width="128" height="128" decoding="async" />
-        <button type="button" class="launch-producer-nav" id="launchProducerNext" aria-label="Next producer">
-          <span class="launch-tri launch-tri-right" aria-hidden="true"></span>
-        </button>
-      </div>
-      <p class="launch-producer-name">Producer: <strong id="launchProducerName"></strong></p>
-      <p class="launch-producer-blurb" id="launchProducerBlurb"></p>
-    </div>
-    <p class="launch-start">Tap to start</p>
+  <div id="launchOverlay" role="button" tabindex="0" aria-label="Start Circle Beat">
+    <h1>Circle Beat NPC</h1>
+    <p>Tap to start</p>
   </div>
 
   <div class="app top-collapsed" id="appRoot">
-    <button type="button" class="app-producer-face" id="appProducerFaceBtn" title="Producer settings" aria-label="Open producer settings">
-      <img id="appProducerFaceImg" alt="" width="40" height="40" decoding="async" />
-    </button>
     <div class="panel-menu-wrap" id="panelMenuWrap">
-      <button type="button" class="panel-burger" id="panelBurger" aria-haspopup="menu" aria-expanded="false" aria-label="Circle Beat menu" title="Circle Beat">
+      <button type="button" class="panel-burger" id="panelBurger" aria-haspopup="menu" aria-expanded="false" aria-label="Circle Beat NPC menu" title="Circle Beat NPC">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
           <path d="M4 7h16M4 12h16M4 17h16"/>
         </svg>
-        <span class="brand">Circle Beat</span>
+        <span class="brand">Circle Beat NPC</span>
       </button>
       <div class="panel-menu" id="panelMenu" role="menu">
         <button type="button" class="panel-opt" role="menuitem" data-panel="about">About</button>
@@ -1762,7 +1436,6 @@
         </button>
         <div class="panel-file-sub" id="fileMenuSub" hidden>
           <button type="button" class="panel-opt" role="menuitem" data-action="save-wav" id="saveWavBtn" title="Save this wheel as WAV">Save as WAV</button>
-          <button type="button" class="panel-opt" role="menuitem" data-action="save-midi" id="saveMidiBtn" title="Save this wheel as MIDI">Save as MIDI</button>
           <button type="button" class="panel-opt" role="menuitem" data-action="save-code" title="Save project as code text">Save as code</button>
           <button type="button" class="panel-opt" role="menuitem" data-action="load-code" title="Load project from code text">Load code</button>
         </div>
@@ -1850,18 +1523,13 @@
           <div class="tab-panel" id="tabVisual" data-panel="visual" role="tabpanel">
             <div class="visual-toggle" role="group" aria-label="Visual effects">
               <button type="button" class="fx-btn active" id="visualFxBtn" aria-pressed="true" title="Toggle FX">FX</button>
+              <button type="button" class="fx-btn active" id="visualNpcBtn" aria-pressed="true" title="Toggle NPC">NPC</button>
             </div>
           </div>
           <div class="tab-panel" id="tabLucky" data-panel="lucky" role="tabpanel">
-              <label class="chip producer-chip" title="Producer style — Lucky Roll preset">
+            <label class="chip" title="Producer style — Lucky Roll preset">
               <span class="slide-lab">Producer</span>
-              <div class="producer-pick" id="luckyProducerPick">
-                <button type="button" class="producer-pick-trigger" id="luckyProducerBtn" aria-haspopup="listbox" aria-expanded="false" aria-label="Producer preset">
-                  <img class="producer-pick-face" id="luckyProducerFaceImg" alt="" width="22" height="22" decoding="async" />
-                  <span class="producer-pick-lab" id="luckyProducerLab"></span>
-                </button>
-                <div class="producer-pick-menu" id="luckyProducerMenu" role="listbox" hidden></div>
-              </div>
+              <select id="luckyProducer" aria-label="Producer preset"></select>
             </label>
             <div class="slide">
               <button type="button" class="slide-lab is-help" data-lucky-help="dens">Dens</button>
@@ -1927,12 +1595,14 @@
         <svg id="ringSvg" viewBox="0 0 1000 1000" aria-label="Drum circle"></svg>
         <button type="button" class="hub" id="hubBtn" aria-label="Play or pause" title="Play / pause">
           <span class="hub-strike" id="hubStrike" aria-hidden="true"></span>
-          <img class="hub-producer" id="hubProducerImg" alt="" width="128" height="128" decoding="async" aria-hidden="true" />
-          <span class="hub-producer-sheen" id="hubProducerSheen" aria-hidden="true"></span>
           <svg id="hubIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </button>
+      </div>
+      <canvas class="npc-canvas" id="npcCanvas" aria-hidden="true"></canvas>
+      <div class="npc-countdown" id="npcCountdown" aria-live="polite" aria-hidden="true">
+        <span class="npc-countdown-num" id="npcCountdownNum">7</span>
       </div>
     </div>
 
@@ -1947,26 +1617,27 @@
           </button>
           <div class="layer-menu" id="layerMenu" role="listbox"></div>
         </div>
-        <div class="rand-tools">
         <div class="rand-group" title="Lucky Roll">
-          <div class="rand-main">
-            <button type="button" class="rand-face" id="randProducerFaceBtn" aria-label="Open producer settings" title="Producer settings">
-              <img id="randProducerFaceImg" alt="" width="18" height="18" decoding="async" />
-            </button>
-            <button type="button" class="rand-label" id="randBtn" aria-label="Lucky Roll">Lucky Roll</button>
-          </div>
+          <button type="button" class="tool rand-btn" id="randBtn" aria-label="Lucky Roll">
+            <span class="rand-ico" aria-hidden="true">✦</span>
+            <span>Lucky Roll</span>
+          </button>
           <div class="rand-dd">
             <button type="button" class="rand-dd-btn" id="randOptsBtn" aria-haspopup="true" aria-expanded="false" title="Lucky Roll options">...</button>
             <div class="rand-menu" id="randOptsMenu" role="menu">
               <div class="rand-menu-head">Lucky Roll</div>
+              <label class="rand-opt rand-opt-select">
+                <span>Producer</span>
+                <select id="randProducer" aria-label="Producer preset"></select>
+              </label>
               <label class="rand-opt"><input type="checkbox" id="randOptLive" /> Live</label>
-              <label class="rand-opt"><input type="checkbox" id="randOptProducer" /> Producer</label>
               <label class="rand-opt"><input type="checkbox" id="randOptPatterns" checked /> Patterns</label>
               <label class="rand-opt"><input type="checkbox" id="randOptSounds" checked /> Sounds</label>
               <label class="rand-opt"><input type="checkbox" id="randOptWords" checked /> Words</label>
               <label class="rand-opt"><input type="checkbox" id="randOptVoices" checked /> Voices</label>
               <label class="rand-opt"><input type="checkbox" id="randOptBpm" checked /> BPM</label>
               <label class="rand-opt"><input type="checkbox" id="randOptSpace" checked /> Space</label>
+              <label class="rand-opt"><input type="checkbox" id="randOptNpc" checked /> NPC</label>
               <div class="rand-menu-head">Affected layers</div>
               <div id="randLayersList"></div>
               <div class="rand-menu-actions">
@@ -1976,32 +1647,6 @@
               </div>
             </div>
           </div>
-        </div>
-        <div class="rand-group" title="Nudge — one selected wheel per click">
-          <button type="button" class="tool rand-btn" id="nudgeBtn" aria-label="Nudge">
-            <span class="rand-ico" aria-hidden="true">∼</span>
-            <span>Nudge</span>
-          </button>
-          <div class="rand-dd">
-            <button type="button" class="rand-dd-btn" id="nudgeOptsBtn" aria-haspopup="true" aria-expanded="false" title="Nudge options">...</button>
-            <div class="rand-menu" id="nudgeOptsMenu" role="menu">
-              <div class="rand-menu-head">Nudge</div>
-              <label class="rand-opt"><input type="checkbox" id="nudgeOptPatterns" checked /> Patterns</label>
-              <label class="rand-opt"><input type="checkbox" id="nudgeOptSounds" checked /> Sounds</label>
-              <label class="rand-opt"><input type="checkbox" id="nudgeOptWords" checked /> Words</label>
-              <label class="rand-opt"><input type="checkbox" id="nudgeOptVoices" checked /> Voices</label>
-              <label class="rand-opt"><input type="checkbox" id="nudgeOptBpm" checked /> BPM</label>
-              <label class="rand-opt"><input type="checkbox" id="nudgeOptSpace" checked /> Space</label>
-              <div class="rand-menu-head">Affected layers</div>
-              <div id="nudgeLayersList"></div>
-              <div class="rand-menu-actions">
-                <button type="button" id="nudgeLayersAll">All</button>
-                <button type="button" id="nudgeLayersThis">This</button>
-                <button type="button" id="nudgeLayersNone">None</button>
-              </div>
-            </div>
-          </div>
-        </div>
         </div>
       </div>
     </footer>
@@ -2040,6 +1685,15 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sam-js@0.3.1/dist/samjs.min.js" crossorigin="anonymous"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="npc/dancer.js"></script>
   <script src="maker/kick-synth.js"></script>
   <script src="maker/snare-synth.js"></script>
   <script src="maker/clap-synth.js"></script>

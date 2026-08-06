@@ -1,6 +1,6 @@
 /**
  * Resolve Mesh2Motion asset paths.
- * Soundplayground / Circle Beat: /animations and /rigs (Netlify rewrites onto /circlebeat/).
+ * Soundplayground / Circle Beat NPC: /animations and /rigs (Netlify rewrites onto /circlebeat-npc/).
  * Free NPC Maker hub: /v1.0x/static/...
  */
 export function assetUrl(path) {

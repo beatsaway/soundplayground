@@ -1,33 +1,33 @@
 # Static publish of the whole Soundplayground repo.
 # Circle Beat NPC loads /freenpc, /animations, /rigs from site root —
-# rewrite those onto the vendored copies under /circlebeat/.
+# rewrite those onto the vendored copies under /circlebeat-npc/.
 
 [[redirects]]
   from = "/freenpc/*"
-  to = "/circlebeat/freenpc/:splat"
+  to = "/circlebeat-npc/freenpc/:splat"
   status = 200
 
 [[redirects]]
   from = "/animations/*"
-  to = "/circlebeat/animations/:splat"
+  to = "/circlebeat-npc/animations/:splat"
   status = 200
 
 [[redirects]]
   from = "/rigs/*"
-  to = "/circlebeat/rigs/:splat"
+  to = "/circlebeat-npc/rigs/:splat"
   status = 200
 
 [[headers]]
-  for = "/circlebeat/freenpc/*"
+  for = "/circlebeat-npc/freenpc/*"
   [headers.values]
     Cache-Control = "public, max-age=3600"
 
 [[headers]]
-  for = "/circlebeat/animations/*"
+  for = "/circlebeat-npc/animations/*"
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
 [[headers]]
-  for = "/circlebeat/rigs/*"
+  for = "/circlebeat-npc/rigs/*"
   [headers.values]
     Cache-Control = "public, max-age=86400"

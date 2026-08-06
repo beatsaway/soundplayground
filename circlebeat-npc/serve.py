@@ -1,6 +1,6 @@
 """
-Circle Beat (Lite) local server.
-Drums-only build — no NPC dancers or Three.js.
+Circle Beat NPC local server.
+Serves this folder (vendored Free NPC Maker v1.01 + animation/rig GLBs).
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-PORT = int(os.environ.get("PORT", "8768"))
+PORT = int(os.environ.get("PORT", "8769"))
 
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("application/wasm", ".wasm")
@@ -36,8 +36,12 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
+    for need in ("freenpc", "animations", "rigs"):
+        p = ROOT / need
+        if not p.is_dir():
+            print(f"Missing {p} — NPC dancer will fail until vendored assets are present.")
     httpd = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"Circle Beat (Lite) — http://127.0.0.1:{PORT}/")
+    print(f"Circle Beat NPC — http://127.0.0.1:{PORT}/")
     print("Ctrl+C to stop.")
     try:
         httpd.serve_forever()

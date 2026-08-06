@@ -231,6 +231,13 @@
   var svg = document.getElementById('ringSvg');
   var hubBtn = document.getElementById('hubBtn');
   var hubIcon = document.getElementById('hubIcon');
+  var hubProducerImg = document.getElementById('hubProducerImg');
+  /** Producer face on pause hub only after first Lucky Roll. */
+  var hubProducerFaceOn = false;
+  /** Producer id locked onto the hub — updates only when Lucky Roll is pressed. */
+  var hubProducerFaceId = null;
+  var hubPauseFadeTimer = null;
+  var playStartedAt = 0;
   var circleWrap = document.getElementById('circleWrap');
   var bpmEl = document.getElementById('bpm');
   var bpmVal = document.getElementById('bpmVal');
@@ -250,14 +257,15 @@
   var panelMenuWrap = document.getElementById('panelMenuWrap');
   var appRoot = document.getElementById('appRoot');
   var launchOverlay = document.getElementById('launchOverlay');
+  var launchProducerFace = document.getElementById('launchProducerFace');
+  var launchProducerName = document.getElementById('launchProducerName');
+  var launchProducerBlurb = document.getElementById('launchProducerBlurb');
+  var launchProducerPrev = document.getElementById('launchProducerPrev');
+  var launchProducerNext = document.getElementById('launchProducerNext');
   var topCloseBtn = document.getElementById('topCloseBtn');
   var activePanel = 'edit';
   var visualFxOn = true;
-  var visualNpcOn = true;
   var visualFxBtn = document.getElementById('visualFxBtn');
-  var visualNpcBtn = document.getElementById('visualNpcBtn');
-  var npcCountdownEl = document.getElementById('npcCountdown');
-  var npcCountdownNumEl = document.getElementById('npcCountdownNum');
   var appStarted = false;
   var energyBursts = [];
   var baseHaloWings = [];
@@ -282,17 +290,29 @@
   var paintGroupMenu = null;
   var paintMenuOpenGroup = null;
   var randBtn = document.getElementById('randBtn');
+  var randProducerFaceBtn = document.getElementById('randProducerFaceBtn');
+  var randProducerFaceImg = document.getElementById('randProducerFaceImg');
   var randOptsBtn = document.getElementById('randOptsBtn');
   var randOptsMenu = document.getElementById('randOptsMenu');
   var randLayersList = document.getElementById('randLayersList');
   var randOptLive = document.getElementById('randOptLive');
+  var randOptProducer = document.getElementById('randOptProducer');
   var randOptPatterns = document.getElementById('randOptPatterns');
   var randOptSounds = document.getElementById('randOptSounds');
   var randOptWords = document.getElementById('randOptWords');
   var randOptVoices = document.getElementById('randOptVoices');
   var randOptBpm = document.getElementById('randOptBpm');
   var randOptSpace = document.getElementById('randOptSpace');
-  var randOptNpc = document.getElementById('randOptNpc');
+  var nudgeBtn = document.getElementById('nudgeBtn');
+  var nudgeOptsBtn = document.getElementById('nudgeOptsBtn');
+  var nudgeOptsMenu = document.getElementById('nudgeOptsMenu');
+  var nudgeLayersList = document.getElementById('nudgeLayersList');
+  var nudgeOptPatterns = document.getElementById('nudgeOptPatterns');
+  var nudgeOptSounds = document.getElementById('nudgeOptSounds');
+  var nudgeOptWords = document.getElementById('nudgeOptWords');
+  var nudgeOptVoices = document.getElementById('nudgeOptVoices');
+  var nudgeOptBpm = document.getElementById('nudgeOptBpm');
+  var nudgeOptSpace = document.getElementById('nudgeOptSpace');
   /**
    * Live Lucky Roll queue — nothing here touches the current wheel until the
    * next bar is scheduled. Shape:
@@ -323,8 +343,13 @@
   var luckyHumanityVal = document.getElementById('luckyHumanityVal');
   var luckySpeedEl = document.getElementById('luckySpeed');
   var luckySpeedVal = document.getElementById('luckySpeedVal');
-  var luckyProducerEl = document.getElementById('luckyProducer');
-  var randProducerEl = document.getElementById('randProducer');
+  var luckyProducerBtn = document.getElementById('luckyProducerBtn');
+  var luckyProducerFaceImg = document.getElementById('luckyProducerFaceImg');
+  var luckyProducerLab = document.getElementById('luckyProducerLab');
+  var luckyProducerMenu = document.getElementById('luckyProducerMenu');
+  var appProducerFaceBtn = document.getElementById('appProducerFaceBtn');
+  var appProducerFaceImg = document.getElementById('appProducerFaceImg');
+  var currentProducerPickId = 'default';
   var luckyTipEl = document.getElementById('luckyTip');
   var luckyTipTitleEl = document.getElementById('luckyTipTitle');
   var luckyTipBodyEl = document.getElementById('luckyTipBody');
@@ -369,13 +394,15 @@
 
   /** Lucky Roll producer presets. */
   var LUCKY_PRODUCERS = [
-    { id: 'default', name: 'David', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
-    { id: 'jacky', name: 'Jacky', dens: 39, golden: 36, skip: 95, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
-    { id: 'maisie', name: 'Maisie', dens: 28, golden: 55, skip: 45, sounds: 3, reuse: 12, words: 90, humanity: 20, speed: 32 },
-    { id: 'dense', name: 'Dense', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
-    { id: 'ghost', name: 'Ghost', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
-    { id: 'custom', name: 'Custom', dens: null, golden: null, skip: null, sounds: null, reuse: null, words: null, humanity: null, speed: null }
+    { id: 'default', name: 'David', emoji: '🤖', thumb: 'producer-thumbs/david.webp', blurb: 'clean and steady — keeps it simple', dens: 32, golden: 25, skip: 27, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
+    { id: 'jacky', name: 'Jacky', emoji: '🦊', thumb: 'producer-thumbs/jacky.webp', blurb: 'leaves space; skips a lot on purpose', dens: 39, golden: 36, skip: 95, sounds: 7, reuse: 94, words: 34, humanity: 27, speed: 35 },
+    { id: 'maisie', name: 'Maisie', emoji: '🌸', thumb: 'producer-thumbs/maisie.webp', blurb: 'sparse drums with words up front', dens: 28, golden: 55, skip: 45, sounds: 3, reuse: 12, words: 90, humanity: 20, speed: 32 },
+    { id: 'dense', name: 'Dense', emoji: '🤖', thumb: 'producer-thumbs/dense.webp', blurb: 'packs the grid — busy and fast', dens: 72, golden: 35, skip: 18, sounds: 8, reuse: 55, words: 85, humanity: 40, speed: 72 },
+    { id: 'ghost', name: 'Ghost', emoji: '👻', thumb: 'producer-thumbs/ghost.webp', blurb: 'thin and quiet, more air than hits', dens: 20, golden: 70, skip: 78, sounds: 6, reuse: 40, words: 19, humanity: 85, speed: 44 },
+    { id: 'custom', name: 'Custom', emoji: '👾', thumb: 'producer-thumbs/custom.webp', blurb: 'your own mix — not a named preset', dens: null, golden: null, skip: null, sounds: null, reuse: null, words: null, humanity: null, speed: null }
   ];
+  var CUSTOM_PRODUCER_EMOJI = '❓';
+  var CUSTOM_PRODUCER_THUMB = 'producer-thumbs/custom.webp';
 
   var LUCKY_HELP = {
     dens: {
@@ -421,6 +448,123 @@
       if (LUCKY_PRODUCERS[i].id === id) return LUCKY_PRODUCERS[i];
     }
     return LUCKY_PRODUCERS[0];
+  }
+
+  function producerEmoji(id) {
+    if (!id || id === 'custom') return CUSTOM_PRODUCER_EMOJI;
+    var p = producerById(id);
+    if (!p || p.id === 'custom' || !p.emoji) return CUSTOM_PRODUCER_EMOJI;
+    return p.emoji;
+  }
+
+  function producerThumbSrc(idOrProducer) {
+    var p = typeof idOrProducer === 'string' ? producerById(idOrProducer) : idOrProducer;
+    if (!p || !p.thumb) return CUSTOM_PRODUCER_THUMB;
+    return p.thumb;
+  }
+
+  function setProducerFaceImg(imgEl, id) {
+    if (!imgEl) return;
+    var p = producerById(id || 'custom');
+    if (!p || p.id === 'custom') p = producerById('custom');
+    var src = producerThumbSrc(p);
+    if (imgEl.getAttribute('src') !== src) imgEl.src = src;
+    imgEl.alt = p.name || 'Producer';
+  }
+
+  function producerOptionLabel(p) {
+    if (!p) return CUSTOM_PRODUCER_EMOJI + ' Custom';
+    return (p.emoji || CUSTOM_PRODUCER_EMOJI) + ' ' + p.name;
+  }
+
+  function syncLuckyRollBtnEmoji(id) {
+    var pid = id || matchLuckyProducerId();
+    setProducerFaceImg(randProducerFaceImg, pid);
+    // Hub face stays on last Lucky Roll producer — do not follow panel changes.
+    syncHubProducerFace();
+  }
+
+  function clearHubPauseFade() {
+    if (hubPauseFadeTimer) {
+      clearTimeout(hubPauseFadeTimer);
+      hubPauseFadeTimer = null;
+    }
+    if (hubBtn) hubBtn.classList.remove('hub-pause-fade');
+  }
+
+  /** After 1s of play with producer face, hide the pause glyph. */
+  function scheduleHubPauseFade() {
+    clearHubPauseFade();
+    if (!hubBtn || !playing || !hubProducerFaceOn) return;
+    var elapsed = playStartedAt ? (performance.now() - playStartedAt) : 0;
+    var wait = Math.max(0, 1000 - elapsed);
+    if (wait <= 0) {
+      hubBtn.classList.add('hub-pause-fade');
+      return;
+    }
+    hubPauseFadeTimer = setTimeout(function () {
+      hubPauseFadeTimer = null;
+      if (playing && hubProducerFaceOn && hubBtn) hubBtn.classList.add('hub-pause-fade');
+    }, wait);
+  }
+
+  function syncHubProducerFace() {
+    if (!hubBtn || !hubProducerImg) return;
+    if (!hubProducerFaceOn || !hubProducerFaceId) {
+      hubBtn.classList.remove('hub-has-producer');
+      hubProducerImg.style.transform = '';
+      hubProducerImg.style.filter = '';
+      clearHubPauseFade();
+      return;
+    }
+    setProducerFaceImg(hubProducerImg, hubProducerFaceId);
+    hubBtn.classList.add('hub-has-producer');
+    if (playing) scheduleHubPauseFade();
+  }
+
+  /** Call from Lucky Roll only — unlocks hub face and stamps current producer. */
+  function unlockHubProducerFace() {
+    var pid = currentProducerPickId || matchLuckyProducerId();
+    if (!pid || pid === 'custom') pid = matchLuckyProducerId();
+    if (!pid || pid === 'custom') pid = 'default';
+    hubProducerFaceId = pid;
+    hubProducerFaceOn = true;
+    syncHubProducerFace();
+  }
+
+  /** Named presets only (no Custom) for launch picker + cycling. */
+  function namedLuckyProducers() {
+    return LUCKY_PRODUCERS.filter(function (p) { return p.id !== 'custom' && p.dens != null; });
+  }
+
+  var launchProducerId = null;
+
+  function pickRandomNamedProducerId() {
+    var list = namedLuckyProducers();
+    if (!list.length) return 'default';
+    return list[Math.floor(Math.random() * list.length)].id;
+  }
+
+  function syncLaunchProducerUi(id) {
+    var p = producerById(id);
+    if (!p || p.id === 'custom') p = producerById(pickRandomNamedProducerId());
+    launchProducerId = p.id;
+    setProducerFaceImg(launchProducerFace, p.id);
+    if (launchProducerName) launchProducerName.textContent = p.name;
+    if (launchProducerBlurb) launchProducerBlurb.textContent = p.blurb || '';
+  }
+
+  function stepLaunchProducer(dir) {
+    var list = namedLuckyProducers();
+    if (!list.length) return;
+    var i = 0;
+    for (i = 0; i < list.length; i++) {
+      if (list[i].id === launchProducerId) break;
+    }
+    if (i >= list.length) i = 0;
+    i = (i + dir + list.length) % list.length;
+    applyLuckyProducer(list[i].id, { silent: true });
+    syncLaunchProducerUi(list[i].id);
   }
 
   function readLuckySettings() {
@@ -473,41 +617,81 @@
   }
 
   /** Named producers only; Custom appears solely when sliders don't match a preset. */
-  function fillProducerSelect(sel, currentId) {
-    if (!sel) return;
-    sel.innerHTML = '';
-    if (currentId === 'custom') {
-      var customOpt = document.createElement('option');
-      customOpt.value = 'custom';
-      customOpt.textContent = 'Custom';
-      sel.appendChild(customOpt);
+  function closeProducerPickMenus() {
+    if (luckyProducerMenu) {
+      luckyProducerMenu.hidden = true;
+      if (luckyProducerBtn) luckyProducerBtn.setAttribute('aria-expanded', 'false');
     }
+  }
+
+  function syncProducerPickTrigger(faceImg, labEl, id) {
+    var p = producerById(id);
+    if (!p) p = producerById('custom');
+    setProducerFaceImg(faceImg, p.id);
+    if (labEl) labEl.textContent = p.name;
+  }
+
+  function fillProducerPickMenu(menuEl, currentId) {
+    if (!menuEl) return;
+    menuEl.innerHTML = '';
+    var ids = [];
+    if (currentId === 'custom') ids.push('custom');
     LUCKY_PRODUCERS.forEach(function (p) {
       if (p.id === 'custom') return;
-      var opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.name;
-      sel.appendChild(opt);
+      ids.push(p.id);
     });
-    sel.value = currentId === 'custom' ? 'custom' : (producerById(currentId).id || 'default');
-    if (sel.value !== currentId && currentId !== 'custom') sel.value = 'default';
+    ids.forEach(function (pid) {
+      var p = producerById(pid);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'producer-pick-opt' + (pid === currentId ? ' active' : '');
+      btn.setAttribute('role', 'option');
+      btn.setAttribute('data-producer-id', pid);
+      var img = document.createElement('img');
+      img.src = producerThumbSrc(p);
+      img.alt = '';
+      img.width = 22;
+      img.height = 22;
+      img.decoding = 'async';
+      var span = document.createElement('span');
+      span.textContent = p.name;
+      btn.appendChild(img);
+      btn.appendChild(span);
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (pid === 'custom') {
+          closeProducerPickMenus();
+          return;
+        }
+        applyLuckyProducer(pid);
+        closeProducerPickMenus();
+      });
+      menuEl.appendChild(btn);
+    });
   }
 
   function syncProducerSelects(forcedId) {
     var id = forcedId || matchLuckyProducerId();
-    fillProducerSelect(luckyProducerEl, id);
-    fillProducerSelect(randProducerEl, id);
+    currentProducerPickId = id;
+    fillProducerPickMenu(luckyProducerMenu, id);
+    syncProducerPickTrigger(luckyProducerFaceImg, luckyProducerLab, id);
+    syncLuckyRollBtnEmoji(id);
+    setProducerFaceImg(appProducerFaceImg, id);
   }
 
   function buildLuckyProducerSelect() {
     syncProducerSelects(matchLuckyProducerId());
   }
 
-  function onProducerSelectChange(sel) {
-    if (!sel) return;
-    var id = sel.value;
-    if (!id || id === 'custom') return;
-    applyLuckyProducer(id);
+  function toggleProducerPickMenu(btn, menu) {
+    if (!btn || !menu) return;
+    var open = !menu.hidden;
+    closeProducerPickMenus();
+    if (!open) {
+      fillProducerPickMenu(menu, currentProducerPickId || matchLuckyProducerId());
+      menu.hidden = false;
+      btn.setAttribute('aria-expanded', 'true');
+    }
   }
 
   function hideLuckyTip() {
@@ -1467,7 +1651,7 @@
   function initLayers() {
     layers = [];
     for (var i = 0; i < MAX_CIRCLES; i++) {
-      layers.push({ enabled: i < 1, pattern: emptyPattern() });
+      layers.push({ enabled: i < 2, pattern: emptyPattern() });
     }
   }
 
@@ -1568,8 +1752,14 @@
   }
 
   var randLayerChecked = {};
+  var nudgeLayerChecked = {};
+  /** Round-robin cursor into selectedNudgeLayers() — one wheel per Nudge click. */
+  var nudgeLayerCursor = 0;
   var iRand;
-  for (iRand = 0; iRand < MAX_CIRCLES; iRand++) randLayerChecked[iRand] = (iRand === 0);
+  for (iRand = 0; iRand < MAX_CIRCLES; iRand++) {
+    randLayerChecked[iRand] = (iRand < 2);
+    nudgeLayerChecked[iRand] = (iRand < 2);
+  }
 
   function syncLayerUi() {
     var on = !!(layers[viewLayer] && layers[viewLayer].enabled);
@@ -2258,6 +2448,8 @@
   function closeRandMenus() {
     if (randOptsMenu) randOptsMenu.classList.remove('open');
     if (randOptsBtn) randOptsBtn.setAttribute('aria-expanded', 'false');
+    if (nudgeOptsMenu) nudgeOptsMenu.classList.remove('open');
+    if (nudgeOptsBtn) nudgeOptsBtn.setAttribute('aria-expanded', 'false');
   }
 
   function buildRandLayersList() {
@@ -2281,11 +2473,54 @@
     }
   }
 
+  function buildNudgeLayersList() {
+    if (!nudgeLayersList) return;
+    nudgeLayersList.innerHTML = '';
+    var i;
+    for (i = 0; i < MAX_CIRCLES; i++) {
+      (function (idx) {
+        var lab = document.createElement('label');
+        lab.className = 'rand-opt';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!nudgeLayerChecked[idx];
+        cb.addEventListener('change', function () {
+          nudgeLayerChecked[idx] = !!cb.checked;
+          resetNudgeLayerCursor();
+        });
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(layerLabel(idx)));
+        nudgeLayersList.appendChild(lab);
+      })(i);
+    }
+  }
+
   function selectedRandLayers() {
     var out = [];
     var i;
     for (i = 0; i < MAX_CIRCLES; i++) if (randLayerChecked[i]) out.push(i);
     return out;
+  }
+
+  function selectedNudgeLayers() {
+    var out = [];
+    var i;
+    for (i = 0; i < MAX_CIRCLES; i++) if (nudgeLayerChecked[i]) out.push(i);
+    return out;
+  }
+
+  function resetNudgeLayerCursor() {
+    nudgeLayerCursor = 0;
+  }
+
+  /** Next selected wheel for this Nudge click; advances the cursor. */
+  function takeNextNudgeLayer() {
+    var indices = selectedNudgeLayers();
+    if (!indices.length) return null;
+    if (nudgeLayerCursor >= indices.length) nudgeLayerCursor = 0;
+    var idx = indices[nudgeLayerCursor];
+    nudgeLayerCursor = (nudgeLayerCursor + 1) % indices.length;
+    return idx;
   }
 
   /** Reshuffle Word 1–9 texts from WORD_BANK and prerender. */
@@ -2545,103 +2780,20 @@
     return buffers;
   }
 
-  function sleepMs(ms) {
-    return new Promise(function (resolve) { setTimeout(resolve, ms); });
-  }
-
-  function setNpcCountdownDigit(n) {
-    if (!npcCountdownNumEl) return;
-    npcCountdownNumEl.classList.remove('is-pop');
-    npcCountdownNumEl.textContent = String(n);
-    // Force reflow so the pop transition retriggers each beat.
-    void npcCountdownNumEl.offsetWidth;
-    npcCountdownNumEl.classList.add('is-pop');
-  }
-
-  function showNpcCountdown(on) {
-    if (!npcCountdownEl) return;
-    npcCountdownEl.classList.toggle('is-on', !!on);
-    npcCountdownEl.setAttribute('aria-hidden', on ? 'false' : 'true');
-    if (!on && npcCountdownNumEl) npcCountdownNumEl.classList.remove('is-pop');
-  }
-
-  /** Neon 7→0. Resolves after 0 has been shown for one beat. */
-  async function runNpcCountdown() {
-    showNpcCountdown(true);
-    for (var n = 7; n >= 0; n--) {
-      setNpcCountdownDigit(n);
-      await sleepMs(n === 0 ? 520 : 700);
-    }
-  }
-
-  /**
-   * First NPC load pulls ~11MB dance GLBs — slow path shows a neon countdown
-   * while building. If spawn finishes early, hold until 0; if countdown ends
-   * first, stay on 0 until spawn completes.
-   */
-  async function spawnNpcWithUx() {
-    var slow = !!(window.CircleNpc.willSpawnBeSlow && window.CircleNpc.willSpawnBeSlow());
-    if (!slow) {
-      if (window.CircleNpc.ready) await window.CircleNpc.ready;
-      await window.CircleNpc.spawnRandom();
-      return;
-    }
-
-    var spawnDone = false;
-    var spawnErr = null;
-    var spawnP = Promise.resolve()
-      .then(function () {
-        return window.CircleNpc.ready ? window.CircleNpc.ready : null;
-      })
-      .then(function () {
-        return window.CircleNpc.spawnRandom({ deferShow: true });
-      })
-      .then(
-        function () { spawnDone = true; },
-        function (err) { spawnErr = err; spawnDone = true; }
-      );
-
-    await runNpcCountdown();
-    if (!spawnDone) {
-      // Hold on glowing 0 while GLBs / mesh gen finish.
-      setNpcCountdownDigit(0);
-      await spawnP;
-    } else {
-      await spawnP;
-    }
-    showNpcCountdown(false);
-    if (spawnErr) throw spawnErr;
-    if (typeof window.CircleNpc.revealNpc === 'function') {
-      window.CircleNpc.revealNpc();
-    }
-  }
-
   async function runRandomise() {
     var indices = selectedRandLayers();
+    var doProducer = !!(randOptProducer && randOptProducer.checked);
     var doPatterns = !!(randOptPatterns && randOptPatterns.checked);
     var doSounds = !!(randOptSounds && randOptSounds.checked);
     var doWords = !!(randOptWords && randOptWords.checked);
     var doVoices = !!(randOptVoices && randOptVoices.checked);
     var doBpm = !!(randOptBpm && randOptBpm.checked);
     var doSpace = !!(randOptSpace && randOptSpace.checked);
-    var doNpc = !!(randOptNpc && randOptNpc.checked);
-    if (!doPatterns && !doSounds && !doWords && !doVoices && !doBpm && !doSpace && !doNpc) return;
+    if (!doProducer && !doPatterns && !doSounds && !doWords && !doVoices && !doBpm && !doSpace) return;
 
-    // Lucky Roll NPC = spawn/reroll only. Visibility is Visual > NPC.
-    if (doNpc && window.CircleNpc) {
-      try {
-        if (visualNpcOn) window.CircleNpc.setEnabled(true);
-        // spawnNpcWithUx awaits ready itself so a cold load can start the countdown immediately.
-        await spawnNpcWithUx();
-        if (typeof window.CircleNpc.setMusicPlaying === 'function') {
-          window.CircleNpc.setMusicPlaying(!!playing);
-        }
-      } catch (npcErr) {
-        console.error('[CircleNpc]', npcErr);
-      }
-    }
-
-    if (!doPatterns && !doSounds && !doWords && !doVoices && !doBpm && !doSpace) return;
+    // Optional: pick a named producer first so dens/skip/etc. feed the rest of the roll.
+    if (doProducer) applyLuckyProducer(pickRandomNamedProducerId());
+    unlockHubProducerFace();
 
     var wasPlaying = playing;
     var live = !!(randOptLive && randOptLive.checked);
@@ -2798,6 +2950,237 @@
 
     if (doSounds && indices.length) {
       await randomizeSoundsForLayers(indices);
+    }
+
+    if (wasPlaying) pause();
+    await play();
+  }
+
+  /** Fraction of each maker range used as a single nudge step (~weak Lucky Roll). */
+  var NUDGE_PARAM_FRAC = 0.12;
+  var NUDGE_BPM_MAX = 6;
+  var NUDGE_SPACE_MAX = 10;
+
+  function clampNum(v, lo, hi) {
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  function rotateRingSteps(arr, rot) {
+    var n = arr.length;
+    if (!n) return;
+    rot = ((rot % n) + n) % n;
+    if (!rot) return;
+    var rotated = arr.slice(rot).concat(arr.slice(0, rot));
+    var i;
+    for (i = 0; i < n; i++) arr[i] = rotated[i];
+  }
+
+  /** Lightly mutate an existing pattern — rotate / move / add / drop a few hits. */
+  function nudgePattern(pat) {
+    if (!pat) return;
+    RINGS.forEach(function (ring) {
+      var arr = pat[ring.id];
+      if (!arr || !arr.length) return;
+      var sounds = [];
+      var hitIdx = [];
+      var i;
+      for (i = 0; i < arr.length; i++) {
+        if (arr[i]) {
+          hitIdx.push(i);
+          if (sounds.indexOf(arr[i]) === -1) sounds.push(arr[i]);
+        }
+      }
+      if (!hitIdx.length) return;
+
+      if (Math.random() < 0.45) {
+        var rot = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2));
+        rotateRingSteps(arr, rot);
+        hitIdx = [];
+        for (i = 0; i < arr.length; i++) if (arr[i]) hitIdx.push(i);
+      }
+
+      var edits = 1 + Math.floor(Math.random() * 3);
+      var e;
+      for (e = 0; e < edits; e++) {
+        var roll = Math.random();
+        if (roll < 0.34 && hitIdx.length) {
+          var dropAt = hitIdx[Math.floor(Math.random() * hitIdx.length)];
+          arr[dropAt] = null;
+        } else if (roll < 0.67 && hitIdx.length) {
+          var from = hitIdx[Math.floor(Math.random() * hitIdx.length)];
+          var sound = arr[from];
+          var to = Math.floor(Math.random() * arr.length);
+          if (to === from) to = (to + 1) % arr.length;
+          arr[from] = null;
+          arr[to] = sound;
+        } else if (sounds.length) {
+          var empty = [];
+          for (i = 0; i < arr.length; i++) if (!arr[i]) empty.push(i);
+          if (empty.length) {
+            var addAt = empty[Math.floor(Math.random() * empty.length)];
+            arr[addAt] = sounds[Math.floor(Math.random() * sounds.length)];
+          }
+        }
+        hitIdx = [];
+        for (i = 0; i < arr.length; i++) if (arr[i]) hitIdx.push(i);
+        if (!hitIdx.length) break;
+      }
+    });
+    clearScrubHitCache();
+  }
+
+  /** Nudge maker params toward nearby values in their allowed ranges. */
+  function nudgeMakerSoundParams(id) {
+    var ranges = MAKER_RANGES[id];
+    var roundKeys = MAKER_ROUND_KEYS[id] || [];
+    if (!ranges) return null;
+    var params = Object.assign({}, makerSoundParams[id] || MAKER_DEFAULTS[id]);
+    Object.keys(ranges).forEach(function (key) {
+      var pair = ranges[key];
+      var lo = pair[0];
+      var hi = pair[1];
+      var span = hi - lo;
+      if (!(span > 0)) return;
+      var delta = (Math.random() * 2 - 1) * span * NUDGE_PARAM_FRAC;
+      var next = clampNum(params[key] + delta, lo, hi);
+      params[key] = roundKeys.indexOf(key) !== -1 ? Math.round(next) : next;
+    });
+    var bools = MAKER_BOOLS[id] || [];
+    bools.forEach(function (b) {
+      if (Math.random() > 0.12) return;
+      if (b.type === 'bool') {
+        params[b.key] = !params[b.key];
+      } else if (b.options && b.options.length) {
+        params[b.key] = b.options[Math.floor(Math.random() * b.options.length)];
+      }
+    });
+    if (id === 'kick' || id === 'snare') enforceCoreDrumEnergyFloor(id, params);
+    return params;
+  }
+
+  function nudgeMakerSound(id) {
+    var params = nudgeMakerSoundParams(id);
+    if (params) makerSoundParams[id] = params;
+  }
+
+  async function nudgeSoundsForLayers(layerIndices) {
+    var usedMap = {};
+    layerIndices.forEach(function (idx) {
+      makersUsedInPattern(layers[idx].pattern).forEach(function (m) {
+        usedMap[m] = true;
+      });
+    });
+    var used = Object.keys(usedMap);
+    if (!used.length) used = makerIds.slice();
+    used.forEach(nudgeMakerSound);
+    await ensureAudio();
+    await buildBank();
+    previewSample(paintSample);
+  }
+
+  /** Replace a few word slots; keep most of the current bank. */
+  async function nudgeWords() {
+    var textIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
+    if (!textIds.length) return;
+    var changeN = Math.max(1, Math.round(textIds.length * 0.3));
+    var order = textIds.slice();
+    shuffleInPlace(order);
+    var words = WORD_BANK.slice();
+    shuffleInPlace(words);
+    var i;
+    for (i = 0; i < changeN; i++) {
+      sayTexts[order[i]] = words[i % words.length];
+      getSayVoiceParams(order[i]);
+    }
+    refreshPaintLabels();
+    syncPaintExtras();
+    await ensureAudio();
+    for (i = 0; i < changeN; i++) {
+      var id = order[i];
+      try {
+        soundBank[id] = await prerenderSpeechToBuffer(sayTexts[id], id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  /** Reseed SAM colour on a minority of word slots. */
+  async function nudgeVoices() {
+    var textIds = SAMPLES.filter(function (s) { return s.type === 'text'; }).map(function (s) { return s.id; });
+    if (!textIds.length) return;
+    var changeN = Math.max(1, Math.round(textIds.length * 0.3));
+    var order = textIds.slice();
+    shuffleInPlace(order);
+    var i;
+    for (i = 0; i < changeN; i++) {
+      var p = getSayVoiceParams(order[i]);
+      p.engine = 'sam';
+      p.voiceSeed = 'sam-' + Math.floor(Math.random() * 1e9);
+    }
+    await ensureAudio();
+    for (i = 0; i < changeN; i++) {
+      var id = order[i];
+      var text = String(sayTexts[id] || '').trim();
+      if (!text) continue;
+      try {
+        soundBank[id] = await prerenderSpeechToBuffer(text, id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (soundSheet.classList.contains('open')) {
+      var cur = sampleById(paintSample);
+      if (cur && cur.type === 'text') openSoundEditor();
+    }
+  }
+
+  function nudgeBpm() {
+    var cur = Math.round(readSliderNumber(bpmEl, 120));
+    var delta = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * NUDGE_BPM_MAX));
+    applyBpmValue(clampNum(cur + delta, 50, 130));
+  }
+
+  function nudgeSpace() {
+    function step(el, fallback) {
+      var cur = Math.round(readSliderNumber(el, fallback));
+      var delta = Math.round((Math.random() * 2 - 1) * NUDGE_SPACE_MAX);
+      return clampNum(cur + delta, 0, 100);
+    }
+    var stereoCur = Math.round(readSliderNumber(stereoEl, 20));
+    var stereoDelta = Math.round((Math.random() * 2 - 1) * 4);
+    applySpaceValues({
+      reverb: step(reverbEl, 50),
+      reverbDur: step(reverbDurEl, 50),
+      stereo: clampNum(stereoCur + stereoDelta, 0, 100)
+    });
+  }
+
+  /** Weaker Lucky Roll — one selected wheel per click (round-robin), light tweaks. */
+  async function runNudge() {
+    var doPatterns = !!(nudgeOptPatterns && nudgeOptPatterns.checked);
+    var doSounds = !!(nudgeOptSounds && nudgeOptSounds.checked);
+    var doWords = !!(nudgeOptWords && nudgeOptWords.checked);
+    var doVoices = !!(nudgeOptVoices && nudgeOptVoices.checked);
+    var doBpm = !!(nudgeOptBpm && nudgeOptBpm.checked);
+    var doSpace = !!(nudgeOptSpace && nudgeOptSpace.checked);
+    if (!doPatterns && !doSounds && !doWords && !doVoices && !doBpm && !doSpace) return;
+
+    var needLayer = doPatterns || doSounds;
+    var layerIdx = needLayer ? takeNextNudgeLayer() : null;
+    if (needLayer && layerIdx == null && !doWords && !doVoices && !doBpm && !doSpace) return;
+
+    var wasPlaying = playing;
+
+    if (doBpm) nudgeBpm();
+    if (doSpace) nudgeSpace();
+    if (doWords) await nudgeWords();
+    if (doVoices) await nudgeVoices();
+
+    if (layerIdx != null) {
+      if (doPatterns) nudgePattern(layers[layerIdx].pattern);
+      if (doSounds) await nudgeSoundsForLayers([layerIdx]);
+      setViewLayer(layerIdx);
     }
 
     if (wasPlaying) pause();
@@ -4202,13 +4585,6 @@
     }
     if (isSidechainKey(sampleId)) triggerSidechainDuck(startAt);
     if (sampleId === 'kick') noteKickForBurst(startAt);
-    if (window.CircleNpc && typeof window.CircleNpc.onBeat === 'function') {
-      // Schedule dance swap near the audio hit (approx; RAF loop is visual-time)
-      var delayMs = Math.max(0, (startAt - ctx.currentTime) * 1000);
-      window.setTimeout(function () {
-        window.CircleNpc.onBeat(sampleId);
-      }, delayMs);
-    }
     activeVoices.push(src);
     src.onended = function () {
       var i = activeVoices.indexOf(src);
@@ -4328,6 +4704,10 @@
     hubBtn.style.boxShadow = '';
     hubBtn.style.background = '';
     hubBtn.style.color = '';
+    if (hubProducerImg) {
+      hubProducerImg.style.transform = '';
+      hubProducerImg.style.filter = '';
+    }
     var strikeEl = document.getElementById('hubStrike');
     if (strikeEl) strikeEl.style.background = '';
     hubHueLastT = 0;
@@ -4386,9 +4766,23 @@
     var strike = Math.max(flash, near * 0.55, music.energy * 0.25);
     var lit = 0.52 + music.energy * 0.12 + flash * 0.1;
     var sat = 0.92 + music.energy * 0.08;
+    var showFace = !!(hubProducerFaceOn && hubBtn.classList.contains('hub-has-producer'));
 
+    // Neon always stays — producer thumbs are transparent, so color shows through.
     hubBtn.style.background = hslNeon(hubHue, sat, lit);
-    hubBtn.style.color = lit > 0.58 ? '#0a0a12' : '#f4f4ff';
+    // Keep pause glyph one stable color (avoid black/white flicker with lit).
+    hubBtn.style.color = '#0a0a12';
+    if (hubProducerImg) {
+      if (showFace) {
+        var pulse = 1 + music.bass * 0.07 + music.vol * 0.05 + flash * 0.05;
+        pulse = Math.max(1, Math.min(1.12, pulse));
+        hubProducerImg.style.transform = 'translate(-50%, -50%) scale(' + pulse.toFixed(3) + ')';
+        hubProducerImg.style.filter = '';
+      } else {
+        hubProducerImg.style.transform = '';
+        hubProducerImg.style.filter = '';
+      }
+    }
     hubBtn.style.setProperty('--hub-hue', String(Math.round(hubHue)));
     hubBtn.style.boxShadow =
       '0 -6px 22px hsla(' + Math.round(hubHue) + ' 100% 60% / 0.5), ' +
@@ -4732,10 +5126,6 @@
 
   function updatePlayhead() {
     if (!discGroupEl) {
-      if (window.CircleNpc && typeof window.CircleNpc.tick === 'function') {
-        var bassNpc = (analyser && analyserData) ? bassEnergy() : 0;
-        window.CircleNpc.tick(bassNpc);
-      }
       playheadRaf = requestAnimationFrame(updatePlayhead);
       return;
     }
@@ -4748,9 +5138,6 @@
       clearFftRing();
       clearStarField();
       shownPlayLayer = -1;
-      if (window.CircleNpc && typeof window.CircleNpc.tick === 'function') {
-        window.CircleNpc.tick(0);
-      }
       playheadRaf = requestAnimationFrame(updatePlayhead);
       return;
     }
@@ -4841,13 +5228,6 @@
     });
 
     applyHubNeonAndStrike(hubHitFlash, hubNearBoost, music);
-    if (window.CircleNpc && typeof window.CircleNpc.tick === 'function') {
-      // Prefer live analyser bass; music.bass is already computed this frame when playing
-      var bassForNpc = (typeof music !== 'undefined' && music && music.bass != null)
-        ? music.bass
-        : ((analyser && analyserData) ? bassEnergy() : 0);
-      window.CircleNpc.tick(bassForNpc);
-    }
     playheadRaf = requestAnimationFrame(updatePlayhead);
   }
 
@@ -4862,9 +5242,9 @@
     hubHue = 75;
     hubHueLastT = 0;
     hubIcon.innerHTML = ICON_PAUSE;
-    if (window.CircleNpc && typeof window.CircleNpc.setMusicPlaying === 'function') {
-      window.CircleNpc.setMusicPlaying(true);
-    }
+    playStartedAt = performance.now();
+    clearHubPauseFade();
+    scheduleHubPauseFade();
     playCursor = start;
     playOriginLayer = start;
     barEvents = [];
@@ -4892,10 +5272,9 @@
     viewLocked = false;
     hubBtn.classList.remove('playing');
     clearHubStrikeGlow();
+    clearHubPauseFade();
     hubIcon.innerHTML = ICON_PLAY;
-    if (window.CircleNpc && typeof window.CircleNpc.setMusicPlaying === 'function') {
-      window.CircleNpc.setMusicPlaying(false);
-    }
+    playStartedAt = 0;
     platterGesture = null;
     transport.free = false;
     transport.rate = 1;
@@ -4961,13 +5340,162 @@
       .slice(0, 24);
   }
 
+  /** Default download stem: ProducerName_120bpm */
+  function exportBasename() {
+    var p = producerById(currentProducerPickId || matchLuckyProducerId()) || producerById('custom');
+    var name = sanitizeFilenamePart(p && p.name) || 'custom';
+    return name + '_' + getBpm() + 'bpm';
+  }
+
   function wavFilenameForViewLayer() {
-    var parts = wordsUsedInLayer(viewLayer)
-      .slice(0, 2)
-      .map(sanitizeFilenamePart)
-      .filter(Boolean);
-    var base = parts.length ? parts.join('_') : 'wheel';
-    return base + '_BPM_' + getBpm() + '.wav';
+    return exportBasename() + '.wav';
+  }
+
+  function midiFilenameForViewLayer() {
+    return exportBasename() + '.mid';
+  }
+
+  var GM_DRUM_NOTES = {
+    kick: 36,
+    snare: 38,
+    clap: 39,
+    hatClosed: 42,
+    hatOpen: 46,
+    ride: 51,
+    cowbell: 56,
+    tom: 45
+  };
+
+  function midiNoteForSampleId(id) {
+    var s = sampleById(id);
+    if (!s) return null;
+    if (s.type === 'maker') {
+      var key = s.maker === 'hat' ? (s.open ? 'hatOpen' : 'hatClosed') : s.maker;
+      return { ch: 9, note: GM_DRUM_NOTES[key] != null ? GM_DRUM_NOTES[key] : 37 };
+    }
+    // Words / samples → melodic channel so they still export
+    if (s.type === 'text') {
+      var ti = parseInt(String(s.id).replace(/\D/g, ''), 10) || 1;
+      return { ch: 0, note: 59 + Math.max(1, Math.min(9, ti)) };
+    }
+    var si = parseInt(String(s.id).replace(/\D/g, ''), 10) || 1;
+    return { ch: 0, note: 71 + Math.max(1, Math.min(9, si)) };
+  }
+
+  function midiWriteVarLen(n) {
+    var buf = [n & 0x7f];
+    n >>= 7;
+    while (n > 0) {
+      buf.unshift((n & 0x7f) | 0x80);
+      n >>= 7;
+    }
+    return buf;
+  }
+
+  function midiConcat(chunks) {
+    var len = 0;
+    var i;
+    for (i = 0; i < chunks.length; i++) len += chunks[i].length;
+    var out = new Uint8Array(len);
+    var o = 0;
+    for (i = 0; i < chunks.length; i++) {
+      out.set(chunks[i], o);
+      o += chunks[i].length;
+    }
+    return out;
+  }
+
+  function midiU16(n) {
+    return [(n >> 8) & 0xff, n & 0xff];
+  }
+
+  function midiU32(n) {
+    return [(n >> 24) & 0xff, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+  }
+
+  function buildViewWheelMidiBlob() {
+    var pat = layers[viewLayer] && layers[viewLayer].pattern;
+    if (!pat) return null;
+    var TPQ = 480;
+    var ticksPerBar = TPQ * 4;
+    var bpm = getBpm();
+    var events = [];
+
+    RINGS.forEach(function (ring) {
+      var steps = pat[ring.id];
+      if (!steps) return;
+      var n = steps.length;
+      var i;
+      for (i = 0; i < n; i++) {
+        var id = steps[i];
+        if (!id) continue;
+        var map = midiNoteForSampleId(id);
+        if (!map || map.note == null) continue;
+        var tick = Math.round((i / n) * ticksPerBar);
+        var dur = Math.max(1, Math.round(ticksPerBar / n * 0.85));
+        events.push({ tick: tick, type: 'on', ch: map.ch, note: map.note, vel: 100 });
+        events.push({ tick: tick + dur, type: 'off', ch: map.ch, note: map.note, vel: 0 });
+      }
+    });
+
+    events.sort(function (a, b) {
+      if (a.tick !== b.tick) return a.tick - b.tick;
+      if (a.type === b.type) return 0;
+      return a.type === 'off' ? -1 : 1;
+    });
+
+    var track = [];
+    // Tempo meta
+    var usPerBeat = Math.round(60000000 / Math.max(1, bpm));
+    track.push.apply(track, midiWriteVarLen(0));
+    track.push(0xff, 0x51, 0x03, (usPerBeat >> 16) & 0xff, (usPerBeat >> 8) & 0xff, usPerBeat & 0xff);
+
+    var last = 0;
+    var ei;
+    for (ei = 0; ei < events.length; ei++) {
+      var ev = events[ei];
+      var delta = Math.max(0, ev.tick - last);
+      track.push.apply(track, midiWriteVarLen(delta));
+      if (ev.type === 'on') track.push(0x90 | (ev.ch & 0x0f), ev.note & 0x7f, ev.vel & 0x7f);
+      else track.push(0x80 | (ev.ch & 0x0f), ev.note & 0x7f, 0x40);
+      last = ev.tick;
+    }
+    // End of track
+    track.push.apply(track, midiWriteVarLen(0));
+    track.push(0xff, 0x2f, 0x00);
+
+    var trackBytes = new Uint8Array(track);
+    var header = midiConcat([
+      new Uint8Array([0x4d, 0x54, 0x68, 0x64]),
+      new Uint8Array(midiU32(6)),
+      new Uint8Array(midiU16(0)), // format 0
+      new Uint8Array(midiU16(1)), // one track
+      new Uint8Array(midiU16(TPQ))
+    ]);
+    var trackChunk = midiConcat([
+      new Uint8Array([0x4d, 0x54, 0x72, 0x6b]),
+      new Uint8Array(midiU32(trackBytes.length)),
+      trackBytes
+    ]);
+    return new Blob([midiConcat([header, trackChunk])], { type: 'audio/midi' });
+  }
+
+  function saveViewWheelMidi() {
+    if (!layerHasHits(viewLayer)) {
+      alert('This wheel has no hits to save.');
+      return;
+    }
+    try {
+      var blob = buildViewWheelMidiBlob();
+      if (!blob) {
+        alert('Could not save MIDI.');
+        return;
+      }
+      downloadBlob(blob, midiFilenameForViewLayer());
+    } catch (err) {
+      console.error(err);
+      alert('Could not save MIDI.');
+    }
   }
 
   function copyBufferToContext(srcBuffer, dstCtx) {
@@ -5593,17 +6121,6 @@
     }
   }
 
-  function setVisualNpc(on) {
-    visualNpcOn = !!on;
-    if (visualNpcBtn) {
-      visualNpcBtn.classList.toggle('active', visualNpcOn);
-      visualNpcBtn.setAttribute('aria-pressed', visualNpcOn ? 'true' : 'false');
-    }
-    if (window.CircleNpc && typeof window.CircleNpc.setEnabled === 'function') {
-      window.CircleNpc.setEnabled(visualNpcOn);
-    }
-  }
-
   function syncPanelMenuHighlight() {
     if (!panelMenu) return;
     // Hamburger visible = top panel closed → no menu item highlighted
@@ -5653,6 +6170,11 @@
       if (btn.dataset.action === 'save-wav') {
         closePanelMenu();
         saveViewWheelWav().catch(function (err) { console.error(err); });
+        return;
+      }
+      if (btn.dataset.action === 'save-midi') {
+        closePanelMenu();
+        saveViewWheelMidi();
         return;
       }
       if (btn.dataset.action === 'save-code') {
@@ -5723,12 +6245,6 @@
       setVisualFx(!visualFxOn);
     });
   }
-  if (visualNpcBtn) {
-    visualNpcBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      setVisualNpc(!visualNpcOn);
-    });
-  }
 
   hubBtn.addEventListener('click', function () {
     togglePlay().catch(function (err) { console.error(err); });
@@ -5769,6 +6285,7 @@
     if (!e.target.closest('.layer-pick')) closeLayerMenus();
     if (!e.target.closest('.rand-group')) closeRandMenus();
     if (!e.target.closest('.panel-menu-wrap')) closePanelMenu();
+    if (!e.target.closest('.producer-pick')) closeProducerPickMenus();
   });
 
   wavInput.addEventListener('change', function () {
@@ -5781,6 +6298,28 @@
     closeRandMenus();
     runRandomise().catch(function (err) { console.error(err); });
   });
+
+  function toggleProducerPanelFromFace() {
+    closeRandMenus();
+    closeProducerPickMenus();
+    var open = !!(appRoot && !appRoot.classList.contains('top-collapsed'));
+    if (open) setTopCollapsed(true);
+    else setPanel('lucky');
+  }
+
+  if (randProducerFaceBtn) {
+    randProducerFaceBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleProducerPanelFromFace();
+    });
+  }
+
+  if (nudgeBtn) {
+    nudgeBtn.addEventListener('click', function () {
+      closeRandMenus();
+      runNudge().catch(function (err) { console.error(err); });
+    });
+  }
 
   if (randOptsBtn) {
     randOptsBtn.addEventListener('click', function (e) {
@@ -5797,6 +6336,22 @@
   }
   if (randOptsMenu) {
     randOptsMenu.addEventListener('click', function (e) { e.stopPropagation(); });
+  }
+  if (nudgeOptsBtn) {
+    nudgeOptsBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      closeLayerMenus();
+      var open = nudgeOptsMenu.classList.contains('open');
+      closeRandMenus();
+      if (!open) {
+        buildNudgeLayersList();
+        nudgeOptsMenu.classList.add('open');
+        nudgeOptsBtn.setAttribute('aria-expanded', 'true');
+      }
+    });
+  }
+  if (nudgeOptsMenu) {
+    nudgeOptsMenu.addEventListener('click', function (e) { e.stopPropagation(); });
   }
   var randLayersAll = document.getElementById('randLayersAll');
   var randLayersThis = document.getElementById('randLayersThis');
@@ -5820,6 +6375,33 @@
       e.stopPropagation();
       for (var j = 0; j < MAX_CIRCLES; j++) randLayerChecked[j] = false;
       buildRandLayersList();
+    });
+  }
+  var nudgeLayersAll = document.getElementById('nudgeLayersAll');
+  var nudgeLayersThis = document.getElementById('nudgeLayersThis');
+  var nudgeLayersNone = document.getElementById('nudgeLayersNone');
+  if (nudgeLayersAll) {
+    nudgeLayersAll.addEventListener('click', function (e) {
+      e.stopPropagation();
+      for (var j = 0; j < MAX_CIRCLES; j++) nudgeLayerChecked[j] = true;
+      resetNudgeLayerCursor();
+      buildNudgeLayersList();
+    });
+  }
+  if (nudgeLayersThis) {
+    nudgeLayersThis.addEventListener('click', function (e) {
+      e.stopPropagation();
+      for (var j = 0; j < MAX_CIRCLES; j++) nudgeLayerChecked[j] = (j === viewLayer);
+      resetNudgeLayerCursor();
+      buildNudgeLayersList();
+    });
+  }
+  if (nudgeLayersNone) {
+    nudgeLayersNone.addEventListener('click', function (e) {
+      e.stopPropagation();
+      for (var j = 0; j < MAX_CIRCLES; j++) nudgeLayerChecked[j] = false;
+      resetNudgeLayerCursor();
+      buildNudgeLayersList();
     });
   }
 
@@ -5923,14 +6505,19 @@
   bindLuckySlider(luckySpeedEl);
 
   buildLuckyProducerSelect();
-  if (luckyProducerEl) {
-    luckyProducerEl.addEventListener('change', function () {
-      onProducerSelectChange(luckyProducerEl);
+  if (luckyProducerBtn) {
+    luckyProducerBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleProducerPickMenu(luckyProducerBtn, luckyProducerMenu);
     });
   }
-  if (randProducerEl) {
-    randProducerEl.addEventListener('change', function () {
-      onProducerSelectChange(randProducerEl);
+  if (luckyProducerMenu) {
+    luckyProducerMenu.addEventListener('click', function (e) { e.stopPropagation(); });
+  }
+  if (appProducerFaceBtn) {
+    appProducerFaceBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleProducerPanelFromFace();
     });
   }
   document.querySelectorAll('[data-lucky-help]').forEach(function (btn) {
@@ -5954,7 +6541,9 @@
     hideLuckyTip();
   });
   window.addEventListener('resize', hideLuckyTip);
-  applyLuckyProducer('default', { silent: true });
+  var bootProducerId = pickRandomNamedProducerId();
+  applyLuckyProducer(bootProducerId, { silent: true });
+  syncLaunchProducerUi(bootProducerId);
 
   initLayers();
   setViewLayer(0, { skipPaint: true, fromPlayhead: true });
@@ -5966,7 +6555,7 @@
   buildSvg();
   syncLayerUi();
   syncPanelMenuHighlight();
-  syncLuckyRollUi({ skipMatch: true });
+  syncLuckyRollUi({ skipMatch: true, producerId: bootProducerId });
   humanVal.textContent = Math.round(getHumanize() * 100) + '%';
   reverbVal.textContent = Math.round(getReverb() * 100) + '%';
   stereoVal.textContent = Math.round(getStereo()) + '%';
@@ -5982,6 +6571,7 @@
   async function startApp() {
     if (appStarted) return;
     appStarted = true;
+    applyLuckyProducer(launchProducerId || pickRandomNamedProducerId(), { silent: true });
     if (launchOverlay) launchOverlay.classList.add('hidden');
     try {
       await ensureAudio();
@@ -5991,11 +6581,35 @@
     }
   }
 
+  if (launchProducerPrev) {
+    launchProducerPrev.addEventListener('click', function (e) {
+      e.stopPropagation();
+      stepLaunchProducer(-1);
+    });
+  }
+  if (launchProducerNext) {
+    launchProducerNext.addEventListener('click', function (e) {
+      e.stopPropagation();
+      stepLaunchProducer(1);
+    });
+  }
+
   if (launchOverlay) {
-    launchOverlay.addEventListener('click', function () {
+    launchOverlay.addEventListener('click', function (e) {
+      if (e.target && e.target.closest && e.target.closest('.launch-producer')) return;
       startApp().catch(function (err) { console.error(err); });
     });
     launchOverlay.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        stepLaunchProducer(-1);
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        stepLaunchProducer(1);
+        return;
+      }
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         startApp().catch(function (err) { console.error(err); });

@@ -2,11 +2,11 @@
 setlocal
 cd /d "%~dp0"
 
-set PORT=8768
+set PORT=8769
 set URL=http://127.0.0.1:%PORT%/
 
 echo.
-echo === Circle Beat (Lite) ===
+echo === Circle Beat NPC ===
 echo Freeing port %PORT% ...
 
 powershell -NoProfile -Command ^
