@@ -73,7 +73,10 @@
     }
     .launch-speech {
       position: relative;
+      box-sizing: border-box;
+      width: max-content;
       max-width: min(18.5rem, 82vw);
+      min-width: min(11.5rem, 72vw);
       min-height: 3.4em;
       margin: 0 0 2px;
       padding: 12px 14px 14px;
@@ -82,9 +85,21 @@
       color: #1a1a22;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
       display: flex;
-      align-items: flex-start;
-      justify-content: flex-start;
-      text-align: left;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.16s ease, visibility 0.16s ease;
+    }
+    .launch-speech.is-ready {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .launch-speech[hidden] {
+      display: none !important;
     }
     .launch-speech::after {
       content: "";
@@ -110,7 +125,7 @@
       line-height: 1.35;
       letter-spacing: -0.01em;
       color: #1a1a22;
-      text-align: left;
+      text-align: center;
       opacity: 0;
       transform: translateY(4px);
       transition: opacity 0.18s ease, transform 0.18s ease;
@@ -1049,6 +1064,18 @@
       padding-right: 10px;
       white-space: nowrap;
       pointer-events: none;
+      display: inline-block;
+      transform-origin: center center;
+      animation: luckyRollPulse 1.45s ease-in-out infinite;
+    }
+    @keyframes luckyRollPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(0.88); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .rand-group .rand-label {
+        animation: none;
+      }
     }
     .bottom-bar .rand-tools {
       display: flex;
@@ -1799,7 +1826,7 @@
   <div id="launchOverlay" role="dialog" aria-modal="true" aria-label="Start Circle Beat" tabindex="0">
     <h1>Circle Beat</h1>
     <div class="launch-producer" id="launchProducer" role="group" aria-label="Choose producer">
-      <div class="launch-speech" aria-live="polite">
+      <div class="launch-speech" id="launchSpeech" aria-live="polite" hidden>
         <p class="launch-producer-blurb" id="launchProducerBlurb"></p>
       </div>
       <div class="launch-producer-stage">

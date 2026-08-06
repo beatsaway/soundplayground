@@ -74,6 +74,11 @@
   var CORE_DRUM_IDS = ['kick', 'snare', 'hatClosed'];
 
   var EMPTY_COLOR = '#1e1e24';
+  /** Wheel empty-cell pie tones — very close greys, 8 slices. */
+  var PIE_GREY_A = '#1e1e24';
+  var PIE_GREY_B = '#222228';
+  var DISC_PIE_SLICES = 8;
+  var DISC_BG_GAP = '#16161a';
   var NS = 'http://www.w3.org/2000/svg';
   var HOLD_MS = 450;
   var sayTexts = {
@@ -260,6 +265,7 @@
   var launchProducerFace = document.getElementById('launchProducerFace');
   var launchProducerName = document.getElementById('launchProducerName');
   var launchProducerBlurb = document.getElementById('launchProducerBlurb');
+  var launchSpeech = document.getElementById('launchSpeech');
   var launchProducerPrev = document.getElementById('launchProducerPrev');
   var launchProducerNext = document.getElementById('launchProducerNext');
   var topCloseBtn = document.getElementById('topCloseBtn');
@@ -578,12 +584,21 @@
     launchProducerId = p.id;
     setProducerFaceImg(launchProducerFace, p.id);
     if (launchProducerName) launchProducerName.textContent = p.name;
+    var quote = p.blurb == null ? '' : String(p.blurb);
     if (launchProducerBlurb) {
-      launchProducerBlurb.textContent = p.blurb || '';
+      launchProducerBlurb.textContent = quote;
       launchProducerBlurb.classList.remove('is-in');
-      // Retrigger quick fade-in on producer swap.
       void launchProducerBlurb.offsetWidth;
-      launchProducerBlurb.classList.add('is-in');
+      if (quote) launchProducerBlurb.classList.add('is-in');
+    }
+    if (launchSpeech) {
+      if (quote) {
+        launchSpeech.hidden = false;
+        launchSpeech.classList.add('is-ready');
+      } else {
+        launchSpeech.classList.remove('is-ready');
+        launchSpeech.hidden = true;
+      }
     }
   }
 
@@ -1563,9 +1578,10 @@
     if (!starParticles.length) initStarParticles();
     var w = starCanvas.width;
     var h = starCanvas.height;
-    var cx = w * 0.5;
-    var cy = h * 0.5;
-    var keepOut = Math.min(w, h) * (0.22 + aes.flockSpread * 0.08);
+    var wheel = getWheelLayoutForCanvas(starCanvas);
+    var cx = wheel.cx;
+    var cy = wheel.cy;
+    var keepOut = Math.max(48, wheel.circleR * (1.02 + aes.flockSpread * 0.1));
     var energy = Math.max(bass, midEnergy * 0.45);
     var active = Math.max(6, Math.min(STAR_COUNT, aes.starActive));
     var trail = Math.max(0.2, Math.min(0.55, aes.trailFade));
@@ -2059,12 +2075,27 @@
     parent.appendChild(defs);
   }
 
-  function segFill(sampleId) {
-    if (!sampleId) return EMPTY_COLOR;
+  function segFill(sampleId, ringId, segIndex) {
+    if (!sampleId) return emptyPieFill(ringId, segIndex);
     var s = sampleById(sampleId);
-    if (!s) return EMPTY_COLOR;
+    if (!s) return emptyPieFill(ringId, segIndex);
     if (!s.pattern || s.pattern === 'solid') return s.color;
     return 'url(#fill-' + s.id + ')';
+  }
+
+  /** Empty cell color by 8-slice pie (keeps SEG_GAP dark lines via discBg). */
+  function emptyPieFill(ringId, segIndex) {
+    var ring = null;
+    var r;
+    for (r = 0; r < RINGS.length; r++) {
+      if (RINGS[r].id === ringId) { ring = RINGS[r]; break; }
+    }
+    var n = ring ? ring.segments : 16;
+    var i = segIndex | 0;
+    if (i < 0) i = 0;
+    var slice = Math.floor((i / Math.max(1, n)) * DISC_PIE_SLICES) % DISC_PIE_SLICES;
+    if (slice < 0) slice = 0;
+    return (slice % 2 === 0) ? PIE_GREY_A : PIE_GREY_B;
   }
 
   function cssSwatch(s) {
@@ -3619,7 +3650,7 @@
     bg.setAttribute('cx', CX);
     bg.setAttribute('cy', CY);
     bg.setAttribute('r', OUTER + 8);
-    bg.setAttribute('fill', '#16161a');
+    bg.setAttribute('fill', DISC_BG_GAP);
     bg.setAttribute('stroke', 'none');
     svg.appendChild(bg);
 
@@ -3645,7 +3676,7 @@
         path.setAttribute('class', 'seg');
         path.dataset.ring = ring.id;
         path.dataset.seg = String(i);
-        path.setAttribute('fill', segFill(pat[ring.id][i]));
+        path.setAttribute('fill', segFill(pat[ring.id][i], ring.id, i));
         path.addEventListener('pointerdown', onSegPointerDown);
         path.addEventListener('pointermove', onSegPointerMove);
         path.addEventListener('pointerup', onSegPointerUp);
@@ -3726,7 +3757,7 @@
   function paintSeg(ringId, i) {
     var el = segEls[ringId + ':' + i];
     if (!el || !pattern) return;
-    el.setAttribute('fill', segFill(pattern[ringId][i]));
+    el.setAttribute('fill', segFill(pattern[ringId][i], ringId, i));
   }
 
   var segPress = null;
@@ -4894,17 +4925,41 @@
     }
   }
 
-  /** Morph rings center on the drum; drawn on full viewport (no crop box). */
-  function getMorphLayout(dpr) {
-    var wrapRect = circleWrap
-      ? circleWrap.getBoundingClientRect()
-      : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
-    var scale = dpr || Math.min(window.devicePixelRatio || 1, 2);
+  /**
+   * Map the drum center into a canvas's pixel space.
+   * Halo / FFT / flock keep-out must use this — not the screen midpoint —
+   * so rings always originate from the wheel on every layout / DPR.
+   */
+  function getWheelLayoutForCanvas(canvas) {
+    var fallbackW = (canvas && canvas.width) ? canvas.width : Math.max(1, window.innerWidth);
+    var fallbackH = (canvas && canvas.height) ? canvas.height : Math.max(1, window.innerHeight);
+    var drumEl = svg || circleWrap;
+    if (!canvas || !drumEl) {
+      var minDim = Math.min(fallbackW, fallbackH);
+      return {
+        cx: fallbackW * 0.5,
+        cy: fallbackH * 0.5,
+        circleR: minDim * 0.5 * (OUTER / 500)
+      };
+    }
+    var canvasRect = canvas.getBoundingClientRect();
+    var drumRect = drumEl.getBoundingClientRect();
+    var cssW = Math.max(1, canvasRect.width);
+    var cssH = Math.max(1, canvasRect.height);
+    var scaleX = canvas.width / cssW;
+    var scaleY = canvas.height / cssH;
+    var scaleAvg = (scaleX + scaleY) * 0.5;
+    var rim = OUTER / 500;
     return {
-      cx: (wrapRect.left + wrapRect.width * 0.5) * scale,
-      cy: (wrapRect.top + wrapRect.height * 0.5) * scale,
-      circleR: (Math.min(wrapRect.width, wrapRect.height) * 0.5) * scale
+      cx: (drumRect.left - canvasRect.left + drumRect.width * 0.5) * scaleX,
+      cy: (drumRect.top - canvasRect.top + drumRect.height * 0.5) * scaleY,
+      circleR: Math.min(drumRect.width, drumRect.height) * 0.5 * rim * scaleAvg
     };
+  }
+
+  /** Morph rings center on the drum; drawn on full viewport (no crop box). */
+  function getMorphLayout() {
+    return getWheelLayoutForCanvas(fftCanvas);
   }
 
   function sampleSpectrumRing(pointCount) {
@@ -5013,8 +5068,7 @@
 
     var w = fftCanvas.width;
     var h = fftCanvas.height;
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    var layout = getMorphLayout(dpr);
+    var layout = getMorphLayout();
     var cx = layout.cx;
     var cy = layout.cy;
     var circleR = Math.max(40, layout.circleR);
@@ -5040,6 +5094,7 @@
 
     var pulse = 1 + bass * 0.28 + avg * 0.14 + vol * 0.18 + 0.04 * Math.sin(time * 2.8);
     var bright = (0.06 + vol * 1.25) * (0.55 + bass * 0.7 + mid * 0.2 + aes.lit * 0.08);
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var blurScale = (5.5 + aes.strokeWide * 3.2 + bass * 12 + vol * 6) * (dpr > 1.4 ? 1.12 : 1);
     var spinSign = aes.ringSpin === 0 ? 0 : (aes.ringSpin > 0 ? 1 : -1);
     var spinOff = time * aes.ringSpinSpeed * 40 * spinSign;
