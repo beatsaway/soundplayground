@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Circle Slicer</title>
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #050506;
+      --ink: #eeeef2;
+      --muted: #8b8b96;
+      --line: #2a2a32;
+      --play: #c8ff00;
+      --panel: #121218;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      color: var(--ink);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      background: #000;
+    }
+
+    #launchOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      background: radial-gradient(ellipse 70% 50% at 50% 42%, #16161c 0%, #050506 55%, #000 100%);
+      text-align: center;
+      padding: 20px;
+      cursor: pointer;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+    #launchOverlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    #launchOverlay h1 {
+      margin: 0;
+      font-family: Sora, sans-serif;
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+    }
+    #launchOverlay p { margin: 0; max-width: 22rem; color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
+    #launchOverlay .go {
+      border: 0; border-radius: 999px; padding: 10px 24px;
+      background: var(--play); color: #111;
+      font-family: Sora, sans-serif; font-weight: 600; cursor: pointer;
+    }
+
+    .app {
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto auto;
+      background: #07070a;
+    }
+
+    header.top {
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: #0e0e14;
+    }
+    .top-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 6px;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 4px 6px;
+      margin: 0;
+    }
+    .chip, .slide {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 26px;
+      padding: 0 7px;
+      border-radius: 6px;
+      background: #1a1a22;
+      border: 1px solid #2a2a34;
+      color: var(--ink);
+      font-size: 0.72rem;
+    }
+    .slide-lab { color: var(--muted); font-weight: 500; white-space: nowrap; }
+    .slide-val {
+      min-width: 2.2em;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: #d0d0d8;
+    }
+    input[type="range"] { width: 72px; accent-color: var(--play); height: 14px; }
+    select, .btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    select { padding: 0; outline: none; max-width: 7.5rem; }
+    .btn { padding: 0; font-weight: 600; }
+    .btn.primary {
+      color: #111;
+      background: var(--play);
+      border-radius: 5px;
+      padding: 3px 8px;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .file-btn { position: relative; overflow: hidden; cursor: pointer; margin: 0; }
+    .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .meta { color: var(--muted); font-size: 0.68rem; white-space: nowrap; }
+
+    .samples-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 6px;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 3px 6px 5px;
+      border-bottom: 1px solid var(--line);
+      background: #0c0c12;
+    }
+    .samples-bar[hidden] { display: none !important; }
+    .slot {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 24px;
+      padding: 0 6px;
+      border-radius: 6px;
+      border: 1px solid #2a2a34;
+      background: #16161e;
+      font-size: 0.68rem;
+      cursor: pointer;
+    }
+    .slot.is-active { border-color: var(--play); box-shadow: inset 0 0 0 1px rgba(200,255,0,0.25); }
+    .slot.is-empty { opacity: 0.55; }
+    .slot-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .slot-name {
+      max-width: 5.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .slot-clear {
+      border: 0; background: transparent; color: var(--muted);
+      cursor: pointer; font-size: 0.75rem; padding: 0 2px; line-height: 1;
+    }
+    .slot-clear:hover { color: #fff; }
+    .dur-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px 5px;
+      align-items: center;
+      padding: 0 2px;
+    }
+    .dur-opt {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      min-height: 24px;
+      padding: 0 5px;
+      border-radius: 5px;
+      border: 1px solid #2a2a34;
+      background: #1a1a22;
+      font-size: 0.66rem;
+      color: var(--ink);
+      user-select: none;
+    }
+    .dur-opt.is-on {
+      border-color: rgba(200, 255, 0, 0.45);
+      background: #22222a;
+    }
+    .dur-opt input[type="checkbox"] {
+      margin: 0;
+      accent-color: var(--play);
+    }
+    .dur-opt .prio {
+      width: 2.1rem;
+      border: 1px solid #33333c;
+      border-radius: 3px;
+      background: #0e0e14;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.65rem;
+      padding: 1px 2px;
+      text-align: center;
+    }
+    .dur-opt .prio:disabled {
+      opacity: 0.35;
+    }
+    .dur-lab { color: var(--muted); font-weight: 500; font-size: 0.66rem; }
+
+    .breaker-panel, .ring-env, .slice-viz, footer.bottom {
+      z-index: 10;
+      margin: 0;
+      border-radius: 0;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: #0e0e14;
+      padding: 4px 6px;
+    }
+    .breaker-panel[hidden] { display: none !important; }
+    .breaker-row, .ring-env-head, .ring-env-sliders, .samples-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 6px;
+      align-items: center;
+    }
+    .breaker-presets, .ring-picks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+    }
+    .breaker-preset, .ring-pick {
+      border: 1px solid #2a2a34;
+      background: #1a1a22;
+      color: var(--ink);
+      border-radius: 5px;
+      min-height: 22px;
+      padding: 0 7px;
+      font-size: 0.66rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .breaker-preset.is-active, .ring-pick.is-active {
+      background: var(--play);
+      color: #111;
+      border-color: var(--play);
+    }
+    .slice-viz-title {
+      font-family: Sora, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .slice-viz-hint { color: var(--muted); font-size: 0.66rem; }
+    .slice-viz-head, .window-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 8px;
+      margin-bottom: 4px;
+    }
+    .window-row .slide { flex: 1; min-width: 140px; }
+    .window-row input[type="range"] { flex: 1; width: auto; min-width: 60px; }
+    .overview-wrap {
+      position: relative;
+      height: 28px;
+      overflow: hidden;
+      background: #0a0a0e;
+      border: 1px solid #22222a;
+      margin-bottom: 4px;
+      cursor: ew-resize;
+    }
+    #overviewCanvas, #waveCanvas, #specCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .wave-wrap {
+      position: relative;
+      height: 72px;
+      overflow: hidden;
+      background: #0a0a0e;
+      border: 1px solid #22222a;
+      cursor: crosshair;
+    }
+    #specCanvas { opacity: 0.45; mix-blend-mode: screen; pointer-events: none; }
+    .wave-empty {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      color: var(--muted); font-size: 0.75rem; pointer-events: none;
+    }
+    .wave-empty[hidden] { display: none; }
+
+    .stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 0;
+      padding: 0;
+      background: radial-gradient(ellipse 70% 60% at 50% 45%, #121218 0%, #07070a 100%);
+    }
+    .circle-wrap {
+      position: relative;
+      width: min(58vmin, 480px);
+      height: min(58vmin, 480px);
+    }
+    #ringSvg { width: 100%; height: 100%; display: block; }
+    .hub {
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      width: 22%; height: 22%;
+      border: 0; border-radius: 50%;
+      background: #1a1a22;
+      box-shadow: inset 0 0 0 2px #2e2e38, 0 6px 20px rgba(0,0,0,0.45);
+      color: var(--play);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+    .hub svg { width: 34%; height: 34%; }
+    .hub.is-playing { color: #111; background: var(--play); }
+    .hub:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    footer.bottom {
+      border-bottom: 0;
+      border-top: 1px solid var(--line);
+      padding: 3px 6px;
+    }
+    .bottom-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0;
+      margin: 0;
+      border: 0;
+      background: transparent;
+    }
+    .brand {
+      font-family: Sora, sans-serif;
+      font-weight: 600;
+      font-size: 0.78rem;
+      letter-spacing: -0.02em;
+      margin-right: auto;
+    }
+    .brand span { color: var(--muted); font-weight: 500; margin-left: 6px; font-size: 0.68rem; }
+
+    @media (max-width: 720px) {
+      input[type="range"] { width: 56px; }
+      .slot-name { max-width: 3.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="launchOverlay">
+    <h1>Circle Slicer</h1>
+    <p>Upload up to 3 samples, slice by beat, sprinkle onto rings.</p>
+    <button type="button" class="go" id="launchGo">Start</button>
+  </div>
+
+  <div class="app" id="appRoot" hidden>
+    <header class="top">
+      <div class="top-bar">
+        <label class="chip file-btn" title="Add / replace sample in selected slot (max 3)">
+          <span class="btn primary">Upload</span>
+          <input type="file" id="fileInput" accept="audio/*,.wav,.mp3,.ogg,.m4a,.flac" />
+        </label>
+
+        <label class="slide" title="Project tempo">
+          <span class="slide-lab">BPM</span>
+          <input type="range" id="bpm" min="50" max="180" value="120" step="1" />
+          <span class="slide-val" id="bpmVal">120</span>
+        </label>
+
+        <div class="dur-panel" id="sliceDurs" title="Enable durations · priority 1 = most likely · ring total ≤ 4 beats">
+          <span class="dur-lab">Slice</span>
+        </div>
+
+        <label class="chip" title="How slices land on ring segments">
+          <span class="slide-lab">Sprinkle</span>
+          <select id="sprinkleMode" aria-label="Sprinkle mode">
+            <option value="sequential" selected>Sequential</option>
+            <option value="random">Random</option>
+            <option value="breaker">Breaker</option>
+          </select>
+        </label>
+
+        <label class="slide" id="seqSwapWrap" title="Neighbor swaps in sequential mode">
+          <span class="slide-lab">Neighbor</span>
+          <input type="range" id="seqSwap" min="0" max="100" value="25" step="1" />
+          <span class="slide-val" id="seqSwapVal">25%</span>
+        </label>
+
+        <label class="slide" title="Concentric rings">
+          <span class="slide-lab">Rings</span>
+          <input type="range" id="ringCount" min="2" max="8" value="4" step="1" />
+          <span class="slide-val" id="ringCountVal">4</span>
+        </label>
+
+        <button type="button" class="chip btn" id="resliceBtn" disabled title="Re-slice and re-sprinkle">Reslice</button>
+        <span class="meta" id="sliceMeta">Upload samples to begin</span>
+      </div>
+    </header>
+
+    <div class="samples-bar" id="samplesBar">
+      <span class="slide-lab">Samples</span>
+      <div class="samples-row" id="sampleSlots"></div>
+      <label class="chip" title="How multiple WAVs feed the rings" id="mixModeWrap">
+        <span class="slide-lab">Mix</span>
+        <select id="mixMode" aria-label="Sample mix mode">
+          <option value="weighted" selected>Weighted random</option>
+          <option value="equal">Equal split</option>
+        </select>
+      </label>
+      <div class="samples-row" id="weightSliders"></div>
+    </div>
+
+    <section class="breaker-panel" id="breakerPanel" aria-label="Breaker settings" hidden>
+      <div class="breaker-row">
+        <div class="slice-viz-title">Breaker</div>
+        <div class="breaker-presets" id="breakerPresets" role="group" aria-label="Breaker presets"></div>
+        <span class="meta" id="breakerPresetHint">Macro</span>
+        <label class="slide" title="Skip chance">
+          <span class="slide-lab">Skip</span>
+          <input type="range" id="breakSkip" min="0" max="80" value="28" step="1" />
+          <span class="slide-val" id="breakSkipVal">28%</span>
+        </label>
+        <label class="slide" title="Stutter chance">
+          <span class="slide-lab">Stutter</span>
+          <input type="range" id="breakStutter" min="0" max="90" value="32" step="1" />
+          <span class="slide-val" id="breakStutterVal">32%</span>
+        </label>
+        <label class="slide" title="Max stutter ×2–5">
+          <span class="slide-lab">Intensity</span>
+          <input type="range" id="breakIntensity" min="2" max="5" value="3" step="1" />
+          <span class="slide-val" id="breakIntensityVal">×3</span>
+        </label>
+      </div>
+    </section>
+
+    <div class="stage" id="stage">
+      <div class="circle-wrap" id="circleWrap">
+        <svg id="ringSvg" viewBox="0 0 1000 1000" aria-label="Slice rings"></svg>
+        <button type="button" class="hub" id="hubBtn" aria-label="Play or pause" title="Play / pause" disabled>
+          <svg id="hubIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <section class="ring-env" id="ringEnv" aria-label="Per-ring playback">
+      <div class="ring-env-head">
+        <div class="slice-viz-title">Ring play shape</div>
+        <div class="ring-picks" id="ringPicks"></div>
+        <span class="meta" id="ringEnvHint">All or per ring</span>
+        <label class="slide" title="Fade in">
+          <span class="slide-lab">Attack</span>
+          <input type="range" id="ringAttack" min="0" max="120" value="4" step="1" />
+          <span class="slide-val" id="ringAttackVal">4 ms</span>
+        </label>
+        <label class="slide" title="Fade out">
+          <span class="slide-lab">Release</span>
+          <input type="range" id="ringRelease" min="0" max="250" value="35" step="1" />
+          <span class="slide-val" id="ringReleaseVal">35 ms</span>
+        </label>
+        <label class="slide" title="Play length of slice">
+          <span class="slide-lab">Dur</span>
+          <input type="range" id="ringDur" min="10" max="100" value="100" step="1" />
+          <span class="slide-val" id="ringDurVal">100%</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="slice-viz" id="sliceViz" aria-label="Slice spectrum">
+      <div class="slice-viz-head">
+        <div class="slice-viz-title">Slice window <span class="meta" id="activeSampleLab"></span></div>
+        <div class="slice-viz-hint" id="waveHint">Max 20s — pick part to slice</div>
+      </div>
+      <div class="window-row">
+        <label class="slide" title="Window start in active sample">
+          <span class="slide-lab">Start</span>
+          <input type="range" id="windowStart" min="0" max="0" value="0" step="0.01" disabled />
+          <span class="slide-val" id="windowStartVal">0.0s</span>
+        </label>
+        <span class="meta" id="windowRangeLab">Window —</span>
+      </div>
+      <div class="overview-wrap" id="overviewWrap" title="Drag to move window">
+        <canvas id="overviewCanvas" aria-label="Full file overview"></canvas>
+      </div>
+      <div class="wave-wrap" id="waveWrap" title="Click a slice to preview">
+        <canvas id="specCanvas" aria-hidden="true"></canvas>
+        <canvas id="waveCanvas" aria-label="Sliced waveform"></canvas>
+        <div class="wave-empty" id="waveEmpty">No sample loaded</div>
+      </div>
+    </section>
+
+    <footer class="bottom">
+      <div class="bottom-bar">
+        <div class="brand">Circle Slicer <span>beat-sliced rings</span></div>
+        <span class="meta" id="playMeta">Idle</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="slicer.js"></script>
+</body>
+</html>
