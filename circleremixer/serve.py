@@ -1,6 +1,5 @@
 """
-Circle Beat (Lite) local server.
-Drums-only build — no NPC dancers or Three.js.
+Circle Remixer local server.
 """
 from __future__ import annotations
 
@@ -14,31 +13,23 @@ PORT = int(os.environ.get("PORT", "8768"))
 
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("application/wasm", ".wasm")
-mimetypes.add_type("model/gltf-binary", ".glb")
 
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
-    def do_GET(self):
-        clean = self.path.split("?", 1)[0].split("#", 1)[0]
-        if clean in ("/favicon.ico",) or clean.startswith("/.well-known/"):
-            self.send_response(204)
-            self.end_headers()
-            return
-        return super().do_GET()
-
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", "*")
         super().end_headers()
 
+    def log_message(self, fmt, *args):
+        print("[%s] %s" % (self.log_date_time_string(), fmt % args))
 
-def main() -> None:
+
+def main():
     httpd = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"Circle Beat (Lite) — http://127.0.0.1:{PORT}/")
-    print("Ctrl+C to stop.")
+    print(f"Circle Remixer — http://127.0.0.1:{PORT}/")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

@@ -6,7 +6,7 @@ set PORT=8768
 set URL=http://127.0.0.1:%PORT%/
 
 echo.
-echo === Circle Beat (Lite) ===
+echo === Circle Remixer ===
 echo Freeing port %PORT% ...
 
 powershell -NoProfile -Command ^
