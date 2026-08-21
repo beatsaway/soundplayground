@@ -13,7 +13,7 @@
   var RING_GAP = 4;
   var SEG_GAP_DEG = 1.6;
   var START_ANGLE = -Math.PI / 2;
-  var LOOK_AHEAD = 0.12;
+  var LOOK_AHEAD = 0.28;
   var SCHEDULE_MS = 25;
   var BEATS_PER_BAR = 4;
   var WINDOW_MAX = 20;
@@ -40,6 +40,11 @@
   var EMPTY_A = '#1e1e24';
   var EMPTY_B = '#222228';
   var DEFAULT_ENV = { attackMs: 4, releaseMs: 35, durationPct: 100, reversePct: 0 };
+  var RELEASE_MAX_MS = 120;
+
+  function clampReleaseMs(v) {
+    return Math.max(0, Math.min(RELEASE_MAX_MS, Number(v) || 0));
+  }
   var PCT_OPTIONS = [0, 12, 34, 67, 89, 100];
   var DUR_PCT_OPTIONS = [12, 34, 67, 89, 100];
   var revBufferCache = new WeakMap();
@@ -49,6 +54,13 @@
   var appTitleBtn = document.getElementById('appTitleBtn');
   var aboutModal = document.getElementById('aboutModal');
   var aboutModalClose = document.getElementById('aboutModalClose');
+  var stageVideoStack = document.getElementById('stageVideoStack');
+  var preloadOverlay = document.getElementById('preloadOverlay');
+  var preloadBarFill = document.getElementById('preloadBarFill');
+  var preloadPct = document.getElementById('preloadPct');
+  var preloadTitle = document.getElementById('preloadTitle');
+  var videoCueTimers = [];
+  var liveVideoSlot = -1;
   var appRoot = document.getElementById('appRoot');
   var svg = document.getElementById('ringSvg');
   var hubBtn = document.getElementById('hubBtn');
@@ -84,6 +96,7 @@
   var breakerPresetsEl = document.getElementById('breakerPresets');
   var breakerPresetHint = document.getElementById('breakerPresetHint');
   var macroModeEl = document.getElementById('macroMode');
+  var diceBtn = document.getElementById('diceBtn');
   var breakSkipEl = document.getElementById('breakSkip');
   var breakStutterEl = document.getElementById('breakStutter');
   var breakIntensityEl = document.getElementById('breakIntensity');
@@ -94,21 +107,21 @@
 
   /** Macro presets: skip/stutter/intensity + order + ring play shape + reverse. */
   var BREAKER_PRESETS = [
-    { id: 'balanced', label: 'Balance', skip: 34, stutter: 34, intensity: 3, order: 'random', neighbor: 34, reverse: 0, attackMs: 4, releaseMs: 35, durationPct: 100 },
-    { id: 'airy', label: 'Break', skip: 67, stutter: 12, intensity: 2, order: 'random', neighbor: 12, reverse: 0, attackMs: 6, releaseMs: 48, durationPct: 89 },
-    { id: 'chop', label: 'Stutter', skip: 12, stutter: 67, intensity: 4, order: 'random', neighbor: 34, reverse: 12, attackMs: 2, releaseMs: 18, durationPct: 89 },
-    { id: 'glitch', label: 'Glitch', skip: 34, stutter: 67, intensity: 5, order: 'random', neighbor: 34, reverse: 34, attackMs: 1, releaseMs: 12, durationPct: 67 },
-    { id: 'sparse', label: 'Sparse', skip: 67, stutter: 34, intensity: 3, order: 'random', neighbor: 12, reverse: 0, attackMs: 10, releaseMs: 70, durationPct: 89 },
-    { id: 'soft', label: 'Soft', skip: 12, stutter: 34, intensity: 2, order: 'sequential', neighbor: 34, reverse: 0, attackMs: 12, releaseMs: 55, durationPct: 100 },
-    { id: 'straight', label: 'Straight', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 0, reverse: 0, attackMs: 3, releaseMs: 22, durationPct: 100 },
-    { id: 'march', label: 'March', skip: 12, stutter: 12, intensity: 2, order: 'sequential', neighbor: 67, reverse: 0, attackMs: 5, releaseMs: 30, durationPct: 100 },
-    { id: 'ghost', label: 'Ghost', skip: 34, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 34, attackMs: 18, releaseMs: 120, durationPct: 67 },
-    { id: 'flip', label: 'Flip', skip: 34, stutter: 34, intensity: 3, order: 'random', neighbor: 34, reverse: 67, attackMs: 4, releaseMs: 40, durationPct: 89 },
-    { id: 'tape', label: 'Tape', skip: 34, stutter: 34, intensity: 4, order: 'random', neighbor: 34, reverse: 89, attackMs: 8, releaseMs: 90, durationPct: 89 },
-    { id: 'mirror', label: 'Mirror', skip: 12, stutter: 12, intensity: 3, order: 'sequential', neighbor: 12, reverse: 100, attackMs: 4, releaseMs: 35, durationPct: 100 },
-    { id: 'snap', label: 'Snap', skip: 12, stutter: 67, intensity: 5, order: 'sequential', neighbor: 34, reverse: 12, attackMs: 0, releaseMs: 10, durationPct: 67 },
-    { id: 'haze', label: 'Haze', skip: 12, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 12, attackMs: 28, releaseMs: 160, durationPct: 100 },
-    { id: 'chaos', label: 'Chaos', skip: 34, stutter: 67, intensity: 5, order: 'random', neighbor: 67, reverse: 100, attackMs: 0, releaseMs: 8, durationPct: 67 }
+    { id: 'balanced', label: 'Balance', skip: 0, stutter: 34, intensity: 3, order: 'random', neighbor: 34, reverse: 0, attackMs: 4, releaseMs: 90, durationPct: 100 },
+    { id: 'airy', label: 'Break', skip: 12, stutter: 12, intensity: 2, order: 'random', neighbor: 12, reverse: 0, attackMs: 8, releaseMs: 110, durationPct: 89 },
+    { id: 'chop', label: 'Stutter', skip: 0, stutter: 67, intensity: 4, order: 'random', neighbor: 34, reverse: 12, attackMs: 2, releaseMs: 55, durationPct: 89 },
+    { id: 'glitch', label: 'Glitch', skip: 12, stutter: 67, intensity: 5, order: 'random', neighbor: 34, reverse: 34, attackMs: 1, releaseMs: 48, durationPct: 67 },
+    { id: 'sparse', label: 'Sparse', skip: 12, stutter: 34, intensity: 3, order: 'random', neighbor: 12, reverse: 0, attackMs: 12, releaseMs: 120, durationPct: 89 },
+    { id: 'soft', label: 'Soft', skip: 0, stutter: 34, intensity: 2, order: 'sequential', neighbor: 34, reverse: 0, attackMs: 18, releaseMs: 120, durationPct: 100 },
+    { id: 'straight', label: 'Straight', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 0, reverse: 0, attackMs: 4, releaseMs: 100, durationPct: 100 },
+    { id: 'march', label: 'March', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 67, reverse: 0, attackMs: 6, releaseMs: 100, durationPct: 100 },
+    { id: 'ghost', label: 'Ghost', skip: 12, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 34, attackMs: 24, releaseMs: 120, durationPct: 67 },
+    { id: 'flip', label: 'Flip', skip: 0, stutter: 34, intensity: 3, order: 'random', neighbor: 34, reverse: 67, attackMs: 6, releaseMs: 100, durationPct: 89 },
+    { id: 'tape', label: 'Tape', skip: 0, stutter: 34, intensity: 4, order: 'random', neighbor: 34, reverse: 89, attackMs: 12, releaseMs: 120, durationPct: 89 },
+    { id: 'mirror', label: 'Mirror', skip: 0, stutter: 12, intensity: 3, order: 'sequential', neighbor: 12, reverse: 100, attackMs: 6, releaseMs: 100, durationPct: 100 },
+    { id: 'snap', label: 'Snap', skip: 0, stutter: 67, intensity: 5, order: 'sequential', neighbor: 34, reverse: 12, attackMs: 0, releaseMs: 28, durationPct: 67 },
+    { id: 'haze', label: 'Haze', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 12, attackMs: 36, releaseMs: 120, durationPct: 100 },
+    { id: 'chaos', label: 'Chaos', skip: 12, stutter: 67, intensity: 5, order: 'random', neighbor: 67, reverse: 100, attackMs: 0, releaseMs: 70, durationPct: 67 }
   ];
   var activeBreakerPreset = 'balanced';
   var breakerPresetLocked = true;
@@ -120,6 +133,13 @@
   var samplesModalClose = document.getElementById('samplesModalClose');
   var samplesModalDone = document.getElementById('samplesModalDone');
   var resliceBtn = document.getElementById('resliceBtn');
+  var resliceBtnLabel = resliceBtn ? resliceBtn.querySelector('span') : null;
+  var breathBtn = document.getElementById('breathBtn');
+  var reslicing = false;
+  var wheelToggleBtn = document.getElementById('wheelToggleBtn');
+  var sliceWindowOpenBtn = document.getElementById('sliceWindowOpenBtn');
+  var wheelHidden = false;
+  var hubFadeTimer = 0;
   var sliceMeta = document.getElementById('sliceMeta');
   var playMeta = document.getElementById('playMeta');
   var savingWav = false;
@@ -156,9 +176,9 @@
   var analyserData = null;
 
   var slots = [
-    { buffer: null, name: '', weight: 100, windowStart: 0 },
-    { buffer: null, name: '', weight: 0, windowStart: 0 },
-    { buffer: null, name: '', weight: 0, windowStart: 0 }
+    { buffer: null, name: '', weight: 100, windowStart: 0, videoUrl: null, videoEl: null, videoReady: false },
+    { buffer: null, name: '', weight: 0, windowStart: 0, videoUrl: null, videoEl: null, videoReady: false },
+    { buffer: null, name: '', weight: 0, windowStart: 0, videoUrl: null, videoEl: null, videoReady: false }
   ];
   var activeSlot = 0;
   var slices = [];
@@ -171,6 +191,8 @@
   var showApplyToAll = false;
   var segEls = {};
   var playheadEl = null;
+  var liveRingIdx = -1;
+  var lastWaveDrawMs = 0;
   var fullPeaksBySlot = [null, null, null];
   var windowPeaksBySlot = [null, null, null];
   var highlightSlice = -1;
@@ -183,6 +205,12 @@
   var nextStepTime = 0;
   var stepCursor = 0;
   var activeSources = [];
+  var activeVoices = [];
+  var breathing = false;
+  var breathSource = null;
+  var breathGain = null;
+  var lastBreathSlice = null;
+  var BREATH_FADE_SEC = 0.005;
 
   function loadedSlots() {
     var out = [];
@@ -258,7 +286,7 @@
   }
 
   function getBpm() {
-    return Math.max(50, Math.min(180, Number(bpmEl.value) || 120));
+    return Math.max(50, Math.min(180, Number(bpmEl.value) || 110));
   }
 
   function beatKey(beats) {
@@ -354,7 +382,7 @@
 
   function markSettingsPending() {
     settingsPending = true;
-    if (resliceBtn && hasSamples()) {
+    if (resliceBtn && hasSamples() && !reslicing) {
       resliceBtn.disabled = false;
       resliceBtn.classList.add('is-pending');
     }
@@ -377,8 +405,8 @@
 
   function captureSettingsSnapshot() {
     return {
-      bpm: bpmEl ? bpmEl.value : '120',
-      ringCount: ringCountEl ? ringCountEl.value : '4',
+      bpm: bpmEl ? bpmEl.value : '110',
+      ringCount: ringCountEl ? ringCountEl.value : '8',
       durations: DURATION_DEFS.map(function (d) {
         return { beats: d.beats, label: d.label, on: !!d.on };
       })
@@ -499,6 +527,37 @@
     syncDurationSummary();
   }
 
+  function shuffleInPlace(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function randomizeSliceDurations() {
+    shuffleInPlace(DURATION_DEFS);
+    var count = 1 + Math.floor(Math.random() * 3); // 1–3 enabled
+    for (var i = 0; i < DURATION_DEFS.length; i++) {
+      DURATION_DEFS[i].on = i < count;
+    }
+    renderDurationOptions();
+    syncDurationSummary();
+  }
+
+  function rollDice() {
+    if (reslicing) return;
+    if (!BREAKER_PRESETS.length) return;
+    var pick = BREAKER_PRESETS[Math.floor(Math.random() * BREAKER_PRESETS.length)];
+    applyBreakerPreset(pick.id, false);
+    randomizeSliceDurations();
+    if (playing) stopPlay();
+    resliceAndDraw();
+    if (slices.length) startPlay();
+  }
+
   function ensureAtLeastOneDuration() {
     if (getEnabledDurations().length) return;
     var d = DURATION_DEFS[0];
@@ -506,7 +565,7 @@
   }
 
   function getRingCount() {
-    return Math.max(2, Math.min(8, Number(ringCountEl.value) || 4));
+    return Math.max(2, Math.min(16, Number(ringCountEl.value) || 8));
   }
 
   function getOrderMode() {
@@ -583,7 +642,7 @@
 
     var env = {
       attackMs: p.attackMs != null ? p.attackMs : DEFAULT_ENV.attackMs,
-      releaseMs: p.releaseMs != null ? p.releaseMs : DEFAULT_ENV.releaseMs,
+      releaseMs: clampReleaseMs(p.releaseMs != null ? p.releaseMs : DEFAULT_ENV.releaseMs),
       durationPct: nearestDurPctOption(p.durationPct != null ? p.durationPct : DEFAULT_ENV.durationPct),
       reversePct: nearestReverseOption(p.reverse != null ? p.reverse : 0)
     };
@@ -699,11 +758,11 @@
         drop.className = 'slot-drop';
         drop.innerHTML = slot.buffer
           ? '<strong>Replace</strong><br>Drop a new file or click to browse'
-          : 'Drop audio here<br>or click to upload';
+          : 'Drop audio / mp4<br>or click to upload';
 
         var input = document.createElement('input');
         input.type = 'file';
-        input.accept = 'audio/*,.wav,.mp3,.ogg,.m4a,.flac';
+        input.accept = 'audio/*,video/mp4,video/webm,video/*,.wav,.mp3,.ogg,.m4a,.flac,.mp4,.webm,.mov';
         input.setAttribute('aria-label', 'Upload sample for slot ' + (idx + 1));
         input.addEventListener('click', function (e) {
           e.stopPropagation();
@@ -784,6 +843,38 @@
     }
   }
 
+  function clearHubFade() {
+    if (hubFadeTimer) {
+      clearTimeout(hubFadeTimer);
+      hubFadeTimer = 0;
+    }
+    if (hubBtn) hubBtn.classList.remove('is-faded');
+  }
+
+  function scheduleHubFade() {
+    clearHubFade();
+    if (!playing || !hubBtn) return;
+    hubFadeTimer = setTimeout(function () {
+      hubFadeTimer = 0;
+      if (playing && hubBtn) hubBtn.classList.add('is-faded');
+    }, 1000);
+  }
+
+  function pokeHubVisible() {
+    if (!playing) return;
+    scheduleHubFade();
+  }
+
+  function syncWheelVisibility() {
+    if (circleWrap) circleWrap.classList.toggle('wheel-hidden', wheelHidden);
+    if (wheelToggleBtn) {
+      wheelToggleBtn.textContent = wheelHidden ? 'Show wheel' : 'Hide wheel';
+      wheelToggleBtn.setAttribute('aria-pressed', wheelHidden ? 'true' : 'false');
+    }
+    if (playing) scheduleHubFade();
+    else clearHubFade();
+  }
+
   function openSamplesModal() {
     if (!samplesModal) return;
     renderSampleSlots();
@@ -839,6 +930,7 @@
 
   function clearSlot(idx) {
     if (playing) stopPlay();
+    clearSlotVideo(idx);
     slots[idx].buffer = null;
     slots[idx].name = '';
     slots[idx].windowStart = 0;
@@ -953,7 +1045,9 @@
     var si = cellSi(cell);
     if (si == null) return emptyFill(i);
     var sl = slices[si];
-    return sl ? sl.color : emptyFill(i);
+    if (!sl) return emptyFill(i);
+    if (hasVideoReady()) return colorWithAlpha(sl.color, 0.52);
+    return sl.color;
   }
 
   function segmentsForSlice(sliceBeats) {
@@ -1033,7 +1127,7 @@
   function ensureAudio() {
     if (ctx) return ctx;
     var AC = window.AudioContext || window.webkitAudioContext;
-    ctx = new AC();
+    ctx = new AC({ latencyHint: 'interactive' });
     master = ctx.createGain();
     master.gain.value = 0.9;
     analyser = ctx.createAnalyser();
@@ -1043,6 +1137,282 @@
     master.connect(analyser);
     analyser.connect(ctx.destination);
     return ctx;
+  }
+
+  function isVideoFile(file) {
+    if (!file) return false;
+    if (file.type && file.type.indexOf('video/') === 0) return true;
+    return /\.(mp4|webm|mov|m4v)$/i.test(file.name || '');
+  }
+
+  function hasVideoReady() {
+    for (var i = 0; i < SLOT_COUNT; i++) {
+      if (slots[i].videoReady && slots[i].videoEl) return true;
+    }
+    return false;
+  }
+
+  function colorWithAlpha(hex, a) {
+    if (!hex || hex.charAt(0) !== '#') return hex;
+    var h = hex.slice(1);
+    if (h.length === 3) {
+      h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+    }
+    if (h.length !== 6) return hex;
+    var n = parseInt(h, 16);
+    if (!Number.isFinite(n)) return hex;
+    var r = (n >> 16) & 255;
+    var g = (n >> 8) & 255;
+    var b = n & 255;
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  function setPreloadLock(on, pct, label) {
+    if (on) {
+      document.body.classList.add('is-preloading');
+      if (preloadOverlay) preloadOverlay.hidden = false;
+      if (preloadTitle && label) preloadTitle.textContent = label;
+      setPreloadProgress(pct == null ? 0 : pct);
+    } else {
+      document.body.classList.remove('is-preloading');
+      if (preloadOverlay) preloadOverlay.hidden = true;
+      setPreloadProgress(0);
+    }
+  }
+
+  function setPreloadProgress(pct) {
+    var n = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+    if (preloadBarFill) preloadBarFill.style.width = n + '%';
+    if (preloadPct) preloadPct.textContent = n + '%';
+  }
+
+  function waitMediaEvent(el, ev, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var to = setTimeout(function () {
+        if (done) return;
+        done = true;
+        cleanup();
+        reject(new Error('timeout:' + ev));
+      }, timeoutMs || 20000);
+      function ok() {
+        if (done) return;
+        done = true;
+        cleanup();
+        resolve();
+      }
+      function fail() {
+        if (done) return;
+        done = true;
+        cleanup();
+        reject(new Error('media error'));
+      }
+      function cleanup() {
+        clearTimeout(to);
+        el.removeEventListener(ev, ok);
+        el.removeEventListener('error', fail);
+      }
+      el.addEventListener(ev, ok);
+      el.addEventListener('error', fail);
+    });
+  }
+
+  function sleepMs(ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  function videoBufferedPct(video) {
+    if (!video || !(video.duration > 0) || !isFinite(video.duration)) return 0;
+    var end = 0;
+    try {
+      for (var i = 0; i < video.buffered.length; i++) {
+        end = Math.max(end, video.buffered.end(i));
+      }
+    } catch (err) { /* ignore */ }
+    return Math.min(100, Math.round((end / video.duration) * 100));
+  }
+
+  async function forcePreloadVideo(video, onProgress) {
+    if (typeof onProgress === 'function') onProgress(0);
+    video.load();
+    await waitMediaEvent(video, 'loadedmetadata', 45000);
+    var dur = video.duration;
+    if (!(dur > 0) || !isFinite(dur)) throw new Error('Invalid video duration');
+
+    var checkpoints = [0, 0.2, 0.4, 0.6, 0.8, 0.95];
+    for (var i = 0; i < checkpoints.length; i++) {
+      var t = Math.min(Math.max(0, dur * checkpoints[i]), Math.max(0, dur - 0.05));
+      try {
+        video.currentTime = t;
+        await waitMediaEvent(video, 'seeked', 20000);
+      } catch (err) { /* keep going */ }
+      await sleepMs(70);
+      var scrubPct = Math.round(((i + 1) / checkpoints.length) * 88);
+      var bp = videoBufferedPct(video);
+      if (typeof onProgress === 'function') onProgress(Math.max(bp, scrubPct));
+      if (bp >= 98) break;
+    }
+
+    await new Promise(function (resolve) {
+      var start = Date.now();
+      var settled = false;
+      function finish() {
+        if (settled) return;
+        settled = true;
+        video.removeEventListener('progress', onProg);
+        video.removeEventListener('canplaythrough', onReady);
+        clearInterval(iv);
+        resolve();
+      }
+      function report() {
+        var bp = videoBufferedPct(video);
+        if (typeof onProgress === 'function') onProgress(Math.max(bp, 90));
+        if (bp >= 97 || video.readyState >= 4 || Date.now() - start > 14000) {
+          finish();
+        }
+      }
+      function onProg() { report(); }
+      function onReady() {
+        if (typeof onProgress === 'function') onProgress(100);
+        finish();
+      }
+      video.addEventListener('progress', onProg);
+      video.addEventListener('canplaythrough', onReady);
+      var iv = setInterval(report, 200);
+      report();
+    });
+
+    try {
+      video.currentTime = 0;
+      await waitMediaEvent(video, 'seeked', 10000);
+    } catch (err) { /* ignore */ }
+    if (typeof onProgress === 'function') onProgress(100);
+  }
+
+  function clearSlotVideo(idx) {
+    var slot = slots[idx];
+    if (!slot) return;
+    if (slot.videoEl) {
+      try { slot.videoEl.pause(); } catch (err) { /* ignore */ }
+      if (slot.videoEl.parentNode) slot.videoEl.parentNode.removeChild(slot.videoEl);
+      slot.videoEl = null;
+    }
+    if (slot.videoUrl) {
+      try { URL.revokeObjectURL(slot.videoUrl); } catch (err) { /* ignore */ }
+      slot.videoUrl = null;
+    }
+    slot.videoReady = false;
+    if (liveVideoSlot === idx) liveVideoSlot = -1;
+    syncVideoStageClass();
+  }
+
+  async function attachAndPreloadVideo(slotIdx, file) {
+    var url = URL.createObjectURL(file);
+    var video = document.createElement('video');
+    video.className = 'stage-video';
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.preload = 'auto';
+    video.loop = true;
+    video.src = url;
+    if (stageVideoStack) stageVideoStack.appendChild(video);
+
+    setPreloadLock(true, 0, 'Preloading video');
+    try {
+      await forcePreloadVideo(video, function (pct) {
+        setPreloadProgress(pct);
+      });
+      slots[slotIdx].videoUrl = url;
+      slots[slotIdx].videoEl = video;
+      slots[slotIdx].videoReady = true;
+      syncVideoStageClass();
+      keepStageVideoRolling();
+      if (rings.length) drawRings();
+    } catch (err) {
+      if (video.parentNode) video.parentNode.removeChild(video);
+      try { URL.revokeObjectURL(url); } catch (e2) { /* ignore */ }
+      throw err;
+    } finally {
+      setPreloadLock(false);
+    }
+  }
+
+  function syncVideoStageClass() {
+    if (!circleWrap) return;
+    circleWrap.classList.toggle('has-video', hasVideoReady());
+  }
+
+  function clearVideoCueTimers() {
+    videoCueTimers.forEach(function (id) {
+      clearTimeout(id);
+    });
+    videoCueTimers = [];
+  }
+
+  function showLiveVideo(slotIdx) {
+    for (var i = 0; i < SLOT_COUNT; i++) {
+      var v = slots[i].videoEl;
+      if (!v) continue;
+      if (i === slotIdx) v.classList.add('is-live');
+      else v.classList.remove('is-live');
+    }
+    liveVideoSlot = slotIdx;
+  }
+
+  /** Keep footage visible and rolling at normal speed (no fade-to-dark). */
+  function keepStageVideoRolling() {
+    if (!hasVideoReady()) return;
+    var idx = liveVideoSlot;
+    if (idx < 0 || !slots[idx] || !slots[idx].videoEl) {
+      idx = -1;
+      for (var i = 0; i < SLOT_COUNT; i++) {
+        if (slots[i].videoReady && slots[i].videoEl) {
+          idx = i;
+          break;
+        }
+      }
+    }
+    if (idx < 0) return;
+    showLiveVideo(idx);
+    var v = slots[idx].videoEl;
+    if (!v) return;
+    try {
+      if (v.paused) {
+        var p = v.play();
+        if (p && typeof p.catch === 'function') p.catch(function () { /* ignore */ });
+      }
+    } catch (err) { /* ignore */ }
+  }
+
+  function scheduleVideoHit(slotIdx, absStart, when, playDur, opts) {
+    var slot = slots[slotIdx];
+    if (!slot || !slot.videoReady || !slot.videoEl || !ctx) return;
+    opts = opts || {};
+    // Start slightly early so seek finishes before the audio hit
+    var delayMs = Math.max(0, (when - ctx.currentTime) * 1000 - 40);
+    var tid = setTimeout(function () {
+      var v = slot.videoEl;
+      if (!v) return;
+      showLiveVideo(slotIdx);
+      try {
+        var t = Math.max(0, Number(absStart) || 0);
+        // Skip tiny seeks — they stall the main thread and make audio feel late
+        if (Math.abs(v.currentTime - t) > 0.08) {
+          v.currentTime = t;
+        }
+        if (v.paused) {
+          var p = v.play();
+          if (p && typeof p.catch === 'function') p.catch(function () { /* ignore */ });
+        }
+      } catch (err) { /* ignore */ }
+      // After the hit, footage keeps rolling at normal speed (no fade / freeze)
+    }, delayMs);
+    videoCueTimers.push(tid);
   }
 
   function playUiClick() {
@@ -1092,6 +1462,9 @@
   }
 
   function emptyFill(i) {
+    if (hasVideoReady()) {
+      return (i % 2 === 0) ? 'rgba(30,30,36,0.35)' : 'rgba(34,34,40,0.35)';
+    }
     return (i % 2 === 0) ? EMPTY_A : EMPTY_B;
   }
 
@@ -1127,7 +1500,7 @@
     ringEnvs = [];
     for (var i = 0; i < nRings; i++) {
       var env = prev[i]
-        ? Object.assign({}, defaultEnv(), prev[i])
+        ? Object.assign({}, defaultEnv(), prev[i], { releaseMs: clampReleaseMs(prev[i].releaseMs) })
         : defaultEnv();
       ringEnvs.push(env);
       var plan = buildBeatPlan();
@@ -1180,9 +1553,9 @@
     var ring = rings[ringIdx];
     if (!ring) return;
     ringAttackEl.value = String(ring.attackMs);
-    ringReleaseEl.value = String(ring.releaseMs);
+    ringReleaseEl.value = String(clampReleaseMs(ring.releaseMs));
     ringAttackVal.textContent = ring.attackMs + ' ms';
-    ringReleaseVal.textContent = ring.releaseMs + ' ms';
+    ringReleaseVal.textContent = clampReleaseMs(ring.releaseMs) + ' ms';
     if (ringDurEl) ringDurEl.value = String(nearestDurPctOption(ring.durationPct));
     if (ringDurVal) ringDurVal.textContent = nearestDurPctOption(ring.durationPct) + '%';
     if (ringReverseEl) {
@@ -1196,11 +1569,12 @@
 
   function applyEnvFromUi() {
     var attack = Number(ringAttackEl.value) || 0;
-    var release = Number(ringReleaseEl.value) || 0;
+    var release = clampReleaseMs(ringReleaseEl.value);
     var dur = nearestDurPctOption(ringDurEl ? ringDurEl.value : 100);
     var rev = nearestReverseOption(ringReverseEl ? ringReverseEl.value : 0);
     ringAttackVal.textContent = attack + ' ms';
     ringReleaseVal.textContent = release + ' ms';
+    if (ringReleaseEl) ringReleaseEl.value = String(release);
     if (ringDurVal) ringDurVal.textContent = dur + '%';
 
     var ring = rings[editRing];
@@ -1255,7 +1629,7 @@
     disc.setAttribute('cx', String(CX));
     disc.setAttribute('cy', String(CY));
     disc.setAttribute('r', String(OUTER + 2));
-    disc.setAttribute('fill', '#16161a');
+    disc.setAttribute('fill', hasVideoReady() ? 'rgba(10,10,14,0.28)' : '#16161a');
     svg.appendChild(disc);
 
     rings.forEach(function (ring, li) {
@@ -1272,15 +1646,16 @@
         path.setAttribute('d', arcPath(rr.inner, rr.outer, a0, a1));
         var cell = ring.cells[i];
         path.setAttribute('fill', segFillForCell(cell, i));
-        if (cellReps(cell) > 1) {
-          path.setAttribute('stroke', '#f5ffe0');
-          path.setAttribute('stroke-width', '2.2');
-          path.setAttribute('stroke-opacity', '0.85');
-        } else {
-          path.setAttribute('stroke', 'none');
-        }
+        path.setAttribute('stroke', 'none');
         path.dataset.ring = ring.id;
+        path.dataset.ringIdx = String(li);
         path.dataset.seg = String(i);
+        // Stutter cells: thin lime edge (not white) so they stay readable without looking “selected”
+        if (cellReps(cell) > 1) {
+          path.setAttribute('stroke', '#c8ff00');
+          path.setAttribute('stroke-width', '1.4');
+          path.setAttribute('stroke-opacity', '0.55');
+        }
         path.style.cursor = cellSi(cell) == null ? 'default' : 'pointer';
         path.addEventListener('click', onSegClick);
         svg.appendChild(path);
@@ -1323,11 +1698,179 @@
     previewSlice(si, ring, cellReps(cell), beats);
   }
 
+  function stopBreathVoice(fadeSec) {
+    if (!ctx) {
+      breathSource = null;
+      breathGain = null;
+      return;
+    }
+    var t = ctx.currentTime;
+    var fade = fadeSec == null ? BREATH_FADE_SEC : fadeSec;
+    if (breathGain) {
+      try {
+        var cur = Math.max(0.0001, breathGain.gain.value);
+        breathGain.gain.cancelScheduledValues(t);
+        breathGain.gain.setValueAtTime(cur, t);
+        breathGain.gain.linearRampToValueAtTime(0.0001, t + fade);
+      } catch (err) { /* ignore */ }
+    }
+    if (breathSource) {
+      try { breathSource.stop(t + fade + 0.02); } catch (err2) { /* ignore */ }
+    }
+    breathSource = null;
+    breathGain = null;
+  }
+
+  function fadeOutWheelVoices(fadeSec) {
+    if (!ctx) {
+      activeVoices = [];
+      activeSources = [];
+      return;
+    }
+    var t = ctx.currentTime;
+    var fade = fadeSec == null ? BREATH_FADE_SEC : fadeSec;
+    activeVoices.forEach(function (v) {
+      try {
+        var cur = Math.max(0.0001, v.gain.gain.value);
+        v.gain.gain.cancelScheduledValues(t);
+        v.gain.gain.setValueAtTime(cur, t);
+        v.gain.gain.linearRampToValueAtTime(0.0001, t + fade);
+        v.src.stop(t + fade + 0.02);
+      } catch (err) { /* ignore */ }
+    });
+    activeVoices = [];
+    activeSources = [];
+  }
+
+  function pickBreathOrigin() {
+    var now = ctx ? ctx.currentTime : 0;
+    var best = null;
+    for (var i = 0; i < activeVoices.length; i++) {
+      var v = activeVoices[i];
+      if (!v || !v.slice) continue;
+      if (v.startAt <= now + 0.08) best = v;
+    }
+    if (best) {
+      return {
+        slotIdx: best.slice.slot,
+        filePos: best.fileOffset + Math.max(0, now - best.startAt),
+        slice: best.slice
+      };
+    }
+    var slice = lastBreathSlice;
+    if (!slice && highlightSlice >= 0) slice = slices[highlightSlice];
+    if (slice && slots[slice.slot] && slots[slice.slot].buffer) {
+      return { slotIdx: slice.slot, filePos: slice.absStart || 0, slice: slice };
+    }
+    var slotIdx = activeSlot;
+    if (!slots[slotIdx] || !slots[slotIdx].buffer) {
+      var loaded = loadedSlots();
+      if (!loaded.length) return null;
+      slotIdx = loaded[0];
+    }
+    return {
+      slotIdx: slotIdx,
+      filePos: slots[slotIdx].windowStart || 0,
+      slice: null
+    };
+  }
+
+  function startBreathContinuous(slotIdx, filePos) {
+    var slot = slots[slotIdx];
+    if (!ctx || !master || !slot || !slot.buffer) return;
+    stopBreathVoice(0);
+    var buffer = slot.buffer;
+    var offset = Math.max(0, Math.min(Math.max(0, buffer.duration - 0.02), Number(filePos) || 0));
+    var t0 = ctx.currentTime;
+    var src = ctx.createBufferSource();
+    src.buffer = buffer;
+    var g = ctx.createGain();
+    src.connect(g);
+    g.connect(master);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(1, t0 + BREATH_FADE_SEC);
+    var remain = Math.max(0.05, buffer.duration - offset);
+    try {
+      src.start(t0, offset, remain);
+    } catch (err) {
+      return;
+    }
+    breathSource = src;
+    breathGain = g;
+    src.onended = function () {
+      if (breathSource === src) {
+        breathSource = null;
+        breathGain = null;
+      }
+    };
+    if (slot.videoReady && slot.videoEl) {
+      showLiveVideo(slotIdx);
+      try {
+        if (Math.abs(slot.videoEl.currentTime - offset) > 0.05) {
+          slot.videoEl.currentTime = offset;
+        }
+        if (slot.videoEl.paused) {
+          var p = slot.videoEl.play();
+          if (p && typeof p.catch === 'function') p.catch(function () { /* ignore */ });
+        }
+      } catch (e2) { /* ignore */ }
+    }
+  }
+
+  function beginBreath() {
+    if (breathing) return;
+    if (!hasSamples()) return;
+    ensureAudio();
+    if (ctx.state === 'suspended') ctx.resume();
+    breathing = true;
+    if (breathBtn) breathBtn.classList.add('is-held');
+    clearVideoCueTimers();
+    var origin = pickBreathOrigin();
+    fadeOutWheelVoices(BREATH_FADE_SEC);
+    if (!origin) {
+      breathing = false;
+      if (breathBtn) breathBtn.classList.remove('is-held');
+      return;
+    }
+    var waitMs = Math.max(0, BREATH_FADE_SEC * 1000 - 1);
+    setTimeout(function () {
+      if (!breathing) return;
+      startBreathContinuous(origin.slotIdx, origin.filePos);
+    }, waitMs);
+  }
+
+  function endBreath() {
+    if (!breathing && !breathSource) {
+      if (breathBtn) breathBtn.classList.remove('is-held');
+      return;
+    }
+    breathing = false;
+    if (breathBtn) breathBtn.classList.remove('is-held');
+    stopBreathVoice(BREATH_FADE_SEC);
+    if (playing && ctx) {
+      if (nextStepTime < ctx.currentTime) nextStepTime = ctx.currentTime + 0.03;
+      schedule();
+    }
+  }
+
   function stopActiveSources() {
+    // Hard-stop breath + chops (transport stop / reslice) — keep video rolling
+    breathing = false;
+    if (breathBtn) breathBtn.classList.remove('is-held');
+    if (breathSource) {
+      try { breathSource.stop(); } catch (err) { /* ignore */ }
+    }
+    breathSource = null;
+    breathGain = null;
+    activeVoices.forEach(function (v) {
+      try { v.src.stop(); } catch (err2) { /* ignore */ }
+    });
+    activeVoices = [];
     activeSources.forEach(function (s) {
-      try { s.stop(); } catch (err) { /* ignore */ }
+      try { s.stop(); } catch (err3) { /* ignore */ }
     });
     activeSources = [];
+    clearVideoCueTimers();
   }
 
   function getReversedBuffer(buffer) {
@@ -1348,25 +1891,63 @@
     return rev;
   }
 
+  function extendBufferWithReleaseTail(buffer, bodyDur, rel) {
+    if (!ctx || !buffer) return { buffer: buffer, bodySec: buffer ? buffer.duration : 0 };
+    var sr = buffer.sampleRate;
+    var bodySec = Math.max(0.01, Math.min(buffer.duration, bodyDur));
+    var bodySamples = Math.min(buffer.length, Math.max(1, Math.round(bodySec * sr)));
+    bodySec = bodySamples / sr;
+    if (!(rel > 0.0008)) return { buffer: buffer, bodySec: bodySec };
+
+    var relSamples = Math.max(1, Math.round(rel * sr));
+    var total = bodySamples + relSamples;
+    var out = ctx.createBuffer(buffer.numberOfChannels, total, sr);
+    for (var c = 0; c < buffer.numberOfChannels; c++) {
+      var srcCh = buffer.getChannelData(c);
+      var dst = out.getChannelData(c);
+      dst.set(srcCh.subarray(0, bodySamples));
+      // Decaying hold of last sample so post-body release fade stays audible
+      var last = srcCh[bodySamples - 1] || 0;
+      for (var i = 0; i < relSamples; i++) {
+        var e = 1 - (i + 1) / relSamples;
+        dst[bodySamples + i] = last * e * e;
+      }
+    }
+    return { buffer: out, bodySec: bodySec };
+  }
+
   function playSliceAt(buffer, when, env, opts) {
+    if (breathing) return null;
     if (!ctx || !buffer || !master) return null;
     env = env || defaultEnv();
     opts = opts || {};
     var reversePct = Math.max(0, Math.min(100, Number(env.reversePct) || 0));
     var playBuf = buffer;
+    var reversed = false;
     if (reversePct > 0 && Math.random() * 100 < reversePct) {
       playBuf = getReversedBuffer(buffer);
+      reversed = true;
     }
     var attack = Math.max(0, (env.attackMs || 0) / 1000);
-    var release = Math.max(0, (env.releaseMs || 0) / 1000);
+    var release = clampReleaseMs(env.releaseMs) / 1000;
     var pct = Math.max(0.1, Math.min(1, (env.durationPct || 100) / 100));
-    var playDur = Math.max(0.01, playBuf.duration * pct);
-    if (opts.maxDur != null) playDur = Math.min(playDur, Math.max(0.012, opts.maxDur));
+    // Body = segment content. Release fades AFTER body and may extend past the
+    // ring step; the next hit still starts on step time so voices overlap.
+    var bodyDur = Math.max(0.01, playBuf.duration * pct);
+    if (opts.maxDur != null) bodyDur = Math.min(bodyDur, Math.max(0.012, opts.maxDur));
     if (opts.stutter) {
       attack = Math.min(attack, 0.004);
-      release = Math.min(Math.max(release * 0.35, 0.008), playDur * 0.4);
+      release = Math.min(Math.max(release * 0.35, 0.008), 0.04);
     }
-    var t0 = Math.max(when, ctx.currentTime);
+    var ext = extendBufferWithReleaseTail(playBuf, bodyDur, release);
+    playBuf = ext.buffer;
+    bodyDur = ext.bodySec;
+    var rel = Math.max(0, release);
+    var totalDur = bodyDur + rel;
+
+    // Stay on the grid when possible so overlaps stay continuous
+    var t0 = when;
+    if (when < ctx.currentTime - 0.001) t0 = ctx.currentTime;
 
     var src = ctx.createBufferSource();
     src.buffer = playBuf;
@@ -1375,36 +1956,46 @@
     g.connect(master);
 
     var peak = opts.stutter ? 0.92 : 1;
-    var atk = Math.min(attack, playDur * 0.45);
-    var rel = Math.min(release, Math.max(0.001, playDur - atk));
+    var atk = Math.min(attack, bodyDur * 0.45);
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(peak, t0 + atk);
-    var relStart = t0 + playDur - rel;
-    if (relStart > t0 + atk) {
-      g.gain.setValueAtTime(peak, relStart);
-    }
-    g.gain.linearRampToValueAtTime(0.0001, t0 + playDur);
+    g.gain.setValueAtTime(peak, t0 + bodyDur);
+    g.gain.linearRampToValueAtTime(0.0001, t0 + totalDur);
 
-    src.start(t0, 0, playDur + 0.02);
+    src.start(t0, 0, totalDur + 0.02);
     activeSources.push(src);
+    var fileOffset = opts.slice ? (Number(opts.slice.absStart) || 0) : 0;
+    if (reversed && opts.slice) {
+      fileOffset = Math.max(0, (Number(opts.slice.absEnd) || fileOffset) - 0.001);
+    }
+    var voice = { src: src, gain: g, slice: opts.slice || null, startAt: t0, fileOffset: fileOffset };
+    activeVoices.push(voice);
     src.onended = function () {
       var idx = activeSources.indexOf(src);
       if (idx >= 0) activeSources.splice(idx, 1);
+      var vi = activeVoices.indexOf(voice);
+      if (vi >= 0) activeVoices.splice(vi, 1);
     };
+    if (opts.slice && opts.slice.slot != null && slots[opts.slice.slot] && slots[opts.slice.slot].videoReady) {
+      scheduleVideoHit(opts.slice.slot, opts.slice.absStart, t0, bodyDur, { stutter: !!opts.stutter });
+    }
     return src;
   }
 
-  function playCellHits(buffer, when, env, stepDur, reps) {
+  function playCellHits(slice, when, env, stepDur, reps) {
+    if (!slice || !slice.buffer) return;
     reps = Math.max(1, Math.min(5, reps || 1));
     if (reps === 1) {
-      playSliceAt(buffer, when, env, { maxDur: stepDur * 0.98 });
+      // No step-length cap — play the full slice (honors Dur %), even if it overlaps the next hit
+      playSliceAt(slice.buffer, when, env, { slice: slice });
       return;
     }
     var slot = stepDur / reps;
     for (var r = 0; r < reps; r++) {
-      playSliceAt(buffer, when + r * slot, env, {
+      playSliceAt(slice.buffer, when + r * slot, env, {
         maxDur: slot * 0.88,
-        stutter: true
+        stutter: true,
+        slice: slice
       });
     }
   }
@@ -1421,7 +2012,7 @@
     drawWaveform();
     var env = ring || rings[editRing >= 0 ? editRing : 0] || defaultEnv();
     var step = beatsToSec(segBeats != null ? segBeats : (slice.beats || 0.25));
-    playCellHits(slice.buffer, ctx.currentTime, env, step, reps || 1);
+    playCellHits(slice, ctx.currentTime, env, step, reps || 1);
     startVizLoop();
     var ms = Math.max(80, step * 1000);
     setTimeout(function () {
@@ -1884,12 +2475,14 @@
   function syncControlsEnabled() {
     var ok = hasSamples() && slices.length > 0;
     hubBtn.disabled = !ok;
-    resliceBtn.disabled = !hasSamples();
+    if (breathBtn) breathBtn.disabled = !hasSamples();
+    if (!reslicing) resliceBtn.disabled = !hasSamples();
   }
 
   function updateMeta() {
     if (!hasSamples()) {
       if (waveHint) {
+        waveHint.hidden = false;
         waveHint.textContent = 'Upload a sample to begin';
         waveHint.classList.add('is-cta');
         waveHint.disabled = false;
@@ -1899,40 +2492,93 @@
     }
 
     if (waveHint) {
-      waveHint.textContent = 'Drag overview · click a cut to hear it';
+      waveHint.hidden = true;
+      waveHint.textContent = '';
       waveHint.classList.remove('is-cta');
       waveHint.disabled = true;
     }
     syncControlsEnabled();
   }
 
-  function resliceAndDraw() {
+  function setResliceProgress(pct) {
+    if (!resliceBtn || !resliceBtnLabel) return;
+    var n = Math.max(0, Math.min(100, Math.round(pct)));
+    resliceBtnLabel.textContent = n + '%';
+    resliceBtn.classList.add('is-busy');
+    resliceBtn.classList.remove('is-pending');
+    resliceBtn.disabled = true;
+  }
+
+  function clearResliceProgress() {
+    if (!resliceBtn || !resliceBtnLabel) return;
+    resliceBtnLabel.textContent = 'Reslice';
+    resliceBtn.classList.remove('is-busy');
+    resliceBtn.disabled = !hasSamples();
+  }
+
+  function yieldFrame() {
+    return new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(resolve);
+      });
+    });
+  }
+
+  async function resliceAndDraw() {
+    if (reslicing) return;
+    reslicing = true;
     ensureAtLeastOneDuration();
     syncDurationSummary();
-    if (!hasSamples()) {
-      slices = [];
-      slicesBySlot = [[], [], []];
-      slicesBySlotBeats = [{}, {}, {}];
+    try {
+      if (!hasSamples()) {
+        slices = [];
+        slicesBySlot = [[], [], []];
+        slicesBySlotBeats = [{}, {}, {}];
+        buildRingsGeometry();
+        drawRings();
+        drawWaveform();
+        updateMeta();
+        clearSettingsPending();
+        return;
+      }
+
+      setResliceProgress(8);
+      await yieldFrame();
+      ensureAudio();
+      loadedSlots().forEach(function (idx) {
+        slots[idx].windowStart = clampWindowStartForSlot(idx, slots[idx].windowStart);
+      });
+      syncWindowSlider();
+
+      setResliceProgress(28);
+      await yieldFrame();
+      rebuildAllPeaks();
+
+      setResliceProgress(48);
+      await yieldFrame();
+      chopAllSlots();
+
+      setResliceProgress(68);
+      await yieldFrame();
       buildRingsGeometry();
+
+      setResliceProgress(84);
+      await yieldFrame();
+      sprinkle();
+
+      setResliceProgress(94);
+      await yieldFrame();
       drawRings();
       drawWaveform();
       updateMeta();
       clearSettingsPending();
-      return;
+
+      setResliceProgress(100);
+      await yieldFrame();
+    } finally {
+      reslicing = false;
+      clearResliceProgress();
     }
-    ensureAudio();
-    loadedSlots().forEach(function (idx) {
-      slots[idx].windowStart = clampWindowStartForSlot(idx, slots[idx].windowStart);
-    });
-    syncWindowSlider();
-    rebuildAllPeaks();
-    chopAllSlots();
-    buildRingsGeometry();
-    sprinkle();
-    drawRings();
-    drawWaveform();
-    updateMeta();
-    clearSettingsPending();
   }
 
   function resprinkleOnly() {
@@ -1950,11 +2596,25 @@
     if (!file) return;
     ensureAudio();
     if (ctx.state === 'suspended') await ctx.resume();
-    var arr = await file.arrayBuffer();
-    var buf = await ctx.decodeAudioData(arr.slice(0));
     if (slotIdx == null) slotIdx = targetSlotForUpload();
+    var wantVideo = isVideoFile(file);
+    var arr = await file.arrayBuffer();
+    var buf;
+    try {
+      buf = await ctx.decodeAudioData(arr.slice(0));
+    } catch (err) {
+      if (sliceMeta) {
+        sliceMeta.textContent = wantVideo
+          ? 'Could not decode audio from that video'
+          : 'Could not decode that file';
+      }
+      throw err;
+    }
+
+    if (playing) stopPlay();
+    clearSlotVideo(slotIdx);
     slots[slotIdx].buffer = buf;
-    slots[slotIdx].name = file.name || 'sample';
+    slots[slotIdx].name = file.name || (wantVideo ? 'video' : 'sample');
     slots[slotIdx].windowStart = 0;
     activeSlot = slotIdx;
     ensureSlotMixOnLoad(slotIdx);
@@ -1962,6 +2622,16 @@
     updateActiveSampleLab();
     rebuildPeaksForSlot(slotIdx);
     syncWindowSlider();
+
+    if (wantVideo) {
+      try {
+        await attachAndPreloadVideo(slotIdx, file);
+      } catch (err) {
+        console.error(err);
+        if (sliceMeta) sliceMeta.textContent = 'Video preload failed — audio still loaded';
+      }
+    }
+
     resliceAndDraw();
   }
 
@@ -1982,28 +2652,79 @@
   }
 
   function schedule() {
-    if (!playing || !ctx) return;
+    if (!playing || !ctx || breathing) return;
     while (nextStepTime < ctx.currentTime + LOOK_AHEAD) {
       var info = flatStep(stepCursor);
       var stepDur = beatsToSec(info && info.beats ? info.beats : 0.25);
+      var hitTime = nextStepTime;
       if (info && info.si != null && slices[info.si]) {
-        playCellHits(slices[info.si].buffer, nextStepTime, info.ring, stepDur, info.reps);
-        flashSeg(info.ring.id, info.segIdx, info.reps);
-        highlightSlice = info.si;
-        drawWaveform();
+        lastBreathSlice = slices[info.si];
+        playCellHits(slices[info.si], hitTime, info.ring, stepDur, info.reps);
+        scheduleLiveHitVisual(info.ringIdx, info.ring.id, info.segIdx, info.reps, hitTime, info.si);
+      } else {
+        // Skipped / empty — leave video rolling at normal speed
+        scheduleLiveHitVisual(info ? info.ringIdx : -1, null, -1, 1, hitTime, -1);
       }
       nextStepTime += stepDur;
       stepCursor += 1;
     }
   }
 
+  function setLiveRing(ringIdx) {
+    liveRingIdx = ringIdx;
+    var keys = Object.keys(segEls);
+    for (var k = 0; k < keys.length; k++) {
+      var el = segEls[keys[k]];
+      if (!el) continue;
+      var ri = Number(el.dataset.ringIdx);
+      if (!playing || liveRingIdx < 0) {
+        el.style.opacity = '';
+        el.classList.remove('is-live-seg');
+        continue;
+      }
+      el.style.opacity = ri === liveRingIdx ? '1' : '0.22';
+    }
+  }
+
+  function scheduleLiveHitVisual(ringIdx, ringId, segIdx, reps, when, si) {
+    if (!ctx) return;
+    var delayMs = Math.max(0, (when - ctx.currentTime) * 1000);
+    var tid = setTimeout(function () {
+      if (!playing) return;
+      if (ringIdx >= 0) setLiveRing(ringIdx);
+      if (ringId != null && segIdx >= 0) flashSeg(ringId, segIdx, reps);
+      if (si >= 0) {
+        highlightSlice = si;
+        var now = performance.now();
+        if (now - lastWaveDrawMs > 90) {
+          lastWaveDrawMs = now;
+          drawWaveform();
+        }
+      }
+    }, delayMs);
+    videoCueTimers.push(tid);
+  }
+
   function flashSeg(ringId, i, reps) {
     var el = segEls[ringId + ':' + i];
     if (!el) return;
-    el.style.filter = reps > 1 ? 'brightness(1.7)' : 'brightness(1.45)';
+    var prevFill = el.getAttribute('fill');
+    var prevStroke = el.getAttribute('stroke');
+    var prevWidth = el.getAttribute('stroke-width');
+    var prevOp = el.getAttribute('stroke-opacity');
+    el.classList.add('is-live-seg');
+    el.setAttribute('fill', reps > 1 ? '#f2ff9a' : '#e8ff66');
+    el.setAttribute('stroke', '#c8ff00');
+    el.setAttribute('stroke-width', reps > 1 ? '3' : '2.4');
+    el.setAttribute('stroke-opacity', '1');
     setTimeout(function () {
-      el.style.filter = '';
-    }, reps > 1 ? 120 : 90);
+      el.classList.remove('is-live-seg');
+      if (prevFill != null) el.setAttribute('fill', prevFill);
+      if (prevStroke != null) el.setAttribute('stroke', prevStroke);
+      else el.setAttribute('stroke', 'none');
+      if (prevWidth != null) el.setAttribute('stroke-width', prevWidth);
+      if (prevOp != null) el.setAttribute('stroke-opacity', prevOp);
+    }, reps > 1 ? 140 : 110);
   }
 
   function updatePlayhead() {
@@ -2016,6 +2737,15 @@
     var idx = Math.max(0, stepCursor - 1) % playTimeline.length;
     var item = playTimeline[idx];
     var ring = rings[item.ringIdx];
+    if (!ring) return;
+    // Clip playhead beam to the live ring band so the active ring is obvious
+    var rr = ringRadii(item.ringIdx, rings.length);
+    var beam = playheadEl.querySelector('rect');
+    if (beam) {
+      beam.setAttribute('y', String(CY - rr.outer));
+      beam.setAttribute('height', String(Math.max(8, rr.outer - rr.inner)));
+      beam.setAttribute('opacity', '1');
+    }
     var beatsBefore = 0;
     for (var i = 0; i < item.segIdx; i++) {
       beatsBefore += ring.segBeats[i] || 0;
@@ -2047,10 +2777,13 @@
     if (ctx.state === 'suspended') ctx.resume();
     stopActiveSources();
     playing = true;
+    liveRingIdx = -1;
     stepCursor = 0;
     rebuildPlayTimeline();
-    nextStepTime = ctx.currentTime + 0.06;
+    nextStepTime = ctx.currentTime + 0.08;
     setHubPlaying(true);
+    scheduleHubFade();
+    keepStageVideoRolling();
     schedule();
     scheduleTimer = setInterval(schedule, SCHEDULE_MS);
     cancelAnimationFrame(playheadRaf);
@@ -2067,7 +2800,11 @@
     playheadRaf = 0;
     stopActiveSources();
     highlightSlice = -1;
+    liveRingIdx = -1;
+    setLiveRing(-1);
+    clearHubFade();
     setHubPlaying(false);
+    keepStageVideoRolling();
     updatePlayhead();
     drawWaveform();
     updateMeta();
@@ -2237,35 +2974,53 @@
       playBuf = reverseCopiedBuffer(buffer, octx);
     }
     var attack = Math.max(0, (env.attackMs || 0) / 1000);
-    var release = Math.max(0, (env.releaseMs || 0) / 1000);
+    var release = clampReleaseMs(env.releaseMs) / 1000;
     var pct = Math.max(0.1, Math.min(1, (env.durationPct || 100) / 100));
-    var playDur = Math.max(0.01, playBuf.duration * pct);
-    if (opts.maxDur != null) playDur = Math.min(playDur, Math.max(0.012, opts.maxDur));
+    var bodyDur = Math.max(0.01, playBuf.duration * pct);
+    if (opts.maxDur != null) bodyDur = Math.min(bodyDur, Math.max(0.012, opts.maxDur));
     if (opts.stutter) {
       attack = Math.min(attack, 0.004);
-      release = Math.min(Math.max(release * 0.35, 0.008), playDur * 0.4);
+      release = Math.min(Math.max(release * 0.35, 0.008), 0.04);
+    }
+    var sr = playBuf.sampleRate;
+    var bodySamples = Math.min(playBuf.length, Math.max(1, Math.round(bodyDur * sr)));
+    bodyDur = bodySamples / sr;
+    var rel = Math.max(0, release);
+    var relSamples = rel > 0.0008 ? Math.max(1, Math.round(rel * sr)) : 0;
+    var useBuf = playBuf;
+    if (relSamples > 0) {
+      useBuf = octx.createBuffer(playBuf.numberOfChannels, bodySamples + relSamples, sr);
+      for (var c = 0; c < playBuf.numberOfChannels; c++) {
+        var srcCh = playBuf.getChannelData(c);
+        var dst = useBuf.getChannelData(c);
+        dst.set(srcCh.subarray(0, bodySamples));
+        var last = srcCh[bodySamples - 1] || 0;
+        for (var i = 0; i < relSamples; i++) {
+          var e = 1 - (i + 1) / relSamples;
+          dst[bodySamples + i] = last * e * e;
+        }
+      }
     }
     var src = octx.createBufferSource();
-    src.buffer = playBuf;
+    src.buffer = useBuf;
     var g = octx.createGain();
     src.connect(g);
     g.connect(dest);
     var peak = opts.stutter ? 0.92 : 1;
-    var atk = Math.min(attack, playDur * 0.45);
-    var rel = Math.min(release, Math.max(0.001, playDur - atk));
+    var atk = Math.min(attack, bodyDur * 0.45);
+    var totalDur = bodyDur + rel;
     var t0 = Math.max(0, when);
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(peak, t0 + atk);
-    var relStart = t0 + playDur - rel;
-    if (relStart > t0 + atk) g.gain.setValueAtTime(peak, relStart);
-    g.gain.linearRampToValueAtTime(0.0001, t0 + playDur);
-    try { src.start(t0, 0, playDur + 0.02); } catch (err) { /* skip */ }
+    g.gain.setValueAtTime(peak, t0 + bodyDur);
+    g.gain.linearRampToValueAtTime(0.0001, t0 + totalDur);
+    try { src.start(t0, 0, totalDur + 0.02); } catch (err) { /* skip */ }
   }
 
   function scheduleOfflineCellHits(octx, dest, buffer, when, env, stepDur, reps) {
     reps = Math.max(1, Math.min(5, reps || 1));
     if (reps === 1) {
-      scheduleOfflineSlice(octx, dest, buffer, when, env, { maxDur: stepDur * 0.98 });
+      scheduleOfflineSlice(octx, dest, buffer, when, env, {});
       return;
     }
     var slot = stepDur / reps;
@@ -2298,7 +3053,13 @@
         loopSec += beatsToSec(playTimeline[i].beats || 0.25);
       }
       if (!(loopSec > 0)) loopSec = barDurationSec();
-      var tail = 0.2;
+      var maxSliceSec = 0;
+      for (var ms = 0; ms < slices.length; ms++) {
+        if (slices[ms] && slices[ms].buffer) {
+          maxSliceSec = Math.max(maxSliceSec, slices[ms].buffer.duration);
+        }
+      }
+      var tail = Math.max(0.2, maxSliceSec + RELEASE_MAX_MS / 1000 + 0.05);
       var durationSec = loopSec + tail;
       var sampleRate = (ctx && ctx.sampleRate) || 44100;
       var octx = new OfflineCtx(2, Math.ceil(durationSec * sampleRate), sampleRate);
@@ -2402,20 +3163,33 @@
     });
   }
   document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    if (aboutModal && !aboutModal.hidden) {
-      closeAboutModal();
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) {
+      if (e.key !== 'Escape') return;
+    }
+
+    if (e.key === 'Escape') {
+      if (aboutModal && !aboutModal.hidden) {
+        closeAboutModal();
+        return;
+      }
+      if (samplesModal && !samplesModal.hidden) {
+        closeSamplesModal();
+        return;
+      }
+      if (settingsModal && !settingsModal.hidden) {
+        tryCloseSettings();
+        return;
+      }
+      setAppMenuOpen(false);
       return;
     }
-    if (samplesModal && !samplesModal.hidden) {
-      closeSamplesModal();
-      return;
+
+    if (e.key === 'w' || e.key === 'W') {
+      e.preventDefault();
+      wheelHidden = !wheelHidden;
+      syncWheelVisibility();
     }
-    if (settingsModal && !settingsModal.hidden) {
-      tryCloseSettings();
-      return;
-    }
-    setAppMenuOpen(false);
   });
 
   if (appTitleBtn) {
@@ -2464,6 +3238,12 @@
     });
   }
 
+  if (diceBtn) {
+    diceBtn.addEventListener('click', function () {
+      rollDice();
+    });
+  }
+
   if (seqSwapEl) {
     seqSwapEl.addEventListener('change', function () {
       markBreakerCustom();
@@ -2497,6 +3277,45 @@
     resliceAndDraw();
   });
 
+  if (breathBtn) {
+    var breathPtr = -1;
+    function onBreathDown(e) {
+      if (breathBtn.disabled) return;
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      e.preventDefault();
+      if (e.pointerId != null) {
+        breathPtr = e.pointerId;
+        try { breathBtn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      }
+      beginBreath();
+    }
+    function onBreathUp(e) {
+      if (e.pointerId != null && breathPtr >= 0 && e.pointerId !== breathPtr) return;
+      breathPtr = -1;
+      endBreath();
+    }
+    breathBtn.addEventListener('pointerdown', onBreathDown);
+    breathBtn.addEventListener('pointerup', onBreathUp);
+    breathBtn.addEventListener('pointercancel', onBreathUp);
+    breathBtn.addEventListener('lostpointercapture', onBreathUp);
+    breathBtn.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+  }
+
+  if (wheelToggleBtn) {
+    wheelToggleBtn.addEventListener('click', function () {
+      wheelHidden = !wheelHidden;
+      syncWheelVisibility();
+    });
+  }
+
+  if (sliceWindowOpenBtn) {
+    sliceWindowOpenBtn.addEventListener('click', function () {
+      openSamplesModal();
+    });
+  }
+
   if (samplesModalClose) {
     samplesModalClose.addEventListener('click', closeSamplesModal);
   }
@@ -2518,6 +3337,21 @@
   }
 
   hubBtn.addEventListener('click', togglePlay);
+
+  if (circleWrap) {
+    circleWrap.addEventListener('pointermove', function () {
+      pokeHubVisible();
+    });
+    circleWrap.addEventListener('pointerdown', function () {
+      pokeHubVisible();
+    });
+    circleWrap.addEventListener('click', function (e) {
+      if (!wheelHidden) return;
+      if (e.target.closest('#hubBtn')) return;
+      if (hubBtn.disabled) return;
+      togglePlay();
+    });
+  }
 
   if (windowStartEl) {
     windowStartEl.addEventListener('input', function () {
@@ -2581,4 +3415,5 @@
   renderBreakerPresets();
   applyBreakerPreset('balanced', false);
   syncModePanels();
+  syncWheelVisibility();
 })();

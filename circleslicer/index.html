@@ -105,8 +105,26 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
+      gap: 8px;
       flex: 0 0 auto;
       margin-left: auto;
+    }
+    .dice-btn {
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font-size: 1.05rem;
+      line-height: 1;
+      padding: 2px 2px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    .dice-btn:hover {
+      color: var(--play);
+      background: rgba(200, 255, 0, 0.08);
+    }
+    .dice-btn:active {
+      transform: rotate(18deg) scale(1.08);
     }
     .menu-wrap {
       position: relative;
@@ -541,6 +559,18 @@
       background: var(--play);
       border-color: var(--play);
     }
+    .reslice-btn.is-busy {
+      opacity: 1;
+      cursor: wait;
+      color: #111;
+      background: var(--play);
+      border-color: var(--play);
+      min-width: 3.6rem;
+    }
+    .reslice-btn.is-busy span {
+      animation: none;
+      font-variant-numeric: tabular-nums;
+    }
     .reslice-btn.is-pending span {
       animation: resliceTextPulse 1.05s ease-in-out infinite;
     }
@@ -699,6 +729,22 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+    .slice-window-link {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-family: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+      letter-spacing: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .slice-window-link:hover {
+      color: var(--play);
+    }
     .slice-view-select {
       max-width: min(14rem, 42vw);
       font-size: 0.7rem;
@@ -717,12 +763,12 @@
     .window-row input[type="range"] { flex: 1; width: auto; min-width: 60px; }
     .overview-wrap {
       position: relative;
-      height: 28px;
+      height: 20px;
       overflow: hidden;
       background: transparent;
       border: 0;
       border-bottom: 1px solid var(--line);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       cursor: ew-resize;
     }
     #overviewCanvas, #waveCanvas, #specCanvas {
@@ -734,7 +780,7 @@
     }
     .wave-wrap {
       position: relative;
-      height: 72px;
+      height: 44px;
       overflow: hidden;
       background: transparent;
       border: 0;
@@ -762,14 +808,92 @@
     .stage-reslice {
       display: flex;
       justify-content: center;
+      align-items: center;
+      gap: 0.55rem;
       flex: 0 0 auto;
+    }
+    .wheel-toggle {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.66rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      text-decoration: none;
+    }
+    .wheel-toggle:hover { color: var(--ink); }
+    .breath-btn {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.66rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      padding: 0 10px;
+      min-height: 22px;
+      line-height: 1;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .breath-btn:hover { border-color: rgba(255, 255, 255, 0.28); }
+    .breath-btn.is-held {
+      color: #111;
+      background: var(--play);
+      border-color: var(--play);
+    }
+    .breath-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
     .circle-wrap {
       position: relative;
       width: min(42vmin, 360px);
       height: min(42vmin, 360px);
     }
-    #ringSvg { width: 100%; height: 100%; display: block; }
+    .stage-video-stack {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: #0a0a0e;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .stage-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.22s ease;
+    }
+    .stage-video.is-live {
+      opacity: 1;
+      transition: opacity 0.05s ease;
+    }
+    .circle-wrap.has-video #ringSvg {
+      background: transparent;
+    }
+    .circle-wrap.wheel-hidden #ringSvg {
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #ringSvg {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
     .hub {
       position: absolute;
       left: 50%; top: 50%;
@@ -783,6 +907,64 @@
       display: grid;
       place-items: center;
       padding: 0;
+      z-index: 2;
+      opacity: 1;
+      transition: opacity 0.35s ease;
+    }
+    .hub.is-faded {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .circle-wrap.wheel-hidden {
+      cursor: pointer;
+    }
+    .preload-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(6px);
+    }
+    .preload-overlay[hidden] { display: none !important; }
+    .preload-card {
+      width: min(280px, 100%);
+      text-align: center;
+    }
+    .preload-title {
+      font-family: Sora, sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .preload-bar {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+    .preload-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: var(--play);
+      transition: width 0.15s ease;
+    }
+    .preload-pct {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+    }
+    body.is-preloading {
+      overflow: hidden;
+    }
+    body.is-preloading .app {
+      pointer-events: none;
+      user-select: none;
     }
     .hub svg { width: 34%; height: 34%; }
     .hub.is-playing { color: #111; background: var(--play); }
@@ -854,20 +1036,34 @@
       border: 0;
       background: transparent;
       font: inherit;
-      font-size: 0.66rem;
+      font-size: 0.78rem;
       font-weight: 700;
-      padding: 0;
-      animation: uploadCtaPulse 1.4s ease-in-out infinite;
+      letter-spacing: -0.01em;
+      padding: 4px 0;
+      animation: uploadCtaPulse 0.7s ease-in-out infinite;
     }
     .slice-viz-hint.is-cta:hover {
-      color: #e8ff66;
+      color: #fff;
+      animation-duration: 0.45s;
     }
     @keyframes uploadCtaPulse {
-      0%, 100% { opacity: 1; text-shadow: 0 0 0 transparent; }
-      50% { opacity: 0.72; text-shadow: 0 0 12px rgba(200, 255, 0, 0.45); }
+      0%, 100% {
+        color: var(--play);
+        transform: scale(1);
+        text-shadow: 0 0 0 transparent;
+        opacity: 1;
+      }
+      50% {
+        color: #fffce8;
+        transform: scale(1.08);
+        text-shadow:
+          0 0 10px rgba(200, 255, 0, 0.95),
+          0 0 22px rgba(200, 255, 0, 0.55);
+        opacity: 1;
+      }
     }
     @media (prefers-reduced-motion: reduce) {
-      .slice-viz-hint.is-cta { animation: none; }
+      .slice-viz-hint.is-cta { animation: none; color: var(--play); }
     }
 
     @media (max-width: 720px) {
@@ -875,6 +1071,10 @@
       .slot-card-name { max-width: 8rem; }
       .top-bar { padding-left: 0; }
       .breaker-panel, .ring-env, .slice-viz { padding-left: 10px; padding-right: 10px; }
+      .circle-wrap {
+        width: min(86vw, 360px);
+        height: min(86vw, 360px);
+      }
     }
   </style>
 </head>
@@ -909,6 +1109,7 @@
           <button type="button" class="app-title" id="appTitleBtn" title="About Circle Slicer">Circle Slicer</button>
         </div>
         <div class="top-bar-right">
+          <button type="button" class="dice-btn" id="diceBtn" title="Random macro + slices, Reslice, and play" aria-label="Roll random macro and slices">🎲</button>
           <label class="chip" title="Macro feel preset">
             <span class="slide-lab">Macro</span>
             <select id="macroMode" aria-label="Macro mode"></select>
@@ -972,8 +1173,11 @@
     <div class="stage" id="stage">
       <div class="stage-reslice">
         <button type="button" class="reslice-btn" id="resliceBtn" disabled title="Apply pending settings and rebuild rings"><span>Reslice</span></button>
+        <button type="button" class="breath-btn" id="breathBtn" disabled title="Hold: fade chops (5ms) into continuous sample from here">Breath</button>
+        <button type="button" class="wheel-toggle" id="wheelToggleBtn" aria-pressed="false" title="Hide or show the slice wheel (W)">Hide wheel</button>
       </div>
       <div class="circle-wrap" id="circleWrap">
+        <div class="stage-video-stack" id="stageVideoStack" aria-hidden="true"></div>
         <svg id="ringSvg" viewBox="0 0 1000 1000" aria-label="Slice rings"></svg>
         <button type="button" class="hub" id="hubBtn" aria-label="Play or pause" title="Play / pause" disabled>
           <svg id="hubIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -995,7 +1199,7 @@
         </label>
         <label class="slide" title="Fade out">
           <span class="slide-lab">Release</span>
-          <input type="range" id="ringRelease" min="0" max="250" value="35" step="1" />
+          <input type="range" id="ringRelease" min="0" max="120" value="35" step="1" />
           <span class="slide-val" id="ringReleaseVal">35 ms</span>
         </label>
         <label class="chip" title="Play length of slice">
@@ -1026,7 +1230,7 @@
     <section class="slice-viz" id="sliceViz" aria-label="Slice spectrum">
       <div class="slice-viz-head">
         <div class="slice-viz-title">
-          <span>Slice window</span>
+          <button type="button" class="slice-window-link" id="sliceWindowOpenBtn" title="Open upload panel">Slice window</button>
           <select id="viewSampleSelect" class="slice-view-select" aria-label="Sample to view" disabled>
             <option value="">No sample</option>
           </select>
@@ -1078,15 +1282,15 @@
       <div class="settings-field">
         <label class="slide" title="Project tempo">
           <span class="slide-lab">BPM</span>
-          <input type="range" id="bpm" min="50" max="180" value="120" step="1" />
-          <span class="slide-val" id="bpmVal">120</span>
+          <input type="range" id="bpm" min="50" max="180" value="110" step="1" />
+          <span class="slide-val" id="bpmVal">110</span>
         </label>
       </div>
       <div class="settings-field">
         <label class="slide" title="Concentric rings">
           <span class="slide-lab">Rings</span>
-          <input type="range" id="ringCount" min="2" max="8" value="4" step="1" />
-          <span class="slide-val" id="ringCountVal">4</span>
+          <input type="range" id="ringCount" min="2" max="16" value="8" step="1" />
+          <span class="slide-val" id="ringCountVal">8</span>
         </label>
       </div>
       <div class="settings-field" style="display:block">
@@ -1107,13 +1311,23 @@
     <div class="samples-dialog" role="dialog" aria-modal="true" aria-labelledby="samplesModalTitle">
       <div class="samples-dialog-head">
         <h2 id="samplesModalTitle">Samples</h2>
-        <span class="meta">3 slots · drag &amp; drop or click</span>
+        <span class="meta">3 slots · audio or mp4</span>
         <button type="button" class="samples-dialog-close" id="samplesModalClose" aria-label="Close">Close</button>
       </div>
       <div class="sample-slot-grid" id="sampleSlots"></div>
       <div class="samples-dialog-actions">
         <button type="button" class="btn primary" id="samplesModalDone">Done</button>
       </div>
+    </div>
+  </div>
+
+  <div class="preload-overlay" id="preloadOverlay" hidden>
+    <div class="preload-card" role="status" aria-live="polite">
+      <div class="preload-title" id="preloadTitle">Preloading video</div>
+      <div class="preload-bar" aria-hidden="true">
+        <div class="preload-bar-fill" id="preloadBarFill"></div>
+      </div>
+      <div class="preload-pct" id="preloadPct">0%</div>
     </div>
   </div>
 
