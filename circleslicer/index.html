@@ -10,12 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #050506;
+      --bg: #07070a;
       --ink: #eeeef2;
       --muted: #8b8b96;
-      --line: #2a2a32;
+      --line: rgba(255, 255, 255, 0.08);
       --play: #c8ff00;
-      --panel: #121218;
+      --panel: transparent;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -25,7 +25,8 @@
       overflow: hidden;
       color: var(--ink);
       font-family: "IBM Plex Sans", system-ui, sans-serif;
-      background: #000;
+      background: #07070a;
+      color-scheme: dark;
     }
 
     #launchOverlay {
@@ -56,41 +57,137 @@
       border: 0; border-radius: 999px; padding: 10px 24px;
       background: var(--play); color: #111;
       font-family: Sora, sans-serif; font-weight: 600; cursor: pointer;
+      animation: launchGoPulse 1.35s ease-in-out infinite;
+    }
+    #launchOverlay .go:hover {
+      filter: brightness(1.06);
+    }
+    @keyframes launchGoPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(200, 255, 0, 0); }
+      50% { transform: scale(1.045); box-shadow: 0 0 18px 2px rgba(200, 255, 0, 0.35); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #launchOverlay .go { animation: none; }
     }
 
     .app {
       width: 100vw;
       height: 100vh;
       display: grid;
-      grid-template-rows: auto auto auto 1fr auto auto;
-      background: #07070a;
+      grid-template-rows: auto auto 1fr auto auto;
+      background: var(--bg);
     }
 
     header.top {
-      z-index: 10;
+      z-index: 50;
       border-bottom: 1px solid var(--line);
-      background: #0e0e14;
+      background: transparent;
       overflow: visible;
+      position: relative;
     }
     .top-bar {
       display: flex;
-      flex-wrap: wrap;
-      gap: 4px 6px;
+      flex-wrap: nowrap;
+      gap: 8px 12px;
       align-items: center;
-      justify-content: flex-start;
-      padding: 4px 6px;
+      justify-content: space-between;
+      padding: 2px 12px 2px 0;
       margin: 0;
       overflow: visible;
     }
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 2px 8px;
+      min-width: 0;
+    }
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex: 0 0 auto;
+      margin-left: auto;
+    }
+    .menu-wrap {
+      position: relative;
+      z-index: 60;
+      margin: 0;
+    }
+    .menu-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 30px;
+      padding: 0;
+      margin: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      border-radius: 0;
+    }
+    .menu-btn:hover { background: rgba(255, 255, 255, 0.06); }
+    .menu-btn svg { width: 18px; height: 18px; display: block; }
+    .app-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 11rem;
+      padding: 4px 0;
+      border-radius: 0 0 10px 0;
+      background: #121218;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+      z-index: 70;
+    }
+    .app-menu[hidden] { display: none !important; }
+    .app-menu > button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 500;
+      text-align: left;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .app-menu > button:hover { background: rgba(255, 255, 255, 0.06); }
+    .app-menu .menu-chev { color: var(--muted); font-size: 0.7rem; }
+    .app-submenu {
+      border-top: 1px solid var(--line);
+      margin-top: 2px;
+      padding: 2px 0 4px;
+    }
+    .app-submenu[hidden] { display: none !important; }
+    .app-submenu button {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.74rem;
+      font-weight: 500;
+      text-align: left;
+      padding: 7px 12px 7px 1.6rem;
+      cursor: pointer;
+    }
+    .app-submenu button:hover { background: rgba(255, 255, 255, 0.06); }
+    .top-spacer { flex: 1; min-width: 8px; }
     .chip, .slide {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      min-height: 26px;
-      padding: 0 7px;
-      border-radius: 6px;
-      background: #1a1a22;
-      border: 1px solid #2a2a34;
+      gap: 6px;
+      min-height: 24px;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
       color: var(--ink);
       font-size: 0.72rem;
     }
@@ -99,7 +196,7 @@
       min-width: 2.2em;
       text-align: right;
       font-variant-numeric: tabular-nums;
-      color: #d0d0d8;
+      color: #c8c8d0;
     }
     input[type="range"] { width: 72px; accent-color: var(--play); height: 14px; }
     select, .btn {
@@ -110,59 +207,193 @@
       font: inherit;
       cursor: pointer;
     }
-    select { padding: 0; outline: none; max-width: 7.5rem; }
+    select {
+      padding: 0;
+      outline: none;
+      max-width: 9.5rem;
+      color: var(--ink);
+      background-color: #121218;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 0;
+      padding-bottom: 1px;
+    }
+    select option,
+    select optgroup {
+      background-color: #121218;
+      color: #eeeef2;
+    }
+    .chip select {
+      background-color: #121218;
+    }
+    #macroMode {
+      max-width: 5.5rem;
+    }
     .btn { padding: 0; font-weight: 600; }
-    .btn.primary {
+    .btn.primary,
+    .chip.btn.primary {
       color: #111;
       background: var(--play);
-      border-radius: 5px;
-      padding: 3px 8px;
+      border-radius: 999px;
+      padding: 4px 12px;
+      border: 0;
     }
+    .chip.btn {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: transparent;
+    }
+    .chip.btn:hover { border-color: rgba(255, 255, 255, 0.22); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .file-btn { position: relative; overflow: hidden; cursor: pointer; margin: 0; }
-    .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
     .meta { color: var(--muted); font-size: 0.68rem; white-space: nowrap; }
 
-    .samples-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 6px;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 3px 6px 5px;
-      border-bottom: 1px solid var(--line);
-      background: #0c0c12;
+    .samples-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.62);
+      backdrop-filter: blur(4px);
     }
-    .samples-bar[hidden] { display: none !important; }
-    .slot {
-      display: inline-flex;
+    .samples-modal[hidden] { display: none !important; }
+    .samples-dialog {
+      width: min(520px, 100%);
+      max-height: min(90vh, 640px);
+      overflow: auto;
+      border: 0;
+      border-radius: 14px;
+      background: #101016;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      padding: 16px 18px;
+    }
+    .samples-dialog-head {
+      display: flex;
       align-items: center;
-      gap: 4px;
-      min-height: 24px;
-      padding: 0 6px;
-      border-radius: 6px;
-      border: 1px solid #2a2a34;
-      background: #16161e;
-      font-size: 0.68rem;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .samples-dialog-head h2 {
+      margin: 0;
+      font-family: Sora, sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .samples-dialog-head .meta { margin-right: auto; }
+    .samples-dialog-close {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 0;
+      min-height: 28px;
+      padding: 0 4px;
+      font: inherit;
+      font-size: 0.75rem;
       cursor: pointer;
     }
-    .slot.is-active { border-color: var(--play); box-shadow: inset 0 0 0 1px rgba(200,255,0,0.25); }
-    .slot.is-empty { opacity: 0.55; }
+    .samples-dialog-close:hover { color: #fff; }
+    .sample-slot-grid {
+      display: grid;
+      gap: 10px;
+    }
+    .slot-card {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 0 0 10px;
+      border-bottom: 1px solid var(--line);
+      transition: none;
+    }
+    .slot-card:last-child { border-bottom: 0; padding-bottom: 0; }
+    .slot-card.is-active .slot-card-title { color: var(--play); }
+    .slot-card.is-drag .slot-drop {
+      border-color: var(--play);
+      color: #d8d8e0;
+    }
+    .slot-card-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      font-size: 0.72rem;
+    }
     .slot-dot {
-      width: 7px; height: 7px; border-radius: 50%;
+      width: 8px; height: 8px; border-radius: 50%;
       flex-shrink: 0;
     }
-    .slot-name {
-      max-width: 5.5rem;
+    .slot-card-title { font-weight: 600; }
+    .slot-card-name {
+      color: var(--muted);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      max-width: 14rem;
     }
     .slot-clear {
-      border: 0; background: transparent; color: var(--muted);
-      cursor: pointer; font-size: 0.75rem; padding: 0 2px; line-height: 1;
+      margin-left: auto;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0 4px;
+      line-height: 1;
     }
     .slot-clear:hover { color: #fff; }
+    .slot-drop {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 56px;
+      padding: 10px 4px;
+      border: 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.16);
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-align: center;
+      line-height: 1.35;
+      cursor: pointer;
+    }
+    .slot-drop:hover {
+      color: #d8d8e0;
+      border-bottom-color: var(--play);
+    }
+    .slot-drop input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .slot-drop strong { color: var(--ink); font-weight: 600; }
+    .slot-mix {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .slot-mix input[type="range"] {
+      flex: 1;
+      width: auto;
+      min-width: 0;
+      accent-color: var(--slot-accent, var(--play));
+    }
+    .samples-dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 14px;
+    }
+    .samples-dialog-actions .btn.primary {
+      min-height: 30px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+    }
     .dur-drop {
       position: relative;
       display: inline-flex;
@@ -173,23 +404,24 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      min-height: 26px;
-      padding: 0 8px;
-      border-radius: 6px;
-      border: 1px solid #2a2a34;
-      background: #1a1a22;
+      min-height: 24px;
+      padding: 0;
+      border-radius: 0;
+      border: 0;
+      border-bottom: 1px solid transparent;
+      background: transparent;
       color: var(--ink);
       font: inherit;
       font-size: 0.72rem;
       cursor: pointer;
     }
-    .dur-drop-btn:hover { border-color: #3a3a46; }
+    .dur-drop-btn:hover { border-bottom-color: rgba(255, 255, 255, 0.22); }
     .dur-drop.is-open .dur-drop-btn {
-      border-color: var(--play);
+      border-bottom-color: var(--play);
     }
     .dur-drop-btn .slide-lab { color: var(--muted); }
     .dur-drop-summary {
-      max-width: 9rem;
+      max-width: 5.5rem;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -197,40 +429,159 @@
     }
     .dur-drop-chev { opacity: 0.55; font-size: 0.65rem; }
     .dur-menu {
-      position: fixed;
-      top: 0;
-      left: 0;
-      min-width: 15.5rem;
-      max-height: min(70vh, 420px);
+      position: relative;
+      top: auto;
+      left: auto;
+      width: 100%;
+      max-height: min(50vh, 320px);
       overflow: auto;
-      padding: 8px;
-      border-radius: 8px;
-      border: 1px solid #2e2e38;
-      background: #14141c;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-      z-index: 200;
+      padding: 0;
+      border-radius: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      z-index: 1;
+      margin-top: 8px;
+    }
+    .settings-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.62);
+      backdrop-filter: blur(4px);
+    }
+    .settings-modal[hidden] { display: none !important; }
+    .settings-dialog {
+      width: min(360px, 100%);
+      max-height: min(90vh, 560px);
+      overflow: auto;
+      border-radius: 14px;
+      background: #101016;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      padding: 16px 18px;
+    }
+    .settings-dialog h2 {
+      margin: 0 0 14px;
+      font-family: Sora, sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .settings-field {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin-bottom: 12px;
+    }
+    .settings-field .slide { width: 100%; }
+    .settings-field input[type="range"] { flex: 1; width: auto; min-width: 80px; }
+    .settings-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .settings-actions button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 4px;
+    }
+    .settings-actions button:hover { color: var(--ink); }
+    .settings-actions .btn.primary {
+      color: #111;
+      background: var(--play);
+      border-radius: 999px;
+      padding: 6px 14px;
     }
     .chip.btn.is-pending {
       background: var(--play);
       color: #111;
       border-color: var(--play);
     }
+    .reslice-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      min-width: 3.6rem;
+      min-height: 22px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.66rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .reslice-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .reslice-btn span {
+      display: inline-block;
+      transform-origin: center;
+    }
+    .reslice-btn.is-pending {
+      color: #111;
+      background: var(--play);
+      border-color: var(--play);
+    }
+    .reslice-btn.is-pending span {
+      animation: resliceTextPulse 1.05s ease-in-out infinite;
+    }
+    @keyframes resliceTextPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(0.86); opacity: 0.82; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .reslice-btn.is-pending span { animation: none; }
+    }
     .dur-menu[hidden] { display: none !important; }
     .dur-menu-hint {
       color: var(--muted);
-      font-size: 0.64rem;
-      margin: 0 0 8px;
-      line-height: 1.35;
+      font-size: 0.62rem;
+      margin: 0 0 6px;
+      line-height: 1.3;
     }
     .dur-row {
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 8px;
+      grid-template-columns: auto auto 1fr auto;
+      gap: 6px;
       align-items: center;
-      padding: 5px 4px;
-      border-radius: 5px;
+      padding: 5px 0;
+      border-radius: 0;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
     }
-    .dur-row:hover { background: #1c1c26; }
+    .dur-row:active { cursor: grabbing; }
+    .dur-row.is-dragging { opacity: 0.45; }
+    .dur-row.is-drag-over {
+      box-shadow: inset 0 2px 0 0 var(--play);
+    }
+    .dur-row:hover { color: #fff; }
+    .dur-row-handle {
+      color: #5a5a66;
+      font-size: 0.7rem;
+      letter-spacing: -0.08em;
+      line-height: 1;
+      pointer-events: none;
+    }
     .dur-row input[type="checkbox"] {
       width: 14px;
       height: 14px;
@@ -242,94 +593,125 @@
       font-size: 0.75rem;
       cursor: pointer;
     }
-    .dur-row .prio {
-      width: 2.4rem;
-      border: 1px solid #33333c;
-      border-radius: 4px;
-      background: #0e0e14;
-      color: var(--ink);
-      font: inherit;
-      font-size: 0.7rem;
-      padding: 3px 2px;
-      text-align: center;
+    .dur-row-pct {
+      font-size: 0.66rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      min-width: 2.4em;
+      text-align: right;
     }
-    .dur-row .prio:disabled { opacity: 0.35; }
+    .dur-row-pct.is-on { color: #d0d0d8; }
     .dur-menu-actions {
       display: flex;
       justify-content: flex-end;
       gap: 6px;
-      margin-top: 8px;
+      margin-top: 6px;
       padding-top: 8px;
-      border-top: 1px solid #2a2a34;
+      border-top: 1px solid var(--line);
     }
     .dur-menu-actions button {
-      border: 1px solid #2a2a34;
-      background: #1a1a22;
+      border: 0;
+      background: transparent;
       color: var(--ink);
-      border-radius: 5px;
+      border-radius: 0;
       min-height: 26px;
-      padding: 0 10px;
+      padding: 0 4px;
       font: inherit;
       font-size: 0.7rem;
       font-weight: 600;
       cursor: pointer;
     }
+    .dur-menu-actions button:hover { color: var(--play); }
     .dur-menu-actions .is-primary {
-      background: var(--play);
-      color: #111;
-      border-color: var(--play);
+      background: transparent;
+      color: var(--play);
+      border: 0;
     }
 
-    .breaker-panel, .ring-env, .slice-viz, footer.bottom {
-      z-index: 10;
+    .breaker-panel, .ring-env, .slice-viz {
+      z-index: 5;
       margin: 0;
       border-radius: 0;
       border: 0;
-      border-bottom: 1px solid var(--line);
-      background: #0e0e14;
-      padding: 4px 6px;
+      border-top: 1px solid var(--line);
+      background: transparent;
+      padding: 8px 12px;
     }
     .breaker-panel[hidden] { display: none !important; }
     .breaker-row, .ring-env-head, .ring-env-sliders, .samples-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px 6px;
+      gap: 6px 14px;
       align-items: center;
     }
     .breaker-presets, .ring-picks {
       display: flex;
       flex-wrap: wrap;
-      gap: 3px;
+      gap: 2px 8px;
+      align-items: center;
     }
     .breaker-preset, .ring-pick {
-      border: 1px solid #2a2a34;
-      background: #1a1a22;
-      color: var(--ink);
-      border-radius: 5px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 0;
       min-height: 22px;
-      padding: 0 7px;
-      font-size: 0.66rem;
+      padding: 0;
+      font-size: 0.7rem;
       font-weight: 600;
       cursor: pointer;
     }
+    .breaker-preset:hover, .ring-pick:hover { color: var(--ink); }
     .breaker-preset.is-active, .ring-pick.is-active {
-      background: var(--play);
-      color: #111;
-      border-color: var(--play);
+      background: transparent;
+      color: var(--play);
+      border: 0;
     }
+    .stutter-x {
+      max-width: 2.6rem;
+      margin-left: -6px;
+      font-size: 0.72rem;
+    }
+    .apply-all-btn {
+      border: 1px solid var(--play);
+      background: transparent;
+      color: var(--play);
+      font: inherit;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 2px 8px;
+      min-height: 22px;
+      border-radius: 4px;
+    }
+    .apply-all-btn:hover {
+      color: #e8ff66;
+      border-color: #e8ff66;
+    }
+    .apply-all-btn[hidden] { display: none !important; }
     .slice-viz-title {
       font-family: Sora, sans-serif;
       font-size: 0.72rem;
       font-weight: 600;
       letter-spacing: -0.02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .slice-view-select {
+      max-width: min(14rem, 42vw);
+      font-size: 0.7rem;
+      font-weight: 500;
+      border-bottom-color: rgba(255, 255, 255, 0.2);
     }
     .slice-viz-hint { color: var(--muted); font-size: 0.66rem; }
     .slice-viz-head, .window-row {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 4px 8px;
-      margin-bottom: 4px;
+      gap: 4px 12px;
+      margin-bottom: 6px;
     }
     .window-row .slide { flex: 1; min-width: 140px; }
     .window-row input[type="range"] { flex: 1; width: auto; min-width: 60px; }
@@ -337,9 +719,10 @@
       position: relative;
       height: 28px;
       overflow: hidden;
-      background: #0a0a0e;
-      border: 1px solid #22222a;
-      margin-bottom: 4px;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 6px;
       cursor: ew-resize;
     }
     #overviewCanvas, #waveCanvas, #specCanvas {
@@ -353,8 +736,9 @@
       position: relative;
       height: 72px;
       overflow: hidden;
-      background: #0a0a0e;
-      border: 1px solid #22222a;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--line);
       cursor: crosshair;
     }
     #specCanvas { opacity: 0.45; mix-blend-mode: screen; pointer-events: none; }
@@ -366,16 +750,24 @@
 
     .stage {
       position: relative;
-      display: grid;
-      place-items: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
       min-height: 0;
-      padding: 0;
-      background: radial-gradient(ellipse 70% 60% at 50% 45%, #121218 0%, #07070a 100%);
+      padding: 8px 0 4px;
+      background: radial-gradient(ellipse 70% 60% at 50% 45%, #101016 0%, #07070a 100%);
+    }
+    .stage-reslice {
+      display: flex;
+      justify-content: center;
+      flex: 0 0 auto;
     }
     .circle-wrap {
       position: relative;
-      width: min(58vmin, 480px);
-      height: min(58vmin, 480px);
+      width: min(42vmin, 360px);
+      height: min(42vmin, 360px);
     }
     #ringSvg { width: 100%; height: 100%; display: block; }
     .hub {
@@ -384,8 +776,8 @@
       transform: translate(-50%, -50%);
       width: 22%; height: 22%;
       border: 0; border-radius: 50%;
-      background: #1a1a22;
-      box-shadow: inset 0 0 0 2px #2e2e38, 0 6px 20px rgba(0,0,0,0.45);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: none;
       color: var(--play);
       cursor: pointer;
       display: grid;
@@ -396,136 +788,191 @@
     .hub.is-playing { color: #111; background: var(--play); }
     .hub:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    footer.bottom {
-      border-bottom: 0;
-      border-top: 1px solid var(--line);
-      padding: 3px 6px;
-    }
-    .bottom-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 0;
-      margin: 0;
+    .app-title {
       border: 0;
       background: transparent;
-    }
-    .brand {
+      padding: 0;
+      margin-left: 2px;
       font-family: Sora, sans-serif;
+      font-size: 0.82rem;
       font-weight: 600;
-      font-size: 0.78rem;
-      letter-spacing: -0.02em;
-      margin-right: auto;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      user-select: none;
+      white-space: nowrap;
+      cursor: pointer;
     }
-    .brand span { color: var(--muted); font-weight: 500; margin-left: 6px; font-size: 0.68rem; }
+    .app-title:hover { color: var(--play); }
+    .about-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.62);
+      backdrop-filter: blur(4px);
+    }
+    .about-modal[hidden] { display: none !important; }
+    .about-dialog {
+      width: min(380px, 100%);
+      border-radius: 14px;
+      background: #101016;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      padding: 16px 18px;
+    }
+    .about-dialog-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .about-dialog-head h2 {
+      margin: 0;
+      margin-right: auto;
+      font-family: Sora, sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .about-dialog p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+    .about-dialog p:last-of-type { margin-bottom: 0; }
+    .about-dialog a {
+      color: var(--play);
+      text-decoration: none;
+    }
+    .about-dialog a:hover { color: #e8ff66; }
+    .slice-viz-hint.is-cta {
+      color: var(--play);
+      cursor: pointer;
+      text-decoration: none;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      font-size: 0.66rem;
+      font-weight: 700;
+      padding: 0;
+      animation: uploadCtaPulse 1.4s ease-in-out infinite;
+    }
+    .slice-viz-hint.is-cta:hover {
+      color: #e8ff66;
+    }
+    @keyframes uploadCtaPulse {
+      0%, 100% { opacity: 1; text-shadow: 0 0 0 transparent; }
+      50% { opacity: 0.72; text-shadow: 0 0 12px rgba(200, 255, 0, 0.45); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .slice-viz-hint.is-cta { animation: none; }
+    }
 
     @media (max-width: 720px) {
       input[type="range"] { width: 56px; }
-      .slot-name { max-width: 3.8rem; }
+      .slot-card-name { max-width: 8rem; }
+      .top-bar { padding-left: 0; }
+      .breaker-panel, .ring-env, .slice-viz { padding-left: 10px; padding-right: 10px; }
     }
   </style>
 </head>
 <body>
   <div id="launchOverlay">
     <h1>Circle Slicer</h1>
-    <p>Upload up to 3 samples, slice by beat, sprinkle onto rings.</p>
+    <p>Your ultimate samples remixer!</p>
     <button type="button" class="go" id="launchGo">Start</button>
   </div>
 
   <div class="app" id="appRoot" hidden>
     <header class="top">
       <div class="top-bar">
-        <label class="chip file-btn" title="Add / replace sample in selected slot (max 3)">
-          <span class="btn primary">Upload</span>
-          <input type="file" id="fileInput" accept="audio/*,.wav,.mp3,.ogg,.m4a,.flac" />
-        </label>
-
-        <label class="slide" title="Project tempo">
-          <span class="slide-lab">BPM</span>
-          <input type="range" id="bpm" min="50" max="180" value="120" step="1" />
-          <span class="slide-val" id="bpmVal">120</span>
-        </label>
-
-        <div class="dur-drop" id="sliceDurs">
-          <button type="button" class="dur-drop-btn" id="durDropBtn" aria-haspopup="true" aria-expanded="false" title="Choose slice durations">
-            <span class="slide-lab">Slice</span>
-            <span class="dur-drop-summary" id="durDropSummary">¼b</span>
-            <span class="dur-drop-chev" aria-hidden="true">▾</span>
-          </button>
-          <div class="dur-menu" id="durMenu" hidden role="dialog" aria-label="Slice durations">
-            <p class="dur-menu-hint">Tick durations here. Priority 1 = most likely. Click <b>Reslice</b> to apply — nothing updates until then.</p>
-            <div id="durMenuRows"></div>
-            <div class="dur-menu-actions">
-              <button type="button" id="durMenuCancel">Done</button>
+        <div class="top-bar-left">
+          <div class="menu-wrap" id="menuWrap">
+            <button type="button" class="menu-btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" title="Menu" aria-label="Menu">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4 7h16v2H4V7zm0 4h16v2H4v-2zm0 4h16v2H4v-2z"/>
+              </svg>
+            </button>
+            <div class="app-menu" id="appMenu" hidden role="menu">
+              <button type="button" id="menuFileBtn" role="menuitem">
+                <span>File</span><span class="menu-chev">▸</span>
+              </button>
+              <div class="app-submenu" id="menuFileSub" hidden>
+                <button type="button" id="menuUploadBtn" role="menuitem">Upload</button>
+                <button type="button" id="menuSaveBtn" role="menuitem">Save WAV</button>
+              </div>
+              <button type="button" id="menuSettingsBtn" role="menuitem">Settings</button>
             </div>
           </div>
+          <button type="button" class="app-title" id="appTitleBtn" title="About Circle Slicer">Circle Slicer</button>
         </div>
-
-        <label class="chip" title="How slices land on ring segments">
-          <span class="slide-lab">Sprinkle</span>
-          <select id="sprinkleMode" aria-label="Sprinkle mode">
-            <option value="sequential" selected>Sequential</option>
-            <option value="random">Random</option>
-            <option value="breaker">Breaker</option>
-          </select>
-        </label>
-
-        <label class="slide" id="seqSwapWrap" title="Neighbor swaps in sequential mode">
-          <span class="slide-lab">Neighbor</span>
-          <input type="range" id="seqSwap" min="0" max="100" value="25" step="1" />
-          <span class="slide-val" id="seqSwapVal">25%</span>
-        </label>
-
-        <label class="slide" title="Concentric rings">
-          <span class="slide-lab">Rings</span>
-          <input type="range" id="ringCount" min="2" max="8" value="4" step="1" />
-          <span class="slide-val" id="ringCountVal">4</span>
-        </label>
-
-        <button type="button" class="chip btn" id="resliceBtn" disabled title="Apply pending settings and rebuild rings">Reslice</button>
-        <span class="meta" id="sliceMeta">Upload samples to begin</span>
+        <div class="top-bar-right">
+          <label class="chip" title="Macro feel preset">
+            <span class="slide-lab">Macro</span>
+            <select id="macroMode" aria-label="Macro mode"></select>
+          </label>
+        </div>
       </div>
     </header>
 
-    <div class="samples-bar" id="samplesBar">
-      <span class="slide-lab">Samples</span>
-      <div class="samples-row" id="sampleSlots"></div>
-      <label class="chip" title="How multiple WAVs feed the rings" id="mixModeWrap">
-        <span class="slide-lab">Mix</span>
-        <select id="mixMode" aria-label="Sample mix mode">
-          <option value="weighted" selected>Weighted random</option>
-          <option value="equal">Equal split</option>
-        </select>
-      </label>
-      <div class="samples-row" id="weightSliders"></div>
-    </div>
-
-    <section class="breaker-panel" id="breakerPanel" aria-label="Breaker settings" hidden>
+    <section class="breaker-panel" id="breakerPanel" aria-label="Macro feel">
       <div class="breaker-row">
-        <div class="slice-viz-title">Breaker</div>
-        <div class="breaker-presets" id="breakerPresets" role="group" aria-label="Breaker presets"></div>
-        <span class="meta" id="breakerPresetHint">Macro</span>
-        <label class="slide" title="Skip chance">
+        <label class="chip" title="How chops land in order">
+          <span class="slide-lab">Order</span>
+          <select id="orderMode" aria-label="Slice order">
+            <option value="sequential" selected>Sequential</option>
+            <option value="random">Random</option>
+          </select>
+        </label>
+        <label class="chip" id="seqSwapWrap" title="Neighbor swaps in sequential order">
+          <span class="slide-lab">Neighbor</span>
+          <select id="seqSwap" aria-label="Neighbor swap amount">
+            <option value="0">0%</option>
+            <option value="12">12%</option>
+            <option value="34" selected>34%</option>
+            <option value="67">67%</option>
+            <option value="89">89%</option>
+            <option value="100">100%</option>
+          </select>
+        </label>
+        <label class="chip" title="Skip chance">
           <span class="slide-lab">Skip</span>
-          <input type="range" id="breakSkip" min="0" max="80" value="28" step="1" />
-          <span class="slide-val" id="breakSkipVal">28%</span>
+          <select id="breakSkip" aria-label="Skip chance">
+            <option value="0">0%</option>
+            <option value="12">12%</option>
+            <option value="34" selected>34%</option>
+            <option value="67">67%</option>
+            <option value="89">89%</option>
+            <option value="100">100%</option>
+          </select>
         </label>
-        <label class="slide" title="Stutter chance">
+        <label class="chip" title="Stutter chance">
           <span class="slide-lab">Stutter</span>
-          <input type="range" id="breakStutter" min="0" max="90" value="32" step="1" />
-          <span class="slide-val" id="breakStutterVal">32%</span>
+          <select id="breakStutter" aria-label="Stutter chance">
+            <option value="0">0%</option>
+            <option value="12">12%</option>
+            <option value="34" selected>34%</option>
+            <option value="67">67%</option>
+            <option value="89">89%</option>
+            <option value="100">100%</option>
+          </select>
         </label>
-        <label class="slide" title="Max stutter ×2–5">
-          <span class="slide-lab">Intensity</span>
-          <input type="range" id="breakIntensity" min="2" max="5" value="3" step="1" />
-          <span class="slide-val" id="breakIntensityVal">×3</span>
-        </label>
+        <select id="breakIntensity" class="stutter-x" aria-label="Stutter repeats" title="Max stutter repeats">
+          <option value="1">×1</option>
+          <option value="2">×2</option>
+          <option value="3" selected>×3</option>
+          <option value="4">×4</option>
+          <option value="5">×5</option>
+        </select>
       </div>
     </section>
 
     <div class="stage" id="stage">
+      <div class="stage-reslice">
+        <button type="button" class="reslice-btn" id="resliceBtn" disabled title="Apply pending settings and rebuild rings"><span>Reslice</span></button>
+      </div>
       <div class="circle-wrap" id="circleWrap">
         <svg id="ringSvg" viewBox="0 0 1000 1000" aria-label="Slice rings"></svg>
         <button type="button" class="hub" id="hubBtn" aria-label="Play or pause" title="Play / pause" disabled>
@@ -538,9 +985,9 @@
 
     <section class="ring-env" id="ringEnv" aria-label="Per-ring playback">
       <div class="ring-env-head">
-        <div class="slice-viz-title">Ring play shape</div>
+        <div class="slice-viz-title">Ring</div>
         <div class="ring-picks" id="ringPicks"></div>
-        <span class="meta" id="ringEnvHint">All or per ring</span>
+        <span class="meta" id="ringEnvHint">Outer = 1</span>
         <label class="slide" title="Fade in">
           <span class="slide-lab">Attack</span>
           <input type="range" id="ringAttack" min="0" max="120" value="4" step="1" />
@@ -551,18 +998,40 @@
           <input type="range" id="ringRelease" min="0" max="250" value="35" step="1" />
           <span class="slide-val" id="ringReleaseVal">35 ms</span>
         </label>
-        <label class="slide" title="Play length of slice">
+        <label class="chip" title="Play length of slice">
           <span class="slide-lab">Dur</span>
-          <input type="range" id="ringDur" min="10" max="100" value="100" step="1" />
-          <span class="slide-val" id="ringDurVal">100%</span>
+          <select id="ringDur" aria-label="Play duration percent">
+            <option value="12">12%</option>
+            <option value="34">34%</option>
+            <option value="67">67%</option>
+            <option value="89">89%</option>
+            <option value="100" selected>100%</option>
+          </select>
         </label>
+        <label class="chip" title="Chance each hit plays reversed">
+          <span class="slide-lab">Reverse</span>
+          <select id="ringReverse" aria-label="Reverse probability">
+            <option value="0" selected>0%</option>
+            <option value="12">12%</option>
+            <option value="34">34%</option>
+            <option value="67">67%</option>
+            <option value="89">89%</option>
+            <option value="100">100%</option>
+          </select>
+        </label>
+        <button type="button" class="apply-all-btn" id="applyToAllBtn" hidden>Apply to all</button>
       </div>
     </section>
 
     <section class="slice-viz" id="sliceViz" aria-label="Slice spectrum">
       <div class="slice-viz-head">
-        <div class="slice-viz-title">Slice window <span class="meta" id="activeSampleLab"></span></div>
-        <div class="slice-viz-hint" id="waveHint">Max 20s — pick part to slice</div>
+        <div class="slice-viz-title">
+          <span>Slice window</span>
+          <select id="viewSampleSelect" class="slice-view-select" aria-label="Sample to view" disabled>
+            <option value="">No sample</option>
+          </select>
+        </div>
+        <button type="button" class="slice-viz-hint is-cta" id="waveHint">Upload a sample to begin</button>
       </div>
       <div class="window-row">
         <label class="slide" title="Window start in active sample">
@@ -581,13 +1050,71 @@
         <div class="wave-empty" id="waveEmpty">No sample loaded</div>
       </div>
     </section>
+  </div>
 
-    <footer class="bottom">
-      <div class="bottom-bar">
-        <div class="brand">Circle Slicer <span>beat-sliced rings</span></div>
-        <span class="meta" id="playMeta">Idle</span>
+  <div class="about-modal" id="aboutModal" hidden>
+    <div class="about-dialog" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+      <div class="about-dialog-head">
+        <h2 id="aboutTitle">Circle Slicer</h2>
+        <button type="button" class="samples-dialog-close" id="aboutModalClose" aria-label="Close">Close</button>
       </div>
-    </footer>
+      <p>
+        Circle Slicer is your ultimate samples remixer.
+        Developed by
+        <a href="https://www.youtube.com/beatsaway" target="_blank" rel="noopener noreferrer">Beats Away</a>,
+        a composer, music producer and sound designer.
+      </p>
+      <p>
+        Please
+        <a href="https://buymeacoffee.com/beatsaway" target="_blank" rel="noopener noreferrer">support this project</a>
+        for continuous updates and improvements.
+      </p>
+    </div>
+  </div>
+
+  <div class="settings-modal" id="settingsModal" hidden>
+    <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <h2 id="settingsTitle">Settings</h2>
+      <div class="settings-field">
+        <label class="slide" title="Project tempo">
+          <span class="slide-lab">BPM</span>
+          <input type="range" id="bpm" min="50" max="180" value="120" step="1" />
+          <span class="slide-val" id="bpmVal">120</span>
+        </label>
+      </div>
+      <div class="settings-field">
+        <label class="slide" title="Concentric rings">
+          <span class="slide-lab">Rings</span>
+          <input type="range" id="ringCount" min="2" max="8" value="4" step="1" />
+          <span class="slide-val" id="ringCountVal">4</span>
+        </label>
+      </div>
+      <div class="settings-field" style="display:block">
+        <div class="slide-lab" style="margin-bottom:4px">Slice · <span id="durDropSummary">1/4</span></div>
+        <p class="dur-menu-hint">Drag to prioritize (top = more likely). Apply to rebuild.</p>
+        <div class="dur-menu" id="durMenu" role="group" aria-label="Slice durations">
+          <div id="durMenuRows"></div>
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button type="button" id="settingsCancel">Cancel</button>
+        <button type="button" class="btn primary" id="settingsApply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="samples-modal" id="samplesModal" hidden>
+    <div class="samples-dialog" role="dialog" aria-modal="true" aria-labelledby="samplesModalTitle">
+      <div class="samples-dialog-head">
+        <h2 id="samplesModalTitle">Samples</h2>
+        <span class="meta">3 slots · drag &amp; drop or click</span>
+        <button type="button" class="samples-dialog-close" id="samplesModalClose" aria-label="Close">Close</button>
+      </div>
+      <div class="sample-slot-grid" id="sampleSlots"></div>
+      <div class="samples-dialog-actions">
+        <button type="button" class="btn primary" id="samplesModalDone">Done</button>
+      </div>
+    </div>
   </div>
 
   <script src="slicer.js"></script>

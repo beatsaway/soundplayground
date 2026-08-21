@@ -19,16 +19,17 @@
   var WINDOW_MAX = 20;
   var SLOT_COUNT = 3;
 
-  /** Available slice durations (beats). Priority 1 = most likely when enabled. */
+  /** Available slice durations (beats). Array order = priority (top / first = most likely). */
   var DURATION_DEFS = [
-    { beats: 4, label: '4b', on: false, priority: 4 },
-    { beats: 3, label: '3b', on: false, priority: 4 },
-    { beats: 2, label: '2b', on: false, priority: 3 },
-    { beats: 1, label: '1b', on: true, priority: 2 },
-    { beats: 0.5, label: '½b', on: true, priority: 2 },
-    { beats: 0.25, label: '¼b', on: true, priority: 1 },
-    { beats: 0.125, label: '⅛b', on: false, priority: 3 }
+    { beats: 0.25, label: '1/4', on: true },
+    { beats: 0.5, label: '1/2', on: true },
+    { beats: 1, label: '1', on: true },
+    { beats: 0.125, label: '1/8', on: false },
+    { beats: 2, label: '2', on: false },
+    { beats: 3, label: '3', on: false },
+    { beats: 4, label: '4', on: false }
   ];
+  var durDragFrom = -1;
 
   var SLOT_COLORS = ['#c8ff00', '#ff6a00', '#4f9ad4'];
   var SLICE_COLORS = [
@@ -38,10 +39,16 @@
   ];
   var EMPTY_A = '#1e1e24';
   var EMPTY_B = '#222228';
-  var DEFAULT_ENV = { attackMs: 4, releaseMs: 35, durationPct: 100 };
+  var DEFAULT_ENV = { attackMs: 4, releaseMs: 35, durationPct: 100, reversePct: 0 };
+  var PCT_OPTIONS = [0, 12, 34, 67, 89, 100];
+  var DUR_PCT_OPTIONS = [12, 34, 67, 89, 100];
+  var revBufferCache = new WeakMap();
 
   var launchOverlay = document.getElementById('launchOverlay');
   var launchGo = document.getElementById('launchGo');
+  var appTitleBtn = document.getElementById('appTitleBtn');
+  var aboutModal = document.getElementById('aboutModal');
+  var aboutModalClose = document.getElementById('aboutModalClose');
   var appRoot = document.getElementById('appRoot');
   var svg = document.getElementById('ringSvg');
   var hubBtn = document.getElementById('hubBtn');
@@ -56,39 +63,66 @@
   var durMenuRows = document.getElementById('durMenuRows');
   var durMenuApply = document.getElementById('durMenuApply');
   var durMenuCancel = document.getElementById('durMenuCancel');
-  var sprinkleModeEl = document.getElementById('sprinkleMode');
+  var orderModeEl = document.getElementById('orderMode');
   var durMenuOpen = false;
   var settingsPending = false;
+  var settingsSnapshot = null;
+  var menuBtn = document.getElementById('menuBtn');
+  var appMenu = document.getElementById('appMenu');
+  var menuFileBtn = document.getElementById('menuFileBtn');
+  var menuFileSub = document.getElementById('menuFileSub');
+  var menuUploadBtn = document.getElementById('menuUploadBtn');
+  var menuSaveBtn = document.getElementById('menuSaveBtn');
+  var menuSettingsBtn = document.getElementById('menuSettingsBtn');
+  var settingsModal = document.getElementById('settingsModal');
+  var settingsCancel = document.getElementById('settingsCancel');
+  var settingsApply = document.getElementById('settingsApply');
   var seqSwapEl = document.getElementById('seqSwap');
   var seqSwapVal = document.getElementById('seqSwapVal');
   var seqSwapWrap = document.getElementById('seqSwapWrap');
   var breakerPanel = document.getElementById('breakerPanel');
   var breakerPresetsEl = document.getElementById('breakerPresets');
   var breakerPresetHint = document.getElementById('breakerPresetHint');
+  var macroModeEl = document.getElementById('macroMode');
   var breakSkipEl = document.getElementById('breakSkip');
   var breakStutterEl = document.getElementById('breakStutter');
   var breakIntensityEl = document.getElementById('breakIntensity');
   var breakSkipVal = document.getElementById('breakSkipVal');
   var breakStutterVal = document.getElementById('breakStutterVal');
   var breakIntensityVal = document.getElementById('breakIntensityVal');
+  var applyToAllBtn = document.getElementById('applyToAllBtn');
 
+  /** Macro presets: skip/stutter/intensity + order + ring play shape + reverse. */
   var BREAKER_PRESETS = [
-    { id: 'balanced', label: 'Balanced', skip: 28, stutter: 32, intensity: 3 },
-    { id: 'airy', label: 'More Break', skip: 52, stutter: 16, intensity: 2 },
-    { id: 'chop', label: 'More Stutter', skip: 12, stutter: 58, intensity: 4 },
-    { id: 'glitch', label: 'Heavy Glitch', skip: 36, stutter: 62, intensity: 5 },
-    { id: 'sparse', label: 'Sparse', skip: 58, stutter: 28, intensity: 3 },
-    { id: 'soft', label: 'Soft Chop', skip: 18, stutter: 42, intensity: 2 }
+    { id: 'balanced', label: 'Balance', skip: 34, stutter: 34, intensity: 3, order: 'random', neighbor: 34, reverse: 0, attackMs: 4, releaseMs: 35, durationPct: 100 },
+    { id: 'airy', label: 'Break', skip: 67, stutter: 12, intensity: 2, order: 'random', neighbor: 12, reverse: 0, attackMs: 6, releaseMs: 48, durationPct: 89 },
+    { id: 'chop', label: 'Stutter', skip: 12, stutter: 67, intensity: 4, order: 'random', neighbor: 34, reverse: 12, attackMs: 2, releaseMs: 18, durationPct: 89 },
+    { id: 'glitch', label: 'Glitch', skip: 34, stutter: 67, intensity: 5, order: 'random', neighbor: 34, reverse: 34, attackMs: 1, releaseMs: 12, durationPct: 67 },
+    { id: 'sparse', label: 'Sparse', skip: 67, stutter: 34, intensity: 3, order: 'random', neighbor: 12, reverse: 0, attackMs: 10, releaseMs: 70, durationPct: 89 },
+    { id: 'soft', label: 'Soft', skip: 12, stutter: 34, intensity: 2, order: 'sequential', neighbor: 34, reverse: 0, attackMs: 12, releaseMs: 55, durationPct: 100 },
+    { id: 'straight', label: 'Straight', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 0, reverse: 0, attackMs: 3, releaseMs: 22, durationPct: 100 },
+    { id: 'march', label: 'March', skip: 12, stutter: 12, intensity: 2, order: 'sequential', neighbor: 67, reverse: 0, attackMs: 5, releaseMs: 30, durationPct: 100 },
+    { id: 'ghost', label: 'Ghost', skip: 34, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 34, attackMs: 18, releaseMs: 120, durationPct: 67 },
+    { id: 'flip', label: 'Flip', skip: 34, stutter: 34, intensity: 3, order: 'random', neighbor: 34, reverse: 67, attackMs: 4, releaseMs: 40, durationPct: 89 },
+    { id: 'tape', label: 'Tape', skip: 34, stutter: 34, intensity: 4, order: 'random', neighbor: 34, reverse: 89, attackMs: 8, releaseMs: 90, durationPct: 89 },
+    { id: 'mirror', label: 'Mirror', skip: 12, stutter: 12, intensity: 3, order: 'sequential', neighbor: 12, reverse: 100, attackMs: 4, releaseMs: 35, durationPct: 100 },
+    { id: 'snap', label: 'Snap', skip: 12, stutter: 67, intensity: 5, order: 'sequential', neighbor: 34, reverse: 12, attackMs: 0, releaseMs: 10, durationPct: 67 },
+    { id: 'haze', label: 'Haze', skip: 12, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 12, attackMs: 28, releaseMs: 160, durationPct: 100 },
+    { id: 'chaos', label: 'Chaos', skip: 34, stutter: 67, intensity: 5, order: 'random', neighbor: 67, reverse: 100, attackMs: 0, releaseMs: 8, durationPct: 67 }
   ];
   var activeBreakerPreset = 'balanced';
   var breakerPresetLocked = true;
 
   var ringCountEl = document.getElementById('ringCount');
   var ringCountVal = document.getElementById('ringCountVal');
-  var fileInput = document.getElementById('fileInput');
+  var uploadBtn = document.getElementById('uploadBtn') || document.getElementById('menuUploadBtn');
+  var samplesModal = document.getElementById('samplesModal');
+  var samplesModalClose = document.getElementById('samplesModalClose');
+  var samplesModalDone = document.getElementById('samplesModalDone');
   var resliceBtn = document.getElementById('resliceBtn');
   var sliceMeta = document.getElementById('sliceMeta');
   var playMeta = document.getElementById('playMeta');
+  var savingWav = false;
   var waveCanvas = document.getElementById('waveCanvas');
   var specCanvas = document.getElementById('specCanvas');
   var overviewCanvas = document.getElementById('overviewCanvas');
@@ -103,15 +137,13 @@
   var ringAttackEl = document.getElementById('ringAttack');
   var ringReleaseEl = document.getElementById('ringRelease');
   var ringDurEl = document.getElementById('ringDur');
+  var ringReverseEl = document.getElementById('ringReverse');
   var ringAttackVal = document.getElementById('ringAttackVal');
   var ringReleaseVal = document.getElementById('ringReleaseVal');
   var ringDurVal = document.getElementById('ringDurVal');
   var ringEnvHint = document.getElementById('ringEnvHint');
   var sampleSlotsEl = document.getElementById('sampleSlots');
-  var weightSlidersEl = document.getElementById('weightSliders');
-  var mixModeEl = document.getElementById('mixMode');
-  var mixModeWrap = document.getElementById('mixModeWrap');
-  var samplesBar = document.getElementById('samplesBar');
+  var viewSampleSelect = document.getElementById('viewSampleSelect');
   var activeSampleLab = document.getElementById('activeSampleLab');
 
   var waveCtx2d = waveCanvas ? waveCanvas.getContext('2d') : null;
@@ -124,9 +156,9 @@
   var analyserData = null;
 
   var slots = [
-    { buffer: null, name: '', weight: 50, windowStart: 0 },
-    { buffer: null, name: '', weight: 50, windowStart: 0 },
-    { buffer: null, name: '', weight: 50, windowStart: 0 }
+    { buffer: null, name: '', weight: 100, windowStart: 0 },
+    { buffer: null, name: '', weight: 0, windowStart: 0 },
+    { buffer: null, name: '', weight: 0, windowStart: 0 }
   ];
   var activeSlot = 0;
   var slices = [];
@@ -135,7 +167,8 @@
   var playTimeline = []; // flat { ringIdx, segIdx, beats }
   var rings = [];
   var ringEnvs = [];
-  var editRing = -1;
+  var editRing = 0;
+  var showApplyToAll = false;
   var segEls = {};
   var playheadEl = null;
   var fullPeaksBySlot = [null, null, null];
@@ -159,14 +192,61 @@
     return out;
   }
 
-  function getMixMode() {
-    var v = mixModeEl ? mixModeEl.value : 'weighted';
-    return v === 'equal' ? 'equal' : 'weighted';
+  function getSlotWeight(i) {
+    var w = slots[i] ? Number(slots[i].weight) : 0;
+    return Math.max(0, Math.min(100, w || 0));
   }
 
-  function getSlotWeight(i) {
-    var w = slots[i] ? Number(slots[i].weight) : 50;
-    return Math.max(1, Math.min(100, w || 50));
+  /** Keep three mix sliders summing to 100 when one moves. */
+  function setLinkedWeight(idx, newVal) {
+    newVal = Math.max(0, Math.min(100, Number(newVal) || 0));
+    var others = [];
+    for (var i = 0; i < SLOT_COUNT; i++) {
+      if (i !== idx) others.push(i);
+    }
+    var othersSum = 0;
+    for (var o = 0; o < others.length; o++) {
+      othersSum += getSlotWeight(others[o]);
+    }
+    var remaining = 100 - newVal;
+    if (othersSum <= 0.0001) {
+      var share = remaining / others.length;
+      for (var a = 0; a < others.length; a++) {
+        slots[others[a]].weight = share;
+      }
+    } else {
+      for (var b = 0; b < others.length; b++) {
+        var j = others[b];
+        slots[j].weight = remaining * (getSlotWeight(j) / othersSum);
+      }
+    }
+    slots[idx].weight = newVal;
+    normalizeWeights();
+  }
+
+  function normalizeWeights() {
+    var total = 0;
+    for (var i = 0; i < SLOT_COUNT; i++) total += getSlotWeight(i);
+    if (!(total > 0)) {
+      slots[0].weight = 100;
+      slots[1].weight = 0;
+      slots[2].weight = 0;
+      return;
+    }
+    for (var j = 0; j < SLOT_COUNT; j++) {
+      slots[j].weight = (getSlotWeight(j) / total) * 100;
+    }
+  }
+
+  function syncSlotMixSliders(exceptIdx) {
+    if (!sampleSlotsEl) return;
+    var inputs = sampleSlotsEl.querySelectorAll('.slot-mix-input');
+    for (var i = 0; i < inputs.length; i++) {
+      var el = inputs[i];
+      var idx = Number(el.getAttribute('data-slot'));
+      if (idx === exceptIdx) continue;
+      el.value = String(Math.round(getSlotWeight(idx)));
+    }
   }
 
   function activeSample() {
@@ -190,19 +270,40 @@
   }
 
   function getEnabledDurations() {
+    var rank = 0;
     return DURATION_DEFS.filter(function (d) { return d.on; })
       .map(function (d) {
+        rank += 1;
         return {
           beats: d.beats,
-          priority: Math.max(1, Math.min(9, Number(d.priority) || 1)),
+          priority: rank,
           label: d.label
         };
       });
   }
 
-  /** Weight: priority 1 heaviest. */
+  /** Weight: priority 1 (top) heaviest. */
   function priorityWeight(p) {
     return 1 / Math.max(1, p);
+  }
+
+  function durationProbabilities() {
+    var total = 0;
+    var weights = [];
+    var rank = 0;
+    for (var i = 0; i < DURATION_DEFS.length; i++) {
+      if (!DURATION_DEFS[i].on) {
+        weights[i] = 0;
+        continue;
+      }
+      rank += 1;
+      weights[i] = priorityWeight(rank);
+      total += weights[i];
+    }
+    return weights.map(function (w) {
+      if (!(total > 0) || !(w > 0)) return null;
+      return Math.round((w / total) * 100);
+    });
   }
 
   function pickDurationFitting(options, remaining) {
@@ -229,7 +330,7 @@
   function buildBeatPlan() {
     var opts = getEnabledDurations();
     if (!opts.length) {
-      opts = [{ beats: 0.25, priority: 1, label: '¼b' }];
+      opts = [{ beats: 0.25, priority: 1, label: '1/4' }];
     }
     var rem = BEATS_PER_BAR;
     var plan = [];
@@ -248,11 +349,7 @@
   function durationSummaryText() {
     var opts = getEnabledDurations();
     if (!opts.length) return 'none';
-    return opts
-      .slice()
-      .sort(function (a, b) { return b.beats - a.beats; })
-      .map(function (o) { return o.label; })
-      .join(', ');
+    return opts.map(function (o) { return o.label; }).join(', ');
   }
 
   function markSettingsPending() {
@@ -260,7 +357,6 @@
     if (resliceBtn && hasSamples()) {
       resliceBtn.disabled = false;
       resliceBtn.classList.add('is-pending');
-      resliceBtn.textContent = 'Reslice ●';
     }
   }
 
@@ -268,46 +364,69 @@
     settingsPending = false;
     if (resliceBtn) {
       resliceBtn.classList.remove('is-pending');
-      resliceBtn.textContent = 'Reslice';
     }
   }
 
-  function positionDurMenu() {
-    if (!durMenu || !durDropBtn) return;
-    var r = durDropBtn.getBoundingClientRect();
-    var menuW = Math.max(248, durMenu.offsetWidth || 248);
-    var left = Math.min(r.left, window.innerWidth - menuW - 8);
-    left = Math.max(8, left);
-    var top = r.bottom + 4;
-    if (top + 280 > window.innerHeight) {
-      top = Math.max(8, r.top - 4 - Math.min(280, window.innerHeight * 0.7));
-    }
-    durMenu.style.left = left + 'px';
-    durMenu.style.top = top + 'px';
-  }
+  function positionDurMenu() { /* slice list lives in settings modal */ }
 
   function syncDurationSummary() {
     if (durDropSummary) durDropSummary.textContent = durationSummaryText();
   }
 
-  function setDurMenuOpen(open) {
-    durMenuOpen = !!open;
-    if (sliceDursEl) sliceDursEl.classList.toggle('is-open', durMenuOpen);
-    if (durMenu) durMenu.hidden = !durMenuOpen;
-    if (durDropBtn) durDropBtn.setAttribute('aria-expanded', durMenuOpen ? 'true' : 'false');
-    if (durMenuOpen) {
-      renderDurationOptions();
-      positionDurMenu();
+  function setDurMenuOpen() { /* no floating slice menu */ }
+
+  function captureSettingsSnapshot() {
+    return {
+      bpm: bpmEl ? bpmEl.value : '120',
+      ringCount: ringCountEl ? ringCountEl.value : '4',
+      durations: DURATION_DEFS.map(function (d) {
+        return { beats: d.beats, label: d.label, on: !!d.on };
+      })
+    };
+  }
+
+  function restoreSettingsSnapshot(snap) {
+    if (!snap) return;
+    if (bpmEl) bpmEl.value = snap.bpm;
+    if (bpmVal) bpmVal.textContent = String(getBpm());
+    if (ringCountEl) ringCountEl.value = snap.ringCount;
+    if (ringCountVal) ringCountVal.textContent = String(getRingCount());
+    if (snap.durations && snap.durations.length === DURATION_DEFS.length) {
+      for (var i = 0; i < DURATION_DEFS.length; i++) {
+        DURATION_DEFS[i].beats = snap.durations[i].beats;
+        DURATION_DEFS[i].label = snap.durations[i].label;
+        DURATION_DEFS[i].on = !!snap.durations[i].on;
+      }
     }
+    renderDurationOptions();
+    syncDurationSummary();
+  }
+
+  function moveDurationRow(fromIdx, toIdx) {
+    if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0) return;
+    if (fromIdx >= DURATION_DEFS.length || toIdx >= DURATION_DEFS.length) return;
+    var item = DURATION_DEFS.splice(fromIdx, 1)[0];
+    DURATION_DEFS.splice(toIdx, 0, item);
+    renderDurationOptions();
+    syncDurationSummary();
+    markSettingsPending();
   }
 
   function renderDurationOptions() {
     if (!durMenuRows) return;
     durMenuRows.innerHTML = '';
+    var pcts = durationProbabilities();
 
     DURATION_DEFS.forEach(function (def, idx) {
       var row = document.createElement('div');
       row.className = 'dur-row';
+      row.draggable = true;
+      row.dataset.index = String(idx);
+
+      var handle = document.createElement('span');
+      handle.className = 'dur-row-handle';
+      handle.textContent = '⠿';
+      handle.setAttribute('aria-hidden', 'true');
 
       var cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -317,48 +436,63 @@
       var lab = document.createElement('label');
       lab.className = 'dur-row-lab';
       lab.htmlFor = 'durCb' + idx;
-      lab.textContent = def.label + (def.beats >= 1 ? ' beat' + (def.beats > 1 ? 's' : '') : '');
+      lab.textContent = def.label;
 
-      var prio = document.createElement('input');
-      prio.type = 'number';
-      prio.className = 'prio';
-      prio.min = '1';
-      prio.max = '9';
-      prio.step = '1';
-      prio.value = String(def.priority);
-      prio.disabled = !def.on;
-      prio.title = 'Priority (1 = most likely)';
-      prio.setAttribute('aria-label', def.label + ' priority');
+      var pct = document.createElement('span');
+      pct.className = 'dur-row-pct' + (def.on ? ' is-on' : '');
+      pct.textContent = pcts[idx] == null ? '—' : pcts[idx] + '%';
 
       cb.addEventListener('click', function (e) {
         e.stopPropagation();
       });
       cb.addEventListener('change', function () {
         def.on = !!cb.checked;
-        prio.disabled = !def.on;
         if (!getEnabledDurations().length) {
           def.on = true;
           cb.checked = true;
-          prio.disabled = false;
         }
+        renderDurationOptions();
         syncDurationSummary();
         markSettingsPending();
       });
 
-      prio.addEventListener('click', function (e) { e.stopPropagation(); });
-      prio.addEventListener('input', function () {
-        def.priority = Math.max(1, Math.min(9, Number(prio.value) || 1));
-        markSettingsPending();
+      row.addEventListener('dragstart', function (e) {
+        durDragFrom = idx;
+        row.classList.add('is-dragging');
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(idx));
+        }
       });
-      prio.addEventListener('change', function () {
-        def.priority = Math.max(1, Math.min(9, Number(prio.value) || 1));
-        prio.value = String(def.priority);
-        markSettingsPending();
+      row.addEventListener('dragend', function () {
+        durDragFrom = -1;
+        row.classList.remove('is-dragging');
+        Array.prototype.forEach.call(durMenuRows.querySelectorAll('.dur-row'), function (el) {
+          el.classList.remove('is-drag-over');
+        });
+      });
+      row.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        row.classList.add('is-drag-over');
+      });
+      row.addEventListener('dragleave', function () {
+        row.classList.remove('is-drag-over');
+      });
+      row.addEventListener('drop', function (e) {
+        e.preventDefault();
+        row.classList.remove('is-drag-over');
+        var from = durDragFrom;
+        if (from < 0 && e.dataTransfer) {
+          from = Number(e.dataTransfer.getData('text/plain'));
+        }
+        moveDurationRow(from, idx);
       });
 
+      row.appendChild(handle);
       row.appendChild(cb);
       row.appendChild(lab);
-      row.appendChild(prio);
+      row.appendChild(pct);
       durMenuRows.appendChild(row);
     });
 
@@ -367,46 +501,66 @@
 
   function ensureAtLeastOneDuration() {
     if (getEnabledDurations().length) return;
-    var d = DURATION_DEFS[5] || DURATION_DEFS[0];
+    var d = DURATION_DEFS[0];
     d.on = true;
-    d.priority = 1;
   }
 
   function getRingCount() {
     return Math.max(2, Math.min(8, Number(ringCountEl.value) || 4));
   }
 
-  function getSprinkleMode() {
-    var v = sprinkleModeEl.value;
-    if (v === 'random' || v === 'breaker') return v;
-    return 'sequential';
+  function getOrderMode() {
+    var v = orderModeEl ? orderModeEl.value : 'sequential';
+    return v === 'random' ? 'random' : 'sequential';
   }
 
   function getSeqSwapAmount() {
-    return Math.max(0, Math.min(100, Number(seqSwapEl && seqSwapEl.value) || 0));
+    return nearestPctOption(seqSwapEl && seqSwapEl.value);
   }
 
   function getBreakSkipChance() {
-    return Math.max(0, Math.min(0.8, (Number(breakSkipEl && breakSkipEl.value) || 0) / 100));
+    return nearestPctOption(breakSkipEl && breakSkipEl.value) / 100;
   }
 
   function getBreakStutterChance() {
-    return Math.max(0, Math.min(0.9, (Number(breakStutterEl && breakStutterEl.value) || 0) / 100));
+    return nearestPctOption(breakStutterEl && breakStutterEl.value) / 100;
   }
 
   function getBreakIntensity() {
-    return Math.max(2, Math.min(5, Number(breakIntensityEl && breakIntensityEl.value) || 3));
+    return Math.max(1, Math.min(5, Number(breakIntensityEl && breakIntensityEl.value) || 3));
   }
 
   function pickStutterReps() {
     var maxR = getBreakIntensity();
-    return 2 + Math.floor(Math.random() * (maxR - 1));
+    if (maxR <= 1) return 1;
+    return 1 + Math.floor(Math.random() * maxR);
   }
 
   function syncBreakerSliderLabels() {
-    if (breakSkipVal) breakSkipVal.textContent = (breakSkipEl ? breakSkipEl.value : '0') + '%';
-    if (breakStutterVal) breakStutterVal.textContent = (breakStutterEl ? breakStutterEl.value : '0') + '%';
-    if (breakIntensityVal) breakIntensityVal.textContent = '×' + getBreakIntensity();
+    /* intensity is a bare × dropdown now */
+  }
+
+  function nearestPctOption(v, options) {
+    var list = options || PCT_OPTIONS;
+    var n = Math.max(0, Math.min(100, Number(v) || 0));
+    var best = list[0];
+    var bestD = Math.abs(best - n);
+    for (var i = 1; i < list.length; i++) {
+      var d = Math.abs(list[i] - n);
+      if (d < bestD) {
+        best = list[i];
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  function nearestReverseOption(v) {
+    return nearestPctOption(v, PCT_OPTIONS);
+  }
+
+  function nearestDurPctOption(v) {
+    return nearestPctOption(v, DUR_PCT_OPTIONS);
   }
 
   function applyBreakerPreset(id, resprinkle) {
@@ -417,12 +571,42 @@
     if (!p) return;
     activeBreakerPreset = p.id;
     breakerPresetLocked = true;
-    if (breakSkipEl) breakSkipEl.value = String(p.skip);
-    if (breakStutterEl) breakStutterEl.value = String(p.stutter);
+
+    if (breakSkipEl) breakSkipEl.value = String(nearestPctOption(p.skip));
+    if (breakStutterEl) breakStutterEl.value = String(nearestPctOption(p.stutter));
     if (breakIntensityEl) breakIntensityEl.value = String(p.intensity);
     syncBreakerSliderLabels();
+
+    if (orderModeEl) orderModeEl.value = p.order === 'sequential' ? 'sequential' : 'random';
+    if (seqSwapEl && p.neighbor != null) seqSwapEl.value = String(nearestPctOption(p.neighbor));
+    syncModePanels();
+
+    var env = {
+      attackMs: p.attackMs != null ? p.attackMs : DEFAULT_ENV.attackMs,
+      releaseMs: p.releaseMs != null ? p.releaseMs : DEFAULT_ENV.releaseMs,
+      durationPct: nearestDurPctOption(p.durationPct != null ? p.durationPct : DEFAULT_ENV.durationPct),
+      reversePct: nearestReverseOption(p.reverse != null ? p.reverse : 0)
+    };
+    rings.forEach(function (ring, ri) {
+      ring.attackMs = env.attackMs;
+      ring.releaseMs = env.releaseMs;
+      ring.durationPct = env.durationPct;
+      ring.reversePct = env.reversePct;
+      ringEnvs[ri] = {
+        attackMs: env.attackMs,
+        releaseMs: env.releaseMs,
+        durationPct: env.durationPct,
+        reversePct: env.reversePct
+      };
+    });
+    if (ringAttackEl) ringAttackEl.value = String(env.attackMs);
+    if (ringReleaseEl) ringReleaseEl.value = String(env.releaseMs);
+    if (ringDurEl) ringDurEl.value = String(env.durationPct);
+    if (ringReverseEl) ringReverseEl.value = String(env.reversePct);
+    showApplyToAll = false;
+    syncRingEnvUi();
+
     renderBreakerPresets();
-    if (breakerPresetHint) breakerPresetHint.textContent = p.label;
     if (resprinkle) markSettingsPending();
   }
 
@@ -430,44 +614,41 @@
     breakerPresetLocked = false;
     activeBreakerPreset = 'custom';
     renderBreakerPresets();
-    if (breakerPresetHint) breakerPresetHint.textContent = 'Custom';
   }
 
   function renderBreakerPresets() {
-    if (!breakerPresetsEl) return;
-    breakerPresetsEl.innerHTML = '';
+    if (!macroModeEl) return;
+    var prev = macroModeEl.value;
+    macroModeEl.innerHTML = '';
     BREAKER_PRESETS.forEach(function (p) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'breaker-preset' + (breakerPresetLocked && activeBreakerPreset === p.id ? ' is-active' : '');
-      btn.textContent = p.label;
-      btn.title =
-        'Skip ' + p.skip + '% · Stutter ' + p.stutter + '% · Intensity ×' + p.intensity;
-      btn.addEventListener('click', function () {
-        applyBreakerPreset(p.id, true);
-      });
-      breakerPresetsEl.appendChild(btn);
+      var opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.label;
+      macroModeEl.appendChild(opt);
     });
+    var custom = document.createElement('option');
+    custom.value = 'custom';
+    custom.textContent = 'Custom';
+    macroModeEl.appendChild(custom);
+
+    if (breakerPresetLocked && activeBreakerPreset !== 'custom') {
+      macroModeEl.value = activeBreakerPreset;
+    } else {
+      macroModeEl.value = 'custom';
+    }
+    if (!macroModeEl.value && prev) macroModeEl.value = prev;
   }
 
   function syncModePanels() {
-    var mode = getSprinkleMode();
-    var seq = mode === 'sequential';
-    var brk = mode === 'breaker';
+    var seq = getOrderMode() === 'sequential';
     if (seqSwapWrap) seqSwapWrap.style.display = seq ? '' : 'none';
     if (seqSwapEl) seqSwapEl.disabled = !seq;
-    if (seqSwapVal) seqSwapVal.textContent = getSeqSwapAmount() + '%';
-    if (breakerPanel) breakerPanel.hidden = !brk;
+    if (breakerPanel) breakerPanel.hidden = false;
     syncMixUi();
   }
 
   function syncMixUi() {
-    var weighted = getMixMode() === 'weighted';
-    if (mixModeWrap) mixModeWrap.style.display = '';
-    renderWeightSliders();
-    if (weightSlidersEl) {
-      weightSlidersEl.style.display = weighted ? '' : 'none';
-    }
+    /* mix sliders live inside each sample slot */
   }
 
   function renderSampleSlots() {
@@ -476,21 +657,29 @@
     for (var i = 0; i < SLOT_COUNT; i++) {
       (function (idx) {
         var slot = slots[idx];
-        var el = document.createElement('div');
-        el.className = 'slot' +
+        var card = document.createElement('div');
+        card.className = 'slot-card' +
           (idx === activeSlot ? ' is-active' : '') +
           (!slot.buffer ? ' is-empty' : '');
-        el.title = slot.buffer ? slot.name : 'Empty slot ' + (idx + 1);
+        card.style.setProperty('--slot-accent', SLOT_COLORS[idx]);
+
+        var head = document.createElement('div');
+        head.className = 'slot-card-head';
 
         var dot = document.createElement('span');
         dot.className = 'slot-dot';
         dot.style.background = SLOT_COLORS[idx];
-        el.appendChild(dot);
+        head.appendChild(dot);
+
+        var title = document.createElement('span');
+        title.className = 'slot-card-title';
+        title.textContent = 'Slot ' + (idx + 1);
+        head.appendChild(title);
 
         var name = document.createElement('span');
-        name.className = 'slot-name';
-        name.textContent = slot.buffer ? slot.name : 'Slot ' + (idx + 1);
-        el.appendChild(name);
+        name.className = 'slot-card-name';
+        name.textContent = slot.buffer ? slot.name : 'Empty';
+        head.appendChild(name);
 
         if (slot.buffer) {
           var clearBtn = document.createElement('button');
@@ -502,71 +691,144 @@
             e.stopPropagation();
             clearSlot(idx);
           });
-          el.appendChild(clearBtn);
+          head.appendChild(clearBtn);
         }
+        card.appendChild(head);
 
-        el.addEventListener('click', function () {
+        var drop = document.createElement('div');
+        drop.className = 'slot-drop';
+        drop.innerHTML = slot.buffer
+          ? '<strong>Replace</strong><br>Drop a new file or click to browse'
+          : 'Drop audio here<br>or click to upload';
+
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'audio/*,.wav,.mp3,.ogg,.m4a,.flac';
+        input.setAttribute('aria-label', 'Upload sample for slot ' + (idx + 1));
+        input.addEventListener('click', function (e) {
+          e.stopPropagation();
+        });
+        input.addEventListener('change', function () {
+          var f = input.files && input.files[0];
+          if (!f) return;
+          if (playing) stopPlay();
+          loadFile(f, idx).catch(function (err) {
+            console.error(err);
+            if (sliceMeta) sliceMeta.textContent = 'Could not decode that file';
+          });
+          input.value = '';
+        });
+        drop.appendChild(input);
+
+        function setDrag(on) {
+          card.classList.toggle('is-drag', !!on);
+        }
+        drop.addEventListener('dragenter', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          setDrag(true);
+        });
+        drop.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          setDrag(true);
+        });
+        drop.addEventListener('dragleave', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          setDrag(false);
+        });
+        drop.addEventListener('drop', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          setDrag(false);
+          var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+          if (!f) return;
+          if (playing) stopPlay();
+          loadFile(f, idx).catch(function (err) {
+            console.error(err);
+            if (sliceMeta) sliceMeta.textContent = 'Could not decode that file';
+          });
+        });
+
+        card.appendChild(drop);
+
+        var mixRow = document.createElement('div');
+        mixRow.className = 'slot-mix';
+        mixRow.title = 'How often this slot is used (sliders stay balanced)';
+        var mixInput = document.createElement('input');
+        mixInput.type = 'range';
+        mixInput.className = 'slot-mix-input';
+        mixInput.min = '0';
+        mixInput.max = '100';
+        mixInput.step = '1';
+        mixInput.value = String(Math.round(getSlotWeight(idx)));
+        mixInput.setAttribute('data-slot', String(idx));
+        mixInput.setAttribute('aria-label', 'Mix amount for slot ' + (idx + 1));
+        mixInput.addEventListener('click', function (e) { e.stopPropagation(); });
+        mixInput.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+        mixInput.addEventListener('input', function () {
+          setLinkedWeight(idx, Number(mixInput.value) || 0);
+          syncSlotMixSliders(idx);
+          markSettingsPending();
+        });
+        mixRow.appendChild(mixInput);
+        card.appendChild(mixRow);
+
+        card.addEventListener('click', function (e) {
+          if (e.target === input || e.target.closest('.slot-clear') || e.target.closest('.slot-mix')) return;
           setActiveSlot(idx);
         });
-        sampleSlotsEl.appendChild(el);
+        sampleSlotsEl.appendChild(card);
       })(i);
     }
   }
 
-  function renderWeightSliders() {
-    if (!weightSlidersEl) return;
-    weightSlidersEl.innerHTML = '';
-    if (getMixMode() !== 'weighted') return;
-    loadedSlots().forEach(function (idx) {
-      var slot = slots[idx];
-      var lab = document.createElement('label');
-      lab.className = 'chip slide weight-slide';
-      lab.title = 'Weight for ' + (slot.name || 'slot ' + (idx + 1));
+  function openSamplesModal() {
+    if (!samplesModal) return;
+    renderSampleSlots();
+    samplesModal.hidden = false;
+  }
 
-      var dot = document.createElement('span');
-      dot.className = 'slot-dot';
-      dot.style.background = SLOT_COLORS[idx];
-      lab.appendChild(dot);
-
-      var slideLab = document.createElement('span');
-      slideLab.className = 'slide-lab';
-      slideLab.textContent = 'S' + (idx + 1);
-      lab.appendChild(slideLab);
-
-      var input = document.createElement('input');
-      input.type = 'range';
-      input.min = '1';
-      input.max = '100';
-      input.step = '1';
-      input.value = String(getSlotWeight(idx));
-      input.addEventListener('input', function () {
-        slot.weight = Number(input.value) || 50;
-        val.textContent = String(getSlotWeight(idx));
-        markSettingsPending();
-      });
-      lab.appendChild(input);
-
-      var val = document.createElement('span');
-      val.className = 'slide-val';
-      val.textContent = String(getSlotWeight(idx));
-      lab.appendChild(val);
-
-      weightSlidersEl.appendChild(lab);
-    });
+  function closeSamplesModal() {
+    if (!samplesModal) return;
+    samplesModal.hidden = true;
   }
 
   function updateActiveSampleLab() {
-    if (!activeSampleLab) return;
-    var slot = activeSample();
-    if (!slot || !slot.buffer) {
-      activeSampleLab.textContent = '';
+    if (!viewSampleSelect) return;
+    var loaded = loadedSlots();
+    var prev = viewSampleSelect.value;
+    viewSampleSelect.innerHTML = '';
+    if (!loaded.length) {
+      var empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = 'No sample';
+      viewSampleSelect.appendChild(empty);
+      viewSampleSelect.disabled = true;
+      viewSampleSelect.value = '';
       return;
     }
-    activeSampleLab.textContent = '· ' + slot.name;
+    loaded.forEach(function (idx) {
+      var opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = slots[idx].name || ('Slot ' + (idx + 1));
+      viewSampleSelect.appendChild(opt);
+    });
+    viewSampleSelect.disabled = false;
+    if (slots[activeSlot] && slots[activeSlot].buffer) {
+      viewSampleSelect.value = String(activeSlot);
+    } else if (prev !== '' && slots[Number(prev)] && slots[Number(prev)].buffer) {
+      viewSampleSelect.value = prev;
+    } else {
+      viewSampleSelect.value = String(loaded[0]);
+      activeSlot = loaded[0];
+    }
   }
 
   function setActiveSlot(idx) {
     if (idx < 0 || idx >= SLOT_COUNT) return;
+    if (!slots[idx] || !slots[idx].buffer) return;
     activeSlot = idx;
     renderSampleSlots();
     updateActiveSampleLab();
@@ -580,16 +842,57 @@
     slots[idx].buffer = null;
     slots[idx].name = '';
     slots[idx].windowStart = 0;
+    slots[idx].weight = 0;
     fullPeaksBySlot[idx] = null;
     windowPeaksBySlot[idx] = null;
     if (activeSlot === idx && !slots[idx].buffer) {
       var loaded = loadedSlots();
       if (loaded.length) activeSlot = loaded[0];
     }
+    rebalanceLoadedWeights();
     renderSampleSlots();
-    renderWeightSliders();
     updateActiveSampleLab();
     resliceAndDraw();
+  }
+
+  /** After clear: empty slots 0; loaded slots keep relative mix, renormalized to 100. */
+  function rebalanceLoadedWeights() {
+    var loaded = loadedSlots();
+    if (!loaded.length) {
+      slots[0].weight = 100;
+      slots[1].weight = 0;
+      slots[2].weight = 0;
+      return;
+    }
+    for (var i = 0; i < SLOT_COUNT; i++) {
+      if (!slots[i].buffer) slots[i].weight = 0;
+    }
+    var sum = 0;
+    for (var j = 0; j < loaded.length; j++) sum += getSlotWeight(loaded[j]);
+    if (sum <= 0.0001) {
+      var share = 100 / loaded.length;
+      for (var k = 0; k < loaded.length; k++) slots[loaded[k]].weight = share;
+      return;
+    }
+    for (var m = 0; m < loaded.length; m++) {
+      var idx = loaded[m];
+      slots[idx].weight = (getSlotWeight(idx) / sum) * 100;
+    }
+  }
+
+  function ensureSlotMixOnLoad(slotIdx) {
+    if (getSlotWeight(slotIdx) > 0.5) return;
+    var loaded = loadedSlots();
+    if (loaded.length <= 1) {
+      for (var i = 0; i < SLOT_COUNT; i++) {
+        slots[i].weight = i === slotIdx ? 100 : 0;
+      }
+      return;
+    }
+    var share = 100 / loaded.length;
+    for (var j = 0; j < SLOT_COUNT; j++) {
+      slots[j].weight = slots[j].buffer ? share : 0;
+    }
   }
 
   function targetSlotForUpload() {
@@ -742,6 +1045,26 @@
     return ctx;
   }
 
+  function playUiClick() {
+    var ac = ensureAudio();
+    if (ac.state === 'suspended') {
+      ac.resume().catch(function () { /* ignore */ });
+    }
+    var t0 = ac.currentTime;
+    var o = ac.createOscillator();
+    var g = ac.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(980, t0);
+    o.frequency.exponentialRampToValueAtTime(360, t0 + 0.07);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
+    o.connect(g);
+    g.connect(ac.destination);
+    o.start(t0);
+    o.stop(t0 + 0.11);
+  }
+
   function polar(cx, cy, r, a) {
     return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
   }
@@ -786,7 +1109,8 @@
     return {
       attackMs: DEFAULT_ENV.attackMs,
       releaseMs: DEFAULT_ENV.releaseMs,
-      durationPct: DEFAULT_ENV.durationPct
+      durationPct: DEFAULT_ENV.durationPct,
+      reversePct: DEFAULT_ENV.reversePct
     };
   }
 
@@ -802,7 +1126,9 @@
     rings = [];
     ringEnvs = [];
     for (var i = 0; i < nRings; i++) {
-      var env = prev[i] ? Object.assign({}, prev[i]) : defaultEnv();
+      var env = prev[i]
+        ? Object.assign({}, defaultEnv(), prev[i])
+        : defaultEnv();
       ringEnvs.push(env);
       var plan = buildBeatPlan();
       rings.push({
@@ -812,30 +1138,25 @@
         cells: Array(plan.length).fill(null),
         attackMs: env.attackMs,
         releaseMs: env.releaseMs,
-        durationPct: env.durationPct
+        durationPct: env.durationPct,
+        reversePct: env.reversePct != null ? env.reversePct : 0
       });
     }
-    if (editRing >= nRings && editRing !== -1) editRing = -1;
+    if (editRing < 0 || editRing >= nRings) editRing = 0;
     rebuildPlayTimeline();
     renderRingPicks();
     syncRingEnvUi();
   }
 
+  function syncApplyToAllBtn() {
+    if (!applyToAllBtn) return;
+    applyToAllBtn.hidden = !showApplyToAll || rings.length < 2;
+  }
+
   function renderRingPicks() {
     if (!ringPicks) return;
     ringPicks.innerHTML = '';
-
-    var allBtn = document.createElement('button');
-    allBtn.type = 'button';
-    allBtn.className = 'ring-pick' + (editRing === -1 ? ' is-active' : '');
-    allBtn.textContent = 'All';
-    allBtn.title = 'Edit all rings';
-    allBtn.addEventListener('click', function () {
-      editRing = -1;
-      renderRingPicks();
-      syncRingEnvUi();
-    });
-    ringPicks.appendChild(allBtn);
+    if (editRing < 0 || editRing >= rings.length) editRing = 0;
 
     rings.forEach(function (ring, i) {
       var btn = document.createElement('button');
@@ -845,54 +1166,84 @@
       btn.title = 'Edit ring ' + (i + 1) + ' envelope';
       btn.addEventListener('click', function () {
         editRing = i;
+        showApplyToAll = false;
         renderRingPicks();
         syncRingEnvUi();
       });
       ringPicks.appendChild(btn);
     });
+    syncApplyToAllBtn();
   }
 
   function syncRingEnvUi() {
-    var ringIdx = editRing === -1 ? 0 : editRing;
+    var ringIdx = editRing < 0 ? 0 : editRing;
     var ring = rings[ringIdx];
     if (!ring) return;
     ringAttackEl.value = String(ring.attackMs);
     ringReleaseEl.value = String(ring.releaseMs);
-    ringDurEl.value = String(ring.durationPct);
     ringAttackVal.textContent = ring.attackMs + ' ms';
     ringReleaseVal.textContent = ring.releaseMs + ' ms';
-    ringDurVal.textContent = ring.durationPct + '%';
-    if (ringEnvHint) {
-      ringEnvHint.textContent = editRing === -1
-        ? 'All rings'
-        : 'Ring ' + (editRing + 1) + ' · outer=1';
+    if (ringDurEl) ringDurEl.value = String(nearestDurPctOption(ring.durationPct));
+    if (ringDurVal) ringDurVal.textContent = nearestDurPctOption(ring.durationPct) + '%';
+    if (ringReverseEl) {
+      ringReverseEl.value = String(nearestReverseOption(ring.reversePct));
     }
+    if (ringEnvHint) {
+      ringEnvHint.textContent = 'Ring ' + (ringIdx + 1) + ' · outer=1';
+    }
+    syncApplyToAllBtn();
   }
 
   function applyEnvFromUi() {
     var attack = Number(ringAttackEl.value) || 0;
     var release = Number(ringReleaseEl.value) || 0;
-    var dur = Number(ringDurEl.value) || 100;
+    var dur = nearestDurPctOption(ringDurEl ? ringDurEl.value : 100);
+    var rev = nearestReverseOption(ringReverseEl ? ringReverseEl.value : 0);
     ringAttackVal.textContent = attack + ' ms';
     ringReleaseVal.textContent = release + ' ms';
-    ringDurVal.textContent = dur + '%';
-
-    if (editRing === -1) {
-      rings.forEach(function (ring, i) {
-        ring.attackMs = attack;
-        ring.releaseMs = release;
-        ring.durationPct = dur;
-        ringEnvs[i] = { attackMs: attack, releaseMs: release, durationPct: dur };
-      });
-      return;
-    }
+    if (ringDurVal) ringDurVal.textContent = dur + '%';
 
     var ring = rings[editRing];
     if (!ring) return;
     ring.attackMs = attack;
     ring.releaseMs = release;
     ring.durationPct = dur;
-    ringEnvs[editRing] = { attackMs: attack, releaseMs: release, durationPct: dur };
+    ring.reversePct = rev;
+    ringEnvs[editRing] = {
+      attackMs: attack,
+      releaseMs: release,
+      durationPct: dur,
+      reversePct: rev
+    };
+    showApplyToAll = rings.length > 1;
+    syncApplyToAllBtn();
+    markBreakerCustom();
+  }
+
+  function applyEnvToAllRings() {
+    var ring = rings[editRing];
+    if (!ring) return;
+    var env = {
+      attackMs: ring.attackMs,
+      releaseMs: ring.releaseMs,
+      durationPct: ring.durationPct,
+      reversePct: ring.reversePct
+    };
+    rings.forEach(function (r, i) {
+      r.attackMs = env.attackMs;
+      r.releaseMs = env.releaseMs;
+      r.durationPct = env.durationPct;
+      r.reversePct = env.reversePct;
+      ringEnvs[i] = {
+        attackMs: env.attackMs,
+        releaseMs: env.releaseMs,
+        durationPct: env.durationPct,
+        reversePct: env.reversePct
+      };
+    });
+    showApplyToAll = false;
+    syncApplyToAllBtn();
+    markBreakerCustom();
   }
 
   function drawRings() {
@@ -964,6 +1315,7 @@
     var ringIdx = rings.indexOf(ring);
     if (ringIdx >= 0) {
       editRing = ringIdx;
+      showApplyToAll = false;
       renderRingPicks();
       syncRingEnvUi();
     }
@@ -978,14 +1330,37 @@
     activeSources = [];
   }
 
+  function getReversedBuffer(buffer) {
+    if (!buffer || !ctx) return buffer;
+    var cached = revBufferCache.get(buffer);
+    if (cached) return cached;
+    var channels = buffer.numberOfChannels;
+    var length = buffer.length;
+    var rev = ctx.createBuffer(channels, length, buffer.sampleRate);
+    for (var c = 0; c < channels; c++) {
+      var src = buffer.getChannelData(c);
+      var dst = rev.getChannelData(c);
+      for (var i = 0; i < length; i++) {
+        dst[i] = src[length - 1 - i];
+      }
+    }
+    revBufferCache.set(buffer, rev);
+    return rev;
+  }
+
   function playSliceAt(buffer, when, env, opts) {
     if (!ctx || !buffer || !master) return null;
     env = env || defaultEnv();
     opts = opts || {};
+    var reversePct = Math.max(0, Math.min(100, Number(env.reversePct) || 0));
+    var playBuf = buffer;
+    if (reversePct > 0 && Math.random() * 100 < reversePct) {
+      playBuf = getReversedBuffer(buffer);
+    }
     var attack = Math.max(0, (env.attackMs || 0) / 1000);
     var release = Math.max(0, (env.releaseMs || 0) / 1000);
     var pct = Math.max(0.1, Math.min(1, (env.durationPct || 100) / 100));
-    var playDur = Math.max(0.01, buffer.duration * pct);
+    var playDur = Math.max(0.01, playBuf.duration * pct);
     if (opts.maxDur != null) playDur = Math.min(playDur, Math.max(0.012, opts.maxDur));
     if (opts.stutter) {
       attack = Math.min(attack, 0.004);
@@ -994,7 +1369,7 @@
     var t0 = Math.max(when, ctx.currentTime);
 
     var src = ctx.createBufferSource();
-    src.buffer = buffer;
+    src.buffer = playBuf;
     var g = ctx.createGain();
     src.connect(g);
     g.connect(master);
@@ -1434,23 +1809,8 @@
 
   function assignSlotsToCells(flat, loaded) {
     var result = [];
-    var mix = getMixMode();
-    if (mix === 'equal') {
-      var n = flat.length;
-      var k = loaded.length;
-      var per = Math.floor(n / k);
-      var rem = n % k;
-      var fi = 0;
-      for (var li = 0; li < k; li++) {
-        var count = per + (li < rem ? 1 : 0);
-        for (var c = 0; c < count; c++) {
-          result[fi++] = loaded[li];
-        }
-      }
-    } else {
-      for (var i = 0; i < flat.length; i++) {
-        result[i] = pickWeightedSlot(loaded);
-      }
+    for (var i = 0; i < flat.length; i++) {
+      result[i] = pickWeightedSlot(loaded);
     }
     return result;
   }
@@ -1472,7 +1832,7 @@
     });
     if (!loaded.length) return;
 
-    var mode = getSprinkleMode();
+    var order = getOrderMode();
     var flat = [];
     rings.forEach(function (ring, ri) {
       for (var i = 0; i < ring.segments; i++) {
@@ -1491,33 +1851,28 @@
       if (!pool.length) pool = slicesBySlot[slotIdx] || [];
       if (!pool.length) return;
 
+      if (Math.random() < getBreakSkipChance()) return;
+
       var cursorKey = slotIdx + ':' + beatKey(beats);
       if (seqCursors[cursorKey] == null) seqCursors[cursorKey] = 0;
 
-      if (mode === 'breaker') {
-        if (Math.random() < getBreakSkipChance()) return;
-        var si = pickSliceFromPool(pool, 'random', 0);
-        var reps = 1;
-        if (Math.random() < getBreakStutterChance()) {
-          reps = pickStutterReps();
-        }
-        rings[pos.ringIdx].cells[pos.segIdx] = makeCell(si, reps);
-        return;
+      var si;
+      if (order === 'random') {
+        si = pickSliceFromPool(pool, 'random', 0);
+      } else {
+        var cursor = seqCursors[cursorKey];
+        si = pickSliceFromPool(pool, 'sequential', cursor);
+        seqCursors[cursorKey] = cursor + 1;
       }
 
-      if (mode === 'random') {
-        var siRand = pickSliceFromPool(pool, 'random', 0);
-        rings[pos.ringIdx].cells[pos.segIdx] = makeCell(siRand, 1);
-        return;
+      var reps = 1;
+      if (Math.random() < getBreakStutterChance()) {
+        reps = pickStutterReps();
       }
-
-      var cursor = seqCursors[cursorKey];
-      var siSeq = pickSliceFromPool(pool, 'sequential', cursor);
-      seqCursors[cursorKey] = cursor + 1;
-      rings[pos.ringIdx].cells[pos.segIdx] = makeCell(siSeq, 1);
+      rings[pos.ringIdx].cells[pos.segIdx] = makeCell(si, reps);
     });
 
-    if (mode === 'sequential') {
+    if (order === 'sequential') {
       var swapAmt = getSeqSwapAmount();
       rings.forEach(function (ring) {
         applyNeighborSwaps(ring.cells, swapAmt, ring.segBeats);
@@ -1534,62 +1889,19 @@
 
   function updateMeta() {
     if (!hasSamples()) {
-      sliceMeta.textContent = 'Upload samples to begin';
-      playMeta.textContent = 'Idle';
-      if (waveHint) waveHint.textContent = 'Max 20s — pick part to slice';
+      if (waveHint) {
+        waveHint.textContent = 'Upload a sample to begin';
+        waveHint.classList.add('is-cta');
+        waveHint.disabled = false;
+      }
       syncControlsEnabled();
       return;
     }
 
-    var opts = getEnabledDurations();
-    var label = opts.map(function (o) {
-      return o.label + '(p' + o.priority + ')';
-    }).join('+') || '¼b';
-    var need = 0;
-    rings.forEach(function (r) { need += r.segments; });
-    var reuse = need > slices.length;
-    var mode = getSprinkleMode();
-    var modeLab = mode;
-    var loaded = loadedSlots();
-
-    if (mode === 'sequential' && getSeqSwapAmount() > 0) {
-      modeLab = 'sequential · neighbor ' + getSeqSwapAmount() + '%';
-    }
-    if (mode === 'breaker') {
-      var skips = 0;
-      var stutters = 0;
-      rings.forEach(function (ring) {
-        ring.cells.forEach(function (cell) {
-          if (cellSi(cell) == null) skips += 1;
-          else if (cellReps(cell) > 1) stutters += 1;
-        });
-      });
-      modeLab =
-        'breaker · skip ' + Math.round(getBreakSkipChance() * 100) +
-        '% · stutter ' + Math.round(getBreakStutterChance() * 100) +
-        '% · ×' + getBreakIntensity() +
-        ' · ' + skips + '/' + stutters;
-    }
-
-    var mixLab = getMixMode() === 'equal' ? 'equal split' : 'weighted';
-    sliceMeta.textContent =
-      slices.length + ' chops · ' + loaded.length + ' sample' + (loaded.length > 1 ? 's' : '') +
-      (reuse ? ' (reuse)' : '') +
-      ' · ' + label + ' @ ' + getBpm() + ' BPM · ' + mixLab + ' · ' + modeLab;
-
-    var segs = rings[0] ? rings[0].segments : 0;
-    var beatSum = 0;
-    if (rings[0] && rings[0].segBeats) {
-      rings[0].segBeats.forEach(function (b) { beatSum += b; });
-    }
-    playMeta.textContent =
-      rings.length + ' rings · ~' + segs + ' segs · ring ≤4 beats (' +
-      beatSum.toFixed(2) + 'b outer) · bar ' + barDurationSec().toFixed(2) + 's';
-
     if (waveHint) {
-      var activeSlices = activeSlotSlices();
-      waveHint.textContent =
-        activeSlices.length + ' cuts in window · click band to audition · drag overview to move';
+      waveHint.textContent = 'Drag overview · click a cut to hear it';
+      waveHint.classList.remove('is-cta');
+      waveHint.disabled = true;
     }
     syncControlsEnabled();
   }
@@ -1645,8 +1957,8 @@
     slots[slotIdx].name = file.name || 'sample';
     slots[slotIdx].windowStart = 0;
     activeSlot = slotIdx;
+    ensureSlotMixOnLoad(slotIdx);
     renderSampleSlots();
-    renderWeightSliders();
     updateActiveSampleLab();
     rebuildPeaksForSlot(slotIdx);
     syncWindowSlider();
@@ -1744,7 +2056,7 @@
     cancelAnimationFrame(playheadRaf);
     playheadRaf = requestAnimationFrame(playheadLoop);
     startVizLoop();
-    playMeta.textContent = 'Playing';
+    if (playMeta) playMeta.textContent = 'Playing';
   }
 
   function stopPlay() {
@@ -1766,12 +2078,22 @@
     else startPlay();
   }
 
+  function openAboutModal() {
+    if (!aboutModal) return;
+    aboutModal.hidden = false;
+  }
+
+  function closeAboutModal() {
+    if (!aboutModal) return;
+    aboutModal.hidden = true;
+  }
+
   function startApp() {
+    playUiClick();
     launchOverlay.classList.add('hidden');
     appRoot.hidden = false;
     ensureAudio();
     renderSampleSlots();
-    renderWeightSliders();
     updateActiveSampleLab();
     buildRingsGeometry();
     drawRings();
@@ -1789,52 +2111,362 @@
     return clampWindowStartForSlot(activeSlot, t * slotDuration(activeSlot) - windowDurationForSlot(activeSlot) / 2);
   }
 
+  function setAppMenuOpen(open) {
+    if (!appMenu || !menuBtn) return;
+    appMenu.hidden = !open;
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open && menuFileSub) menuFileSub.hidden = true;
+  }
+
+  function openSettingsModal() {
+    setAppMenuOpen(false);
+    if (!settingsModal) return;
+    settingsSnapshot = captureSettingsSnapshot();
+    renderDurationOptions();
+    syncDurationSummary();
+    if (bpmVal) bpmVal.textContent = String(getBpm());
+    if (ringCountVal) ringCountVal.textContent = String(getRingCount());
+    settingsModal.hidden = false;
+  }
+
+  function closeSettingsModal(opts) {
+    opts = opts || {};
+    if (!settingsModal) return;
+    if (opts.restore && settingsSnapshot) {
+      restoreSettingsSnapshot(settingsSnapshot);
+      // Pending state may still come from macro bar — leave as-is unless only settings changed
+    }
+    settingsModal.hidden = true;
+    settingsSnapshot = null;
+  }
+
+  function applySettingsFromModal() {
+    if (playing) stopPlay();
+    resliceAndDraw();
+    closeSettingsModal({ restore: false });
+  }
+
+  function tryCloseSettings() {
+    if (!settingsModal || settingsModal.hidden) return;
+    if (settingsPending) {
+      var ok = window.confirm('Apply your settings changes to the wheel?');
+      if (ok) {
+        applySettingsFromModal();
+      } else {
+        closeSettingsModal({ restore: true });
+      }
+      return;
+    }
+    closeSettingsModal({ restore: false });
+  }
+
+  function encodeWavFromBuffer(buffer) {
+    var numChannels = buffer.numberOfChannels;
+    var sampleRate = buffer.sampleRate;
+    var numFrames = buffer.length;
+    var bytesPerSample = 2;
+    var blockAlign = numChannels * bytesPerSample;
+    var dataSize = numFrames * blockAlign;
+    var arrayBuffer = new ArrayBuffer(44 + dataSize);
+    var view = new DataView(arrayBuffer);
+    function writeString(offset, text) {
+      for (var i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+    }
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+    var offset = 44;
+    for (var f = 0; f < numFrames; f++) {
+      for (var ch = 0; ch < numChannels; ch++) {
+        var s = buffer.getChannelData(ch)[f];
+        s = Math.max(-1, Math.min(1, s));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  }
+
+  function downloadBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function copyBufferToContext(buffer, octx) {
+    var out = octx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+    for (var c = 0; c < buffer.numberOfChannels; c++) {
+      out.getChannelData(c).set(buffer.getChannelData(c));
+    }
+    return out;
+  }
+
+  function reverseCopiedBuffer(buffer, octx) {
+    var out = octx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+    for (var c = 0; c < buffer.numberOfChannels; c++) {
+      var src = buffer.getChannelData(c);
+      var dst = out.getChannelData(c);
+      for (var i = 0; i < src.length; i++) dst[i] = src[src.length - 1 - i];
+    }
+    return out;
+  }
+
+  function scheduleOfflineSlice(octx, dest, buffer, when, env, opts) {
+    if (!buffer || !dest) return;
+    env = env || defaultEnv();
+    opts = opts || {};
+    var reversePct = Math.max(0, Math.min(100, Number(env.reversePct) || 0));
+    var playBuf = buffer;
+    if (reversePct > 0 && Math.random() * 100 < reversePct) {
+      playBuf = reverseCopiedBuffer(buffer, octx);
+    }
+    var attack = Math.max(0, (env.attackMs || 0) / 1000);
+    var release = Math.max(0, (env.releaseMs || 0) / 1000);
+    var pct = Math.max(0.1, Math.min(1, (env.durationPct || 100) / 100));
+    var playDur = Math.max(0.01, playBuf.duration * pct);
+    if (opts.maxDur != null) playDur = Math.min(playDur, Math.max(0.012, opts.maxDur));
+    if (opts.stutter) {
+      attack = Math.min(attack, 0.004);
+      release = Math.min(Math.max(release * 0.35, 0.008), playDur * 0.4);
+    }
+    var src = octx.createBufferSource();
+    src.buffer = playBuf;
+    var g = octx.createGain();
+    src.connect(g);
+    g.connect(dest);
+    var peak = opts.stutter ? 0.92 : 1;
+    var atk = Math.min(attack, playDur * 0.45);
+    var rel = Math.min(release, Math.max(0.001, playDur - atk));
+    var t0 = Math.max(0, when);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + atk);
+    var relStart = t0 + playDur - rel;
+    if (relStart > t0 + atk) g.gain.setValueAtTime(peak, relStart);
+    g.gain.linearRampToValueAtTime(0.0001, t0 + playDur);
+    try { src.start(t0, 0, playDur + 0.02); } catch (err) { /* skip */ }
+  }
+
+  function scheduleOfflineCellHits(octx, dest, buffer, when, env, stepDur, reps) {
+    reps = Math.max(1, Math.min(5, reps || 1));
+    if (reps === 1) {
+      scheduleOfflineSlice(octx, dest, buffer, when, env, { maxDur: stepDur * 0.98 });
+      return;
+    }
+    var slot = stepDur / reps;
+    for (var r = 0; r < reps; r++) {
+      scheduleOfflineSlice(octx, dest, buffer, when + r * slot, env, {
+        maxDur: slot * 0.88,
+        stutter: true
+      });
+    }
+  }
+
+  async function saveWheelWav() {
+    setAppMenuOpen(false);
+    if (savingWav) return;
+    if (!hasSamples() || !playTimeline.length || !slices.length) {
+      window.alert('Load samples and Reslice before saving.');
+      return;
+    }
+    var OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!OfflineCtx) {
+      window.alert('WAV export is not supported in this browser.');
+      return;
+    }
+    savingWav = true;
+    if (menuSaveBtn) menuSaveBtn.textContent = 'Saving…';
+    try {
+      ensureAudio();
+      var loopSec = 0;
+      for (var i = 0; i < playTimeline.length; i++) {
+        loopSec += beatsToSec(playTimeline[i].beats || 0.25);
+      }
+      if (!(loopSec > 0)) loopSec = barDurationSec();
+      var tail = 0.2;
+      var durationSec = loopSec + tail;
+      var sampleRate = (ctx && ctx.sampleRate) || 44100;
+      var octx = new OfflineCtx(2, Math.ceil(durationSec * sampleRate), sampleRate);
+      var dest = octx.createGain();
+      dest.gain.value = 0.9;
+      dest.connect(octx.destination);
+
+      var copied = [];
+      for (var s = 0; s < slices.length; s++) {
+        copied[s] = slices[s] && slices[s].buffer
+          ? copyBufferToContext(slices[s].buffer, octx)
+          : null;
+      }
+
+      var t = 0;
+      for (var step = 0; step < playTimeline.length; step++) {
+        var info = flatStep(step);
+        var stepDur = beatsToSec(info && info.beats ? info.beats : 0.25);
+        if (info && info.si != null && copied[info.si]) {
+          scheduleOfflineCellHits(
+            octx,
+            dest,
+            copied[info.si],
+            t,
+            info.ring,
+            stepDur,
+            info.reps
+          );
+        }
+        t += stepDur;
+      }
+
+      var rendered = await octx.startRendering();
+      var blob = encodeWavFromBuffer(rendered);
+      downloadBlob(blob, 'circle-slicer-' + getBpm() + 'bpm.wav');
+    } catch (err) {
+      console.error(err);
+      window.alert('Could not save WAV.');
+    } finally {
+      savingWav = false;
+      if (menuSaveBtn) menuSaveBtn.textContent = 'Save WAV';
+    }
+  }
+
   // —— Events ——
   launchGo.addEventListener('click', startApp);
   launchOverlay.addEventListener('click', function (e) {
     if (e.target === launchOverlay || e.target === launchGo) startApp();
   });
 
-  if (durDropBtn) {
-    durDropBtn.addEventListener('click', function (e) {
+  if (menuBtn) {
+    menuBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      setDurMenuOpen(!durMenuOpen);
+      setAppMenuOpen(appMenu && appMenu.hidden);
     });
   }
-  if (durMenuCancel) {
-    durMenuCancel.addEventListener('click', function (e) {
+  if (menuFileBtn) {
+    menuFileBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      setDurMenuOpen(false);
+      if (menuFileSub) menuFileSub.hidden = !menuFileSub.hidden;
     });
   }
-  if (durMenu) {
-    durMenu.addEventListener('click', function (e) {
+  if (menuUploadBtn) {
+    menuUploadBtn.addEventListener('click', function (e) {
       e.stopPropagation();
+      setAppMenuOpen(false);
+      openSamplesModal();
+    });
+  }
+  if (menuSaveBtn) {
+    menuSaveBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      saveWheelWav();
+    });
+  }
+  if (menuSettingsBtn) {
+    menuSettingsBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openSettingsModal();
     });
   }
   document.addEventListener('click', function () {
-    if (durMenuOpen) setDurMenuOpen(false);
+    setAppMenuOpen(false);
   });
+  if (appMenu) {
+    appMenu.addEventListener('click', function (e) {
+      e.stopPropagation();
+    });
+  }
+  if (settingsApply) {
+    settingsApply.addEventListener('click', applySettingsFromModal);
+  }
+  if (settingsCancel) {
+    settingsCancel.addEventListener('click', function () {
+      closeSettingsModal({ restore: true });
+    });
+  }
+  if (settingsModal) {
+    settingsModal.addEventListener('click', function (e) {
+      if (e.target === settingsModal) tryCloseSettings();
+    });
+  }
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && durMenuOpen) setDurMenuOpen(false);
+    if (e.key !== 'Escape') return;
+    if (aboutModal && !aboutModal.hidden) {
+      closeAboutModal();
+      return;
+    }
+    if (samplesModal && !samplesModal.hidden) {
+      closeSamplesModal();
+      return;
+    }
+    if (settingsModal && !settingsModal.hidden) {
+      tryCloseSettings();
+      return;
+    }
+    setAppMenuOpen(false);
   });
-  window.addEventListener('resize', function () {
-    if (durMenuOpen) positionDurMenu();
-  });
+
+  if (appTitleBtn) {
+    appTitleBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openAboutModal();
+    });
+  }
+  if (aboutModalClose) {
+    aboutModalClose.addEventListener('click', closeAboutModal);
+  }
+  if (aboutModal) {
+    aboutModal.addEventListener('click', function (e) {
+      if (e.target === aboutModal) closeAboutModal();
+    });
+  }
+
+  if (waveHint) {
+    waveHint.addEventListener('click', function () {
+      if (!waveHint.classList.contains('is-cta')) return;
+      openSamplesModal();
+    });
+  }
 
   bpmEl.addEventListener('input', function () {
     bpmVal.textContent = String(getBpm());
     markSettingsPending();
   });
 
-  sprinkleModeEl.addEventListener('change', function () {
-    syncModePanels();
-    markSettingsPending();
-  });
+  if (orderModeEl) {
+    orderModeEl.addEventListener('change', function () {
+      syncModePanels();
+      markBreakerCustom();
+      markSettingsPending();
+    });
+  }
+
+  if (macroModeEl) {
+    macroModeEl.addEventListener('change', function () {
+      var id = macroModeEl.value;
+      if (!id || id === 'custom') {
+        markBreakerCustom();
+        return;
+      }
+      applyBreakerPreset(id, true);
+    });
+  }
 
   if (seqSwapEl) {
-    seqSwapEl.addEventListener('input', function () {
-      if (seqSwapVal) seqSwapVal.textContent = getSeqSwapAmount() + '%';
+    seqSwapEl.addEventListener('change', function () {
+      markBreakerCustom();
       markSettingsPending();
     });
   }
@@ -1845,14 +2477,13 @@
     markSettingsPending();
   }
 
-  if (breakSkipEl) breakSkipEl.addEventListener('input', onBreakerParamInput);
-  if (breakStutterEl) breakStutterEl.addEventListener('input', onBreakerParamInput);
-  if (breakIntensityEl) breakIntensityEl.addEventListener('input', onBreakerParamInput);
+  if (breakSkipEl) breakSkipEl.addEventListener('change', onBreakerParamInput);
+  if (breakStutterEl) breakStutterEl.addEventListener('change', onBreakerParamInput);
+  if (breakIntensityEl) breakIntensityEl.addEventListener('change', onBreakerParamInput);
 
-  if (mixModeEl) {
-    mixModeEl.addEventListener('change', function () {
-      syncMixUi();
-      markSettingsPending();
+  if (applyToAllBtn) {
+    applyToAllBtn.addEventListener('click', function () {
+      applyEnvToAllRings();
     });
   }
 
@@ -1866,16 +2497,25 @@
     resliceAndDraw();
   });
 
-  fileInput.addEventListener('change', function () {
-    var f = fileInput.files && fileInput.files[0];
-    if (!f) return;
-    if (playing) stopPlay();
-    loadFile(f).catch(function (err) {
-      console.error(err);
-      sliceMeta.textContent = 'Could not decode that file';
+  if (samplesModalClose) {
+    samplesModalClose.addEventListener('click', closeSamplesModal);
+  }
+  if (samplesModalDone) {
+    samplesModalDone.addEventListener('click', closeSamplesModal);
+  }
+  if (samplesModal) {
+    samplesModal.addEventListener('click', function (e) {
+      if (e.target === samplesModal) closeSamplesModal();
     });
-    fileInput.value = '';
-  });
+  }
+
+  if (viewSampleSelect) {
+    viewSampleSelect.addEventListener('change', function () {
+      var idx = Number(viewSampleSelect.value);
+      if (!Number.isFinite(idx)) return;
+      setActiveSlot(idx);
+    });
+  }
 
   hubBtn.addEventListener('click', togglePlay);
 
@@ -1887,10 +2527,16 @@
     });
   }
 
-  [ringAttackEl, ringReleaseEl, ringDurEl].forEach(function (el) {
+  [ringAttackEl, ringReleaseEl].forEach(function (el) {
     if (!el) return;
     el.addEventListener('input', applyEnvFromUi);
   });
+  if (ringDurEl) {
+    ringDurEl.addEventListener('change', applyEnvFromUi);
+  }
+  if (ringReverseEl) {
+    ringReverseEl.addEventListener('change', applyEnvFromUi);
+  }
 
   if (waveWrap) {
     waveWrap.addEventListener('click', function (e) {
@@ -1932,7 +2578,6 @@
   renderDurationOptions();
   syncDurationSummary();
   renderSampleSlots();
-  renderWeightSliders();
   renderBreakerPresets();
   applyBreakerPreset('balanced', false);
   syncModePanels();
