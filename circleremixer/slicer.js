@@ -115,12 +115,12 @@
     { id: 'soft', label: 'Soft', skip: 0, stutter: 34, intensity: 2, order: 'sequential', neighbor: 34, reverse: 0, attackMs: 18, releaseMs: 120, durationPct: 100 },
     { id: 'straight', label: 'Straight', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 0, reverse: 0, attackMs: 4, releaseMs: 100, durationPct: 100 },
     { id: 'march', label: 'March', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 67, reverse: 0, attackMs: 6, releaseMs: 100, durationPct: 100 },
-    { id: 'ghost', label: 'Ghost', skip: 12, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 34, attackMs: 24, releaseMs: 120, durationPct: 67 },
+    { id: 'ghost', label: 'Ghost', skip: 12, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 34, attackMs: 24, releaseMs: 120, durationPct: 67, slices: [{ label: '1/2' }] },
     { id: 'flip', label: 'Flip', skip: 0, stutter: 34, intensity: 3, order: 'random', neighbor: 34, reverse: 67, attackMs: 6, releaseMs: 100, durationPct: 89 },
-    { id: 'tape', label: 'Tape', skip: 0, stutter: 34, intensity: 4, order: 'random', neighbor: 34, reverse: 89, attackMs: 12, releaseMs: 120, durationPct: 89 },
+    { id: 'tape', label: 'Tape', skip: 0, stutter: 34, intensity: 4, order: 'random', neighbor: 34, reverse: 89, attackMs: 12, releaseMs: 120, durationPct: 89, slices: [{ label: '1/2', pct: 67 }, { label: '1/4', pct: 43 }] },
     { id: 'mirror', label: 'Mirror', skip: 0, stutter: 12, intensity: 3, order: 'sequential', neighbor: 12, reverse: 100, attackMs: 6, releaseMs: 100, durationPct: 100 },
     { id: 'snap', label: 'Snap', skip: 0, stutter: 67, intensity: 5, order: 'sequential', neighbor: 34, reverse: 12, attackMs: 0, releaseMs: 28, durationPct: 67 },
-    { id: 'haze', label: 'Haze', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 12, attackMs: 36, releaseMs: 120, durationPct: 100 },
+    { id: 'haze', label: 'Haze', skip: 0, stutter: 12, intensity: 2, order: 'sequential', neighbor: 12, reverse: 12, attackMs: 36, releaseMs: 120, durationPct: 100, slices: [{ label: '1/4' }] },
     { id: 'chaos', label: 'Chaos', skip: 12, stutter: 67, intensity: 5, order: 'random', neighbor: 67, reverse: 100, attackMs: 0, releaseMs: 70, durationPct: 67 }
   ];
   var activeBreakerPreset = 'balanced';
@@ -305,14 +305,20 @@
         return {
           beats: d.beats,
           priority: rank,
-          label: d.label
+          label: d.label,
+          weight: d.weight != null && d.weight > 0 ? d.weight : null
         };
       });
   }
 
-  /** Weight: priority 1 (top) heaviest. */
+  /** Weight: explicit preset weight, else priority 1 (top) heaviest. */
   function priorityWeight(p) {
     return 1 / Math.max(1, p);
+  }
+
+  function durationEntryWeight(entry, rank) {
+    if (entry && entry.weight != null && entry.weight > 0) return entry.weight;
+    return priorityWeight(rank);
   }
 
   function durationProbabilities() {
@@ -325,7 +331,7 @@
         continue;
       }
       rank += 1;
-      weights[i] = priorityWeight(rank);
+      weights[i] = durationEntryWeight(DURATION_DEFS[i], rank);
       total += weights[i];
     }
     return weights.map(function (w) {
@@ -342,7 +348,7 @@
     var total = 0;
     var weights = [];
     for (var i = 0; i < fit.length; i++) {
-      var w = priorityWeight(fit[i].priority);
+      var w = durationEntryWeight(fit[i], fit[i].priority);
       weights.push(w);
       total += w;
     }
@@ -542,9 +548,56 @@
     var count = 1 + Math.floor(Math.random() * 3); // 1–3 enabled
     for (var i = 0; i < DURATION_DEFS.length; i++) {
       DURATION_DEFS[i].on = i < count;
+      DURATION_DEFS[i].weight = null;
     }
     renderDurationOptions();
     syncDurationSummary();
+  }
+
+  /** Apply fixed slice-duration set from a macro. Returns true if applied. */
+  function applyPresetSliceOptions(p) {
+    if (!p || !Array.isArray(p.slices) || !p.slices.length) return false;
+    var orderLabels = [];
+    var enableSet = {};
+    var weightByLabel = {};
+    for (var i = 0; i < p.slices.length; i++) {
+      var s = p.slices[i];
+      var lab = s.label;
+      if (!lab && s.beats != null) {
+        for (var d = 0; d < DURATION_DEFS.length; d++) {
+          if (DURATION_DEFS[d].beats === s.beats) {
+            lab = DURATION_DEFS[d].label;
+            break;
+          }
+        }
+      }
+      if (!lab) continue;
+      orderLabels.push(lab);
+      enableSet[lab] = true;
+      if (s.pct != null && Number(s.pct) > 0) weightByLabel[lab] = Number(s.pct);
+      else if (s.weight != null && Number(s.weight) > 0) weightByLabel[lab] = Number(s.weight);
+    }
+    if (!orderLabels.length) return false;
+
+    DURATION_DEFS.sort(function (a, b) {
+      var ia = orderLabels.indexOf(a.label);
+      var ib = orderLabels.indexOf(b.label);
+      if (ia < 0 && ib < 0) return 0;
+      if (ia < 0) return 1;
+      if (ib < 0) return -1;
+      return ia - ib;
+    });
+    for (var j = 0; j < DURATION_DEFS.length; j++) {
+      var def = DURATION_DEFS[j];
+      def.on = !!enableSet[def.label];
+      def.weight = def.on && weightByLabel[def.label] != null
+        ? weightByLabel[def.label]
+        : null;
+    }
+    ensureAtLeastOneDuration();
+    renderDurationOptions();
+    syncDurationSummary();
+    return true;
   }
 
   function rollDice() {
@@ -552,7 +605,10 @@
     if (!BREAKER_PRESETS.length) return;
     var pick = BREAKER_PRESETS[Math.floor(Math.random() * BREAKER_PRESETS.length)];
     applyBreakerPreset(pick.id, false);
-    randomizeSliceDurations();
+    // Macros with fixed slice options keep those; others get a random slice set
+    if (!applyPresetSliceOptions(pick)) {
+      randomizeSliceDurations();
+    }
     if (playing) stopPlay();
     resliceAndDraw();
     if (slices.length) startPlay();
@@ -664,6 +720,8 @@
     if (ringReverseEl) ringReverseEl.value = String(env.reversePct);
     showApplyToAll = false;
     syncRingEnvUi();
+
+    applyPresetSliceOptions(p);
 
     renderBreakerPresets();
     if (resprinkle) markSettingsPending();
