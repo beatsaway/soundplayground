@@ -70,6 +70,7 @@
       z-index: 10;
       border-bottom: 1px solid var(--line);
       background: #0e0e14;
+      overflow: visible;
     }
     .top-bar {
       display: flex;
@@ -79,6 +80,7 @@
       justify-content: flex-start;
       padding: 4px 6px;
       margin: 0;
+      overflow: visible;
     }
     .chip, .slide {
       display: inline-flex;
@@ -161,49 +163,122 @@
       cursor: pointer; font-size: 0.75rem; padding: 0 2px; line-height: 1;
     }
     .slot-clear:hover { color: #fff; }
-    .dur-panel {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 3px 5px;
-      align-items: center;
-      padding: 0 2px;
-    }
-    .dur-opt {
+    .dur-drop {
+      position: relative;
       display: inline-flex;
       align-items: center;
-      gap: 3px;
-      min-height: 24px;
-      padding: 0 5px;
-      border-radius: 5px;
+      z-index: 40;
+    }
+    .dur-drop-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 26px;
+      padding: 0 8px;
+      border-radius: 6px;
       border: 1px solid #2a2a34;
       background: #1a1a22;
-      font-size: 0.66rem;
       color: var(--ink);
-      user-select: none;
+      font: inherit;
+      font-size: 0.72rem;
+      cursor: pointer;
     }
-    .dur-opt.is-on {
-      border-color: rgba(200, 255, 0, 0.45);
-      background: #22222a;
+    .dur-drop-btn:hover { border-color: #3a3a46; }
+    .dur-drop.is-open .dur-drop-btn {
+      border-color: var(--play);
     }
-    .dur-opt input[type="checkbox"] {
+    .dur-drop-btn .slide-lab { color: var(--muted); }
+    .dur-drop-summary {
+      max-width: 9rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .dur-drop-chev { opacity: 0.55; font-size: 0.65rem; }
+    .dur-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      min-width: 15.5rem;
+      max-height: min(70vh, 420px);
+      overflow: auto;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #2e2e38;
+      background: #14141c;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+      z-index: 200;
+    }
+    .chip.btn.is-pending {
+      background: var(--play);
+      color: #111;
+      border-color: var(--play);
+    }
+    .dur-menu[hidden] { display: none !important; }
+    .dur-menu-hint {
+      color: var(--muted);
+      font-size: 0.64rem;
+      margin: 0 0 8px;
+      line-height: 1.35;
+    }
+    .dur-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 5px 4px;
+      border-radius: 5px;
+    }
+    .dur-row:hover { background: #1c1c26; }
+    .dur-row input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
       margin: 0;
       accent-color: var(--play);
+      cursor: pointer;
     }
-    .dur-opt .prio {
-      width: 2.1rem;
+    .dur-row-lab {
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .dur-row .prio {
+      width: 2.4rem;
       border: 1px solid #33333c;
-      border-radius: 3px;
+      border-radius: 4px;
       background: #0e0e14;
       color: var(--ink);
       font: inherit;
-      font-size: 0.65rem;
-      padding: 1px 2px;
+      font-size: 0.7rem;
+      padding: 3px 2px;
       text-align: center;
     }
-    .dur-opt .prio:disabled {
-      opacity: 0.35;
+    .dur-row .prio:disabled { opacity: 0.35; }
+    .dur-menu-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #2a2a34;
     }
-    .dur-lab { color: var(--muted); font-weight: 500; font-size: 0.66rem; }
+    .dur-menu-actions button {
+      border: 1px solid #2a2a34;
+      background: #1a1a22;
+      color: var(--ink);
+      border-radius: 5px;
+      min-height: 26px;
+      padding: 0 10px;
+      font: inherit;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .dur-menu-actions .is-primary {
+      background: var(--play);
+      color: #111;
+      border-color: var(--play);
+    }
 
     .breaker-panel, .ring-env, .slice-viz, footer.bottom {
       z-index: 10;
@@ -373,8 +448,19 @@
           <span class="slide-val" id="bpmVal">120</span>
         </label>
 
-        <div class="dur-panel" id="sliceDurs" title="Enable durations · priority 1 = most likely · ring total ≤ 4 beats">
-          <span class="dur-lab">Slice</span>
+        <div class="dur-drop" id="sliceDurs">
+          <button type="button" class="dur-drop-btn" id="durDropBtn" aria-haspopup="true" aria-expanded="false" title="Choose slice durations">
+            <span class="slide-lab">Slice</span>
+            <span class="dur-drop-summary" id="durDropSummary">¼b</span>
+            <span class="dur-drop-chev" aria-hidden="true">▾</span>
+          </button>
+          <div class="dur-menu" id="durMenu" hidden role="dialog" aria-label="Slice durations">
+            <p class="dur-menu-hint">Tick durations here. Priority 1 = most likely. Click <b>Reslice</b> to apply — nothing updates until then.</p>
+            <div id="durMenuRows"></div>
+            <div class="dur-menu-actions">
+              <button type="button" id="durMenuCancel">Done</button>
+            </div>
+          </div>
         </div>
 
         <label class="chip" title="How slices land on ring segments">
@@ -398,7 +484,7 @@
           <span class="slide-val" id="ringCountVal">4</span>
         </label>
 
-        <button type="button" class="chip btn" id="resliceBtn" disabled title="Re-slice and re-sprinkle">Reslice</button>
+        <button type="button" class="chip btn" id="resliceBtn" disabled title="Apply pending settings and rebuild rings">Reslice</button>
         <span class="meta" id="sliceMeta">Upload samples to begin</span>
       </div>
     </header>

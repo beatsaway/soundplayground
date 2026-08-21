@@ -50,7 +50,15 @@
   var bpmEl = document.getElementById('bpm');
   var bpmVal = document.getElementById('bpmVal');
   var sliceDursEl = document.getElementById('sliceDurs');
+  var durDropBtn = document.getElementById('durDropBtn');
+  var durDropSummary = document.getElementById('durDropSummary');
+  var durMenu = document.getElementById('durMenu');
+  var durMenuRows = document.getElementById('durMenuRows');
+  var durMenuApply = document.getElementById('durMenuApply');
+  var durMenuCancel = document.getElementById('durMenuCancel');
   var sprinkleModeEl = document.getElementById('sprinkleMode');
+  var durMenuOpen = false;
+  var settingsPending = false;
   var seqSwapEl = document.getElementById('seqSwap');
   var seqSwapVal = document.getElementById('seqSwapVal');
   var seqSwapWrap = document.getElementById('seqSwapWrap');
@@ -237,30 +245,79 @@
     return plan;
   }
 
-  function renderDurationOptions() {
-    if (!sliceDursEl) return;
-    var lab = sliceDursEl.querySelector('.dur-lab');
-    sliceDursEl.innerHTML = '';
-    if (lab) sliceDursEl.appendChild(lab);
-    else {
-      var span = document.createElement('span');
-      span.className = 'dur-lab';
-      span.textContent = 'Slice';
-      sliceDursEl.appendChild(span);
+  function durationSummaryText() {
+    var opts = getEnabledDurations();
+    if (!opts.length) return 'none';
+    return opts
+      .slice()
+      .sort(function (a, b) { return b.beats - a.beats; })
+      .map(function (o) { return o.label; })
+      .join(', ');
+  }
+
+  function markSettingsPending() {
+    settingsPending = true;
+    if (resliceBtn && hasSamples()) {
+      resliceBtn.disabled = false;
+      resliceBtn.classList.add('is-pending');
+      resliceBtn.textContent = 'Reslice ●';
     }
+  }
+
+  function clearSettingsPending() {
+    settingsPending = false;
+    if (resliceBtn) {
+      resliceBtn.classList.remove('is-pending');
+      resliceBtn.textContent = 'Reslice';
+    }
+  }
+
+  function positionDurMenu() {
+    if (!durMenu || !durDropBtn) return;
+    var r = durDropBtn.getBoundingClientRect();
+    var menuW = Math.max(248, durMenu.offsetWidth || 248);
+    var left = Math.min(r.left, window.innerWidth - menuW - 8);
+    left = Math.max(8, left);
+    var top = r.bottom + 4;
+    if (top + 280 > window.innerHeight) {
+      top = Math.max(8, r.top - 4 - Math.min(280, window.innerHeight * 0.7));
+    }
+    durMenu.style.left = left + 'px';
+    durMenu.style.top = top + 'px';
+  }
+
+  function syncDurationSummary() {
+    if (durDropSummary) durDropSummary.textContent = durationSummaryText();
+  }
+
+  function setDurMenuOpen(open) {
+    durMenuOpen = !!open;
+    if (sliceDursEl) sliceDursEl.classList.toggle('is-open', durMenuOpen);
+    if (durMenu) durMenu.hidden = !durMenuOpen;
+    if (durDropBtn) durDropBtn.setAttribute('aria-expanded', durMenuOpen ? 'true' : 'false');
+    if (durMenuOpen) {
+      renderDurationOptions();
+      positionDurMenu();
+    }
+  }
+
+  function renderDurationOptions() {
+    if (!durMenuRows) return;
+    durMenuRows.innerHTML = '';
 
     DURATION_DEFS.forEach(function (def, idx) {
-      var label = document.createElement('label');
-      label.className = 'dur-opt' + (def.on ? ' is-on' : '');
-      label.title = def.label + ' · priority 1 = most likely';
+      var row = document.createElement('div');
+      row.className = 'dur-row';
 
       var cb = document.createElement('input');
       cb.type = 'checkbox';
+      cb.id = 'durCb' + idx;
       cb.checked = !!def.on;
-      cb.setAttribute('data-idx', String(idx));
 
-      var name = document.createElement('span');
-      name.textContent = def.label;
+      var lab = document.createElement('label');
+      lab.className = 'dur-row-lab';
+      lab.htmlFor = 'durCb' + idx;
+      lab.textContent = def.label + (def.beats >= 1 ? ' beat' + (def.beats > 1 ? 's' : '') : '');
 
       var prio = document.createElement('input');
       prio.type = 'number';
@@ -271,39 +328,48 @@
       prio.value = String(def.priority);
       prio.disabled = !def.on;
       prio.title = 'Priority (1 = most likely)';
-      prio.setAttribute('data-idx', String(idx));
+      prio.setAttribute('aria-label', def.label + ' priority');
 
+      cb.addEventListener('click', function (e) {
+        e.stopPropagation();
+      });
       cb.addEventListener('change', function () {
-        def.on = cb.checked;
-        prio.disabled = !cb.checked;
-        label.classList.toggle('is-on', def.on);
-        ensureAtLeastOneDuration();
-        onDurationsChanged();
+        def.on = !!cb.checked;
+        prio.disabled = !def.on;
+        if (!getEnabledDurations().length) {
+          def.on = true;
+          cb.checked = true;
+          prio.disabled = false;
+        }
+        syncDurationSummary();
+        markSettingsPending();
+      });
+
+      prio.addEventListener('click', function (e) { e.stopPropagation(); });
+      prio.addEventListener('input', function () {
+        def.priority = Math.max(1, Math.min(9, Number(prio.value) || 1));
+        markSettingsPending();
       });
       prio.addEventListener('change', function () {
         def.priority = Math.max(1, Math.min(9, Number(prio.value) || 1));
         prio.value = String(def.priority);
-        onDurationsChanged();
+        markSettingsPending();
       });
 
-      label.appendChild(cb);
-      label.appendChild(name);
-      label.appendChild(prio);
-      sliceDursEl.appendChild(label);
+      row.appendChild(cb);
+      row.appendChild(lab);
+      row.appendChild(prio);
+      durMenuRows.appendChild(row);
     });
+
+    syncDurationSummary();
   }
 
   function ensureAtLeastOneDuration() {
     if (getEnabledDurations().length) return;
-    var d = DURATION_DEFS[5] || DURATION_DEFS[0]; // ¼b default
+    var d = DURATION_DEFS[5] || DURATION_DEFS[0];
     d.on = true;
     d.priority = 1;
-    renderDurationOptions();
-  }
-
-  function onDurationsChanged() {
-    if (playing) stopPlay();
-    resliceAndDraw();
   }
 
   function getRingCount() {
@@ -357,12 +423,7 @@
     syncBreakerSliderLabels();
     renderBreakerPresets();
     if (breakerPresetHint) breakerPresetHint.textContent = p.label;
-    if (resprinkle && getSprinkleMode() === 'breaker' && hasSamples()) {
-      if (playing) stopPlay();
-      sprinkle();
-      drawRings();
-      updateMeta();
-    }
+    if (resprinkle) markSettingsPending();
   }
 
   function markBreakerCustom() {
@@ -481,7 +542,7 @@
       input.addEventListener('input', function () {
         slot.weight = Number(input.value) || 50;
         val.textContent = String(getSlotWeight(idx));
-        if (hasSamples()) resprinkleOnly();
+        markSettingsPending();
       });
       lab.appendChild(input);
 
@@ -1534,6 +1595,8 @@
   }
 
   function resliceAndDraw() {
+    ensureAtLeastOneDuration();
+    syncDurationSummary();
     if (!hasSamples()) {
       slices = [];
       slicesBySlot = [[], [], []];
@@ -1542,6 +1605,7 @@
       drawRings();
       drawWaveform();
       updateMeta();
+      clearSettingsPending();
       return;
     }
     ensureAudio();
@@ -1556,6 +1620,7 @@
     drawRings();
     drawWaveform();
     updateMeta();
+    clearSettingsPending();
   }
 
   function resprinkleOnly() {
@@ -1730,37 +1795,54 @@
     if (e.target === launchOverlay || e.target === launchGo) startApp();
   });
 
+  if (durDropBtn) {
+    durDropBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setDurMenuOpen(!durMenuOpen);
+    });
+  }
+  if (durMenuCancel) {
+    durMenuCancel.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setDurMenuOpen(false);
+    });
+  }
+  if (durMenu) {
+    durMenu.addEventListener('click', function (e) {
+      e.stopPropagation();
+    });
+  }
+  document.addEventListener('click', function () {
+    if (durMenuOpen) setDurMenuOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && durMenuOpen) setDurMenuOpen(false);
+  });
+  window.addEventListener('resize', function () {
+    if (durMenuOpen) positionDurMenu();
+  });
+
   bpmEl.addEventListener('input', function () {
     bpmVal.textContent = String(getBpm());
-    if (playing) stopPlay();
-    resliceAndDraw();
+    markSettingsPending();
   });
 
   sprinkleModeEl.addEventListener('change', function () {
-    if (playing) stopPlay();
     syncModePanels();
-    if (!hasSamples()) {
-      updateMeta();
-      return;
-    }
-    sprinkle();
-    drawRings();
-    updateMeta();
+    markSettingsPending();
   });
 
   if (seqSwapEl) {
     seqSwapEl.addEventListener('input', function () {
-      syncModePanels();
-      if (getSprinkleMode() !== 'sequential') return;
-      resprinkleOnly();
+      if (seqSwapVal) seqSwapVal.textContent = getSeqSwapAmount() + '%';
+      markSettingsPending();
     });
   }
 
   function onBreakerParamInput() {
     markBreakerCustom();
     syncBreakerSliderLabels();
-    if (getSprinkleMode() !== 'breaker') return;
-    resprinkleOnly();
+    markSettingsPending();
   }
 
   if (breakSkipEl) breakSkipEl.addEventListener('input', onBreakerParamInput);
@@ -1770,14 +1852,13 @@
   if (mixModeEl) {
     mixModeEl.addEventListener('change', function () {
       syncMixUi();
-      resprinkleOnly();
+      markSettingsPending();
     });
   }
 
   ringCountEl.addEventListener('input', function () {
     ringCountVal.textContent = String(getRingCount());
-    if (playing) stopPlay();
-    resliceAndDraw();
+    markSettingsPending();
   });
 
   resliceBtn.addEventListener('click', function () {
@@ -1800,8 +1881,9 @@
 
   if (windowStartEl) {
     windowStartEl.addEventListener('input', function () {
-      if (playing) stopPlay();
-      setWindowStart(Number(windowStartEl.value) || 0, true);
+      // Move window preview only — chop/sprinkle waits for Reslice
+      setWindowStart(Number(windowStartEl.value) || 0, false);
+      markSettingsPending();
     });
   }
 
@@ -1825,11 +1907,13 @@
       overviewDrag = true;
       overviewWrap.setPointerCapture(e.pointerId);
       if (playing) stopPlay();
-      setWindowStart(overviewSecFromClientX(e.clientX), true);
+      setWindowStart(overviewSecFromClientX(e.clientX), false);
+      markSettingsPending();
     });
     overviewWrap.addEventListener('pointermove', function (e) {
       if (!overviewDrag) return;
-      setWindowStart(overviewSecFromClientX(e.clientX), true);
+      setWindowStart(overviewSecFromClientX(e.clientX), false);
+      markSettingsPending();
     });
     overviewWrap.addEventListener('pointerup', function () {
       overviewDrag = false;
@@ -1846,6 +1930,7 @@
   buildRingsGeometry();
   drawRings();
   renderDurationOptions();
+  syncDurationSummary();
   renderSampleSlots();
   renderWeightSliders();
   renderBreakerPresets();
